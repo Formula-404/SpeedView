@@ -12,7 +12,7 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
 
 ## Deployment
 <p align="center">
-    <a href="https://your-app-link.com" target="_blank">
+    <a href="https://helven-marcia-speedview.pbp.cs.ui.ac.id" target="_blank">
         <img src="static/image/docs/Banner.png" alt="SpeedView Live" width="600"/>
         <br/>
         <b>SpeedView</b>
@@ -155,7 +155,7 @@ python manage.py runserver
 
 ## Others
 <p align="left">
-    <a href="https://figma.com/your-link-here">
+    <a href="https://figma.com/">
         <img src="https://img.shields.io/badge/Figma-Design%20Mockups-purple?style=for-the-badge&logo=figma&logoColor=white" alt="Figma Project"/>
     </a>
 </p>
