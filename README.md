@@ -1,7 +1,7 @@
 # SpeedView
 
 Every Formula 1 race is more than just 20 cars circling a track.  
-It’s a blend of drivers pushing limits, teams playing strategy, and tiny details—like weather or pit timing—that decide the outcome.  
+It’s a blend of drivers pushing limits, teams playing strategy, and tiny details, like weather or pit timing that decide the outcome.  
 
 **SpeedView** was created to capture those details.  
 Its purpose is to turn raw, technical race data into an interactive hub where fans, students, and researchers can:  
