@@ -12,13 +12,13 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
 
 ## Deployment
 <p align="center">
+    <img src="static/image/docs/Banner.png" alt="SpeedView Live" width="600"/>
     <a href="https://helven-marcia-speedview.pbp.cs.ui.ac.id" target="_blank">
-        <img src="static/image/docs/Banner.png" alt="SpeedView Live" width="600"/>
-        <br/>
+        <br/>.
         <b>SpeedView</b>
         <br/>
-        <sub>Hosted on PWS | Production Build</sub>
     </a>
+    <sub>Hosted on Pacil Web Service</sub>
 </p>
 
 ## Contributor
@@ -26,7 +26,7 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
     <tr>
         <td align="center">
             <a href="https://github.com/helvenix">
-                <img src="https://avatars.githubusercontent.com/u/109453997?v=4"           width="80px;" alt="Helven Marica"/>
+                <img src="https://avatars.githubusercontent.com/u/109453997?v=4" width="80px;" alt="Helven Marica"/>
                 <br /><sub><b>Helven Marcia</b></sub>
             </a>
         </td>
@@ -43,8 +43,8 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
             </a>
         </td>
         <td align="center">
-            <a href="https://github.com/nailnail">
-                <img src="https://avatars.githubusercontent.com/u/30210192?v=4" width="80px;" alt="Naila Khadijah"/>
+            <a href="https://github.com/nail-nail">
+                <img src="https://avatars.githubusercontent.com/u/198184000?v=4" width="80px;" alt="Naila Khadijah"/>
                 <br /><sub><b>Naila Khadijah</b></sub>
             </a>
         </td>
@@ -67,7 +67,7 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
   <tr>
     <td><b>User</b></td>
     <td>Authentication, user profiles, and role permissions</td>
-    <td>Haekal Handrian</td>
+    <td>Haekal</td>
   </tr>
   <tr>
     <td><b>Driver</b></td>
