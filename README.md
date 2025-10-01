@@ -105,6 +105,20 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
   </tr>
 </table>
 
+## User Roles  
+
+- **Guest** → Can only access read-only pages
+- **Login User** →  
+  - Create and save comparison sessions  
+  - Share sessions with others  
+  - Start forum content (articles, discussions, fan meetings)  
+  - Comment and interact with forum content  
+- **Admin** →  
+  - Edit certain wiki data
+  - Moderate forum discussions (delete posts/comments)  
+  - Additional management tools and permissions  
+
+
 ## Initial Dataset Source Credit
 <p align="left">
   <a href="https://openf1.org"><img src="https://img.shields.io/badge/Data-OpenF1-red?style=flat-square&logo=fastapi&logoColor=white" alt="OpenF1"/></a>
