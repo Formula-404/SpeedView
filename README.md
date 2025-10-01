@@ -103,6 +103,10 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
     <td><b>Pit</b></td>
     <td>Pit stop strategies, tire changes, and related time losses</td>
   </tr>
+  <tr>
+    <td><b>Comparison</b></td>
+    <td>Comparison session to compare Driver, Team, Car, Circuit</td>
+  </tr>
 </table>
 
 ## User Roles  
