@@ -12,13 +12,13 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
 
 ## Deployment
 <p align="center">
+    <img src="static/image/docs/Banner.png" alt="SpeedView Live" width="600"/>
     <a href="https://helven-marcia-speedview.pbp.cs.ui.ac.id" target="_blank">
-        <img src="static/image/docs/Banner.png" alt="SpeedView Live" width="600"/>
-        <br/>
+        <br/>.
         <b>SpeedView</b>
         <br/>
-        <sub>Hosted on PWS | Production Build</sub>
     </a>
+    <sub>Hosted on Pacil Web Service</sub>
 </p>
 
 ## Contributor
@@ -26,7 +26,7 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
     <tr>
         <td align="center">
             <a href="https://github.com/helvenix">
-                <img src="https://avatars.githubusercontent.com/u/109453997?v=4"           width="80px;" alt="Helven Marica"/>
+                <img src="https://avatars.githubusercontent.com/u/109453997?v=4" width="80px;" alt="Helven Marica"/>
                 <br /><sub><b>Helven Marcia</b></sub>
             </a>
         </td>
@@ -43,8 +43,8 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
             </a>
         </td>
         <td align="center">
-            <a href="https://github.com/nailnail">
-                <img src="https://avatars.githubusercontent.com/u/30210192?v=4" width="80px;" alt="Naila Khadijah"/>
+            <a href="https://github.com/nail-nail">
+                <img src="https://avatars.githubusercontent.com/u/198184000?v=4" width="80px;" alt="Naila Khadijah"/>
                 <br /><sub><b>Naila Khadijah</b></sub>
             </a>
         </td>
@@ -62,50 +62,62 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
   <tr>
     <th style="width:180px; text-align:left;">Module</th>
     <th style="text-align:left;">Purpose</th>
+    <th style="text-align:left;">Developer</th>
   </tr>
   <tr>
     <td><b>User</b></td>
     <td>Authentication, user profiles, and role permissions</td>
+    <td>Haekal</td>
   </tr>
   <tr>
     <td><b>Driver</b></td>
     <td>Stores driver details, nationality, and racing statistics</td>
+    <td>Gilang</td>
   </tr>
   <tr>
     <td><b>Circuit</b></td>
     <td>Metadata about circuits (name, location, length, turns, layout)</td>
+    <td>Putri</td>
   </tr>
   <tr>
     <td><b>Meeting</b></td>
     <td>Represents a Grand Prix weekend (e.g., Monaco GP 2025)</td>
+    <td>Putri</td>
   </tr>
   <tr>
     <td><b>Session</b></td>
     <td>Practice sessions, Qualifying, Sprint, and Race data</td>
+    <td>Putri</td>
   </tr>
   <tr>
     <td><b>Weather</b></td>
     <td>Environmental conditions (track temperature, rain, wind, humidity)</td>
+    <td>Putri</td>
   </tr>
   <tr>
     <td><b>Team</b></td>
     <td>Constructor details, linked with drivers and cars</td>
+    <td>Naila</td>
   </tr>
   <tr>
     <td><b>Car</b></td>
     <td>Technical specifications of cars (engine, chassis, season entries)</td>
+    <td>Naila</td>
   </tr>
   <tr>
     <td><b>Laps</b></td>
     <td>Lap-by-lap performance data, including timing, sectors, and telemetry</td>
+    <td>Gilang</td>
   </tr>
   <tr>
     <td><b>Pit</b></td>
     <td>Pit stop strategies, tire changes, and related time losses</td>
+    <td>Gilang</td>
   </tr>
   <tr>
     <td><b>Comparison</b></td>
-    <td>Comparison session to compare Driver, Team, Car, Circuit</td>
+    <td>Comparison session to compare Driver, Team, Car, Circuit with statistical view</td>
+    <td>Helven</td>
   </tr>
 </table>
 
