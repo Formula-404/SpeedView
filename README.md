@@ -138,7 +138,8 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
 ## Initial Dataset Source Credit
 <p align="left">
   <a href="https://openf1.org"><img src="https://img.shields.io/badge/Data-OpenF1-red?style=flat-square&logo=fastapi&logoColor=white" alt="OpenF1"/></a>
-  <a href="https://www.wikipedia.org/"><img src="https://img.shields.io/badge/Data-Wikipedia-blue?style=flat-square&logo=wikipedia&logoColor=white" alt="Wikipedia"/></a>
+  <a href="https://en.wikipedia.org/wiki/List_of_Formula_One_circuits"><img src="https://img.shields.io/badge/Data-Wikipedia-blue?style=flat-square&logo=wikipedia&logoColor=white" alt="Wikipedia"/></a>
+  <a href="https://www.formula1.com"><img src="https://img.shields.io/badge/Data-formula1-blue?style=flat-square&logo=f1&logoColor=white" alt="Formula 1"/></a>
 </p>
 
 
@@ -185,7 +186,7 @@ python manage.py runserver
 
 ## Others
 <p align="left">
-    <a href="https://figma.com/">
+    <a href="https://www.figma.com/files/team/1555462377026209078/project/463049743/SpeedView?fuid=1485588854028450044">
         <img src="https://img.shields.io/badge/Figma-Design%20Mockups-purple?style=for-the-badge&logo=figma&logoColor=white" alt="Figma Project"/>
     </a>
 </p>
