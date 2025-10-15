@@ -14,7 +14,7 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
 <p align="center">
     <img src="static/image/docs/Banner.png" alt="SpeedView Live" width="600"/>
     <a href="https://helven-marcia-speedview.pbp.cs.ui.ac.id" target="_blank">
-        <br/>.
+        <br/>
         <b>SpeedView</b>
         <br/>
     </a>
@@ -97,7 +97,7 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
   <tr>
     <td><b>Team</b></td>
     <td>Constructor details, linked with drivers and cars</td>
-    <td>Naila</td>
+    <td>Helven</td>
   </tr>
   <tr>
     <td><b>Car</b></td>
@@ -139,7 +139,7 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
 <p align="left">
   <a href="https://openf1.org"><img src="https://img.shields.io/badge/Data-OpenF1-red?style=flat-square&logo=fastapi&logoColor=white" alt="OpenF1"/></a>
   <a href="https://en.wikipedia.org/wiki/List_of_Formula_One_circuits"><img src="https://img.shields.io/badge/Data-Wikipedia-blue?style=flat-square&logo=wikipedia&logoColor=white" alt="Wikipedia"/></a>
-  <a href="https://www.formula1.com"><img src="https://img.shields.io/badge/Data-formula1-blue?style=flat-square&logo=f1&logoColor=white" alt="Formula 1"/></a>
+  <a href="https://www.formula1.com"><img src="https://img.shields.io/badge/Data-formula1-red?style=flat-square&logo=f1&logoColor=white" alt="Formula 1"/></a>
 </p>
 
 
