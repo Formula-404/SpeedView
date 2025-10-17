@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Driver #{{ object.driver_number }} · SpeedView{% endblock title %}
+{% block content %}
+<p><a href="{% url 'main:driver_list' %}"><button>← Back</button></a></p>
+
+<h1>#{{ object.driver_number }} — {{ object.full_name|default:object.name_acronym }}</h1>
+<p>
+  {{ object.country_code }} {% if object.team_name %}· {{ object.team_name }}{% endif %}
+  {% if object.headshot_url %}<br><img src="{{ object.headshot_url }}" alt="headshot" width="140">{% endif %}
+</p>
+
+<h2>Laps (read-only)</h2>
+{% if object.laps.all %}
+  <table border="1" cellpadding="6">
+    <tr>
+      <th>Lap</th><th>Lap Time</th><th>S1</th><th>S2</th><th>S3</th><th>Out</th><th>Pit Out</th>
+    </tr>
+    {% for l in object.laps.all|dictsort:"lap_number" %}
+    <tr>
+      <td>{{ l.lap_number }}</td>
+      <td>{{ l.lap_duration }}</td>
+      <td>{{ l.duration_sector_1 }}</td>
+      <td>{{ l.duration_sector_2 }}</td>
+      <td>{{ l.duration_sector_3 }}</td>
+      <td>{{ l.is_out_lap }}</td>
+      <td>{{ l.is_pit_out_lap }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p>Belum ada data laps.</p>
+{% endif %}
+
+<h2>Pit Stops (read-only)</h2>
+{% if object.pitstops.all %}
+  <table border="1" cellpadding="6">
+    <tr>
+      <th>Lap</th><th>Pit Duration</th><th>Tire In</th><th>Tire Out</th>
+    </tr>
+    {% for p in object.pitstops.all|dictsort:"lap_number" %}
+    <tr>
+      <td>{{ p.lap_number }}</td>
+      <td>{{ p.pit_duration }}</td>
+      <td>{{ p.tire_in }}</td>
+      <td>{{ p.tire_out }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p>Belum ada pit stop.</p>
+{% endif %}
+{% endblock content %}

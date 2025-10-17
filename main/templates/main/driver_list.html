@@ -1,0 +1,15 @@
+<h1>Drivers</h1>
+<p><a href="{% url 'main:driver_add' %}">+ Add Driver</a></p>
+<ul>
+  {% for d in object_list %}
+    <li>
+      <a href="{% url 'main:driver_detail' d.pk %}">
+        #{{ d.driver_number }} — {{ d.full_name|default:d.name_acronym }}
+      </a>
+      [<a href="{% url 'main:driver_edit' d.pk %}">edit</a>]
+      [<a href="{% url 'main:driver_delete' d.pk %}">delete</a>]
+    </li>
+  {% empty %}
+    <li>No drivers.</li>
+  {% endfor %}
+</ul>

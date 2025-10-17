@@ -1,0 +1,25 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}SpeedView{% endblock title %}</title>
+  {% block meta %}{% endblock meta %}
+</head>
+<body>
+  <header>
+    <h2><a href="/">SpeedView</a></h2>
+    <nav>
+      <a href="{% url 'main:driver_list' %}">Drivers</a> |
+      <a href="{% url 'main:show_json' %}">JSON</a> |
+      <a href="{% url 'main:show_xml' %}">XML</a>
+    </nav>
+    <hr>
+  </header>
+
+  {% block content %}{% endblock content %}
+
+  <footer><hr><small>© {{ now|default:None }}</small></footer>
+</body>
+</html>
