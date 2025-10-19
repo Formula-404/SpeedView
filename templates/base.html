@@ -1,25 +1,54 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-gradient-to-b from-slate-900 to-slate-950 text-slate-100">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}SpeedView{% endblock title %}</title>
-  {% block meta %}{% endblock meta %}
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}SpeedView{% endblock %}</title>
+    <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: display & mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind config: register alias font -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Orbitron', 'ui-sans-serif', 'system-ui', 'sans-serif'], // judul besar
+            mono: ['Space Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'], // nama/number
+          },
+          letterSpacing: {
+            widerx: '0.35em',   // buat efek spasi judul seperti di mockup
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body>
-  <header>
-    <h2><a href="/">SpeedView</a></h2>
-    <nav>
-      <a href="{% url 'driver:driver_list' %}">Drivers</a> |
-      <a href="{% url 'driver:show_json' %}">JSON</a> |
-      <a href="{% url 'driver:show_xml' %}">XML</a>
-    </nav>
-    <hr>
+<body class="min-h-full">
+  <header class="sticky top-0 z-40 backdrop-blur bg-slate-900/60 border-b border-white/10">
+    <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
+      <a href="/" class="font-display text-xl tracking-widest">SpeedView</a>
+      <nav class="text-sm">
+        <a class="hover:underline" href="{% url 'driver:driver_list' %}">Drivers</a>
+        <span class="px-2 text-white/30">|</span>
+        <a class="hover:underline" href="{% url 'driver:show_json' %}">JSON</a>
+        <span class="px-2 text-white/30">|</span>
+        <a class="hover:underline" href="{% url 'driver:show_xml' %}">XML</a>
+      </nav>
+    </div>
   </header>
 
-  {% block content %}{% endblock content %}
+  <main class="mx-auto max-w-7xl px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
 
-  <footer><hr><small>© {{ now|default:None }}</small></footer>
+  <footer class="mx-auto max-w-7xl px-4 pb-8 text-xs text-white/50">
+    <hr class="border-white/10 mb-2"><small>© {{ now|default:None }}</small>
+  </footer>
 </body>
 </html>

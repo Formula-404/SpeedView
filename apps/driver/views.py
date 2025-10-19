@@ -69,11 +69,28 @@ from .models import Driver
 from .forms import DriverForm
 
 # ------ akses publik ------
+# apps/driver/views.py
 class DriverList(ListView):
     model = Driver
     template_name = 'driver/driver_list.html'
     context_object_name = 'object_list'
-    ordering = ['driver_number']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        q = self.request.GET.get('q')
+        order = self.request.GET.get('order') or 'num'
+        if q:
+            qs = qs.filter(models.Q(full_name__icontains=q) |
+                           models.Q(broadcast_name__icontains=q) |
+                           models.Q(name_acronym__icontains=q) |
+                           models.Q(driver_number__icontains=q))
+        if order == 'name':
+            qs = qs.order_by('full_name','driver_number')
+        elif order == 'team':
+            qs = qs.order_by('team_name','driver_number')
+        else:
+            qs = qs.order_by('driver_number')
+        return qs
 
 class DriverDetail(DetailView):
     model = Driver
