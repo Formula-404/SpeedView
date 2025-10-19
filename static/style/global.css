@@ -1,0 +1,75 @@
+@font-face {
+    font-family: "Alphacorsa";
+    src: url('../font/Alphacorsa.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Inter";
+    src: url('../font/Inter.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Variables */
+/* :root {
+    --bg-primary: #0B0B0C;
+    --bg-secondary: #151518;
+    --bg-card: #1A1A1E;
+    --accent-red: #E10600;
+    --accent-blue: #0074FF;
+    --text-primary: #EAEAEA;
+    --text-secondary: #A0A0A0;
+    --text-muted: #6B6B6B;
+
+    --gradient-primary: linear-gradient(135deg, #E10600 0%, #0074FF 100%);
+    --gradient-red: linear-gradient(135deg, #E10600 0%, #FF4444 100%);
+    --gradient-blue: linear-gradient(135deg, #0074FF 0%, #44AAFF 100%);
+    --gradient-community: linear-gradient(135deg, rgba(225, 6, 0, 0.2) 0%, rgba(0, 116, 255, 0.2) 100%);
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --glow-red: 0 0 20px rgba(225, 6, 0, 0.3);
+    --glow-blue: 0 0 20px rgba(0, 116, 255, 0.3);
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+}
+
+.light-theme {
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F5F5F5;
+    --bg-card: #FFFFFF;
+    --text-primary: #1A1A1E;
+    --text-secondary: #4A4A4A;
+    --text-muted: #8A8A8A;
+} */
+
+/* defaults */
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+}
+
+html { 
+    scroll-behavior: smooth; 
+    height: 100%; width: 100%;
+}
+
+body { 
+    font-family: 'Inter', sans-serif;
+    height: 100%; width: 100%;
+    background: linear-gradient(142deg, rgba(239, 68, 68, 0.00) 44.94%, rgba(186, 25, 49, 0.11) 85.45%), #0D1117;
+    color: #E6EDF3;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--bg-card); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-red); }
