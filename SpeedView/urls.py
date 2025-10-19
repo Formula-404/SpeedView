@@ -14,14 +14,19 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+# SpeedView/urls.py
 from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('main.urls')),
-    path('', include('apps.user.urls')),
-    path('driver/', include('apps.driver.urls')),
+
+    # --- PILIH SATU ROOT SAJA ---
+    #path('', include('apps.driver.urls')),    # landing page = daftar driver
+
+    # --- app lain memakai prefix khusus ---
+    path('accounts/', include('apps.user.urls')),   # ganti dari '' -> 'accounts/'
+    path('driver/', include('apps.driver.urls')),   # opsional; bisa dihapus kalau root sudah ke driver
     path('circuit/', include('apps.circuit.urls')),
     path('meeting/', include('apps.meeting.urls')),
     path('session/', include('apps.session.urls')),

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Drivers · SpeedView{% endblock %}
+{% block content %}
+<h1>Drivers</h1>
+<p><a href="{% url 'driver:driver_add' %}"><button>+ Add Driver</button></a></p>
+{% if object_list %}
+  <ul>
+  {% for d in object_list %}
+    <li>
+      <a href="{% url 'driver:driver_detail' d.pk %}">
+        #{{ d.driver_number }} — {{ d.full_name|default:d.name_acronym }}
+      </a>
+      {% if d.team_name %} ({{ d.team_name }}){% endif %}
+      [<a href="{% url 'driver:driver_edit' d.pk %}">edit</a>]
+      [<a href="{% url 'driver:driver_delete' d.pk %}">delete</a>]
+    </li>
+  {% endfor %}
+  </ul>
+{% else %}
+  <p>Belum ada driver.</p>
+{% endif %}
+{% endblock %}

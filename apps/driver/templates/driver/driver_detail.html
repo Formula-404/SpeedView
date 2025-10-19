@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% block title %}Driver #{{ object.driver_number }} · SpeedView{% endblock title %}
+{% block title %}Driver #{{ object.driver_number }} · SpeedView{% endblock %}
 {% block content %}
-<p><a href="{% url 'main:driver_list' %}"><button>← Back</button></a></p>
+<p><a href="{% url 'driver:driver_list' %}"><button>← Back</button></a></p>
 
 <h1>#{{ object.driver_number }} — {{ object.full_name|default:object.name_acronym }}</h1>
 <p>
@@ -49,4 +49,4 @@
 {% else %}
   <p>Belum ada pit stop.</p>
 {% endif %}
-{% endblock content %}
+{% endblock %}

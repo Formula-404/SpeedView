@@ -4,7 +4,10 @@ from django.utils import timezone
 from django.db import IntegrityError, transaction
 import json
 
-from .models import Driver, Laps, Pit
+# Import dari apps baru (bukan dari main)
+from apps.driver.models import Driver
+from apps.laps.models import Laps
+from apps.pit.models import Pit
 
 
 class MainSmokeTest(TestCase):
@@ -13,11 +16,11 @@ class MainSmokeTest(TestCase):
 
     def test_root_url_exists_and_uses_template(self):
         """
-        Root ('') harus 200 dan menggunakan template main/main.html (DriverList).
+        Root ('/') harus 200 dan menggunakan template landing: main/home.html.
         """
-        resp = self.client.get("")
+        resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
-        self.assertTemplateUsed(resp, "main/main.html")
+        self.assertTemplateUsed(resp, "main/home.html")
 
     def test_nonexistent_page_returns_404(self):
         resp = self.client.get("/burhan_always_exists/")
@@ -42,11 +45,28 @@ class DriverModelAndAPITest(TestCase):
         # __str__ harus menyertakan nomor driver
         self.assertIn("44", str(d))
 
+    def test_driver_list_and_detail_pages_render(self):
+        """
+        Halaman list & detail driver harus bisa diakses publik.
+        """
+        d = Driver.objects.create(driver_number=16, full_name="Charles Leclerc")
+
+        # /driver/  → template driver/driver_list.html
+        resp_list = self.client.get(reverse("driver:driver_list"))
+        self.assertEqual(resp_list.status_code, 200)
+        self.assertTemplateUsed(resp_list, "driver/driver_list.html")
+
+        # /driver/<pk>/ → template driver/driver_detail.html
+        resp_detail = self.client.get(reverse("driver:driver_detail", kwargs={"pk": d.pk}))
+        self.assertEqual(resp_detail.status_code, 200)
+        self.assertTemplateUsed(resp_detail, "driver/driver_detail.html")
+        self.assertContains(resp_detail, "Charles Leclerc")
+
     def test_json_endpoint_lists_drivers(self):
         Driver.objects.create(driver_number=1, full_name="Max Verstappen")
         Driver.objects.create(driver_number=44, full_name="Lewis Hamilton")
 
-        resp = self.client.get(reverse("main:show_json"))
+        resp = self.client.get(reverse("driver:show_json"))
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "application/json")
         payload = json.loads(resp.content.decode())
@@ -58,7 +78,7 @@ class DriverModelAndAPITest(TestCase):
 
     def test_xml_endpoint_lists_drivers(self):
         Driver.objects.create(driver_number=16, full_name="Charles Leclerc")
-        resp = self.client.get(reverse("main:show_xml"))
+        resp = self.client.get(reverse("driver:show_xml"))
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp["Content-Type"], "application/xml")
         self.assertTrue(resp.content.startswith(b'<?xml') or b"<django-objects" in resp.content)
@@ -67,20 +87,20 @@ class DriverModelAndAPITest(TestCase):
         d = Driver.objects.create(driver_number=63, full_name="George Russell")
 
         # JSON by id
-        r_json = self.client.get(reverse("main:show_json_by_id", kwargs={"driver_number": d.pk}))
+        r_json = self.client.get(reverse("driver:show_json_by_id", kwargs={"driver_number": d.pk}))
         self.assertEqual(r_json.status_code, 200)
         data = json.loads(r_json.content.decode())
         self.assertEqual(len(data), 1)
         self.assertEqual(int(data[0]["pk"]), 63)
 
         # XML by id
-        r_xml = self.client.get(reverse("main:show_xml_by_id", kwargs={"driver_number": d.pk}))
+        r_xml = self.client.get(reverse("driver:show_xml_by_id", kwargs={"driver_number": d.pk}))
         self.assertEqual(r_xml.status_code, 200)
         self.assertEqual(r_xml["Content-Type"], "application/xml")
 
         # not found
-        r_json_404 = self.client.get(reverse("main:show_json_by_id", kwargs={"driver_number": 999}))
-        r_xml_404 = self.client.get(reverse("main:show_xml_by_id", kwargs={"driver_number": 999}))
+        r_json_404 = self.client.get(reverse("driver:show_json_by_id", kwargs={"driver_number": 999}))
+        r_xml_404 = self.client.get(reverse("driver:show_xml_by_id", kwargs={"driver_number": 999}))
         self.assertEqual(r_json_404.status_code, 404)
         self.assertEqual(r_xml_404.status_code, 404)
 
