@@ -19,9 +19,25 @@ def is_admin(request):
 def serialize_team(team: Team):
     return {
         "team_name": team.team_name,
+        "short_code": team.short_code or "",
+        "team_logo_url": team.team_logo_url,
+        "website": team.website or "",
+        "wiki_url": team.wiki_url or "",
+
         "team_colour": team.team_colour,
         "team_colour_hex": f"#{team.team_colour}",
+        "team_colour_secondary": team.team_colour_secondary or "",
+        "team_colour_secondary_hex": f"#{team.team_colour_secondary}" if team.team_colour_secondary else "",
+
+        "country": team.country or "",
+        "base": team.base or "",
+        "founded_year": team.founded_year,
+        "is_active": team.is_active,
+
         "team_description": team.team_description or "",
+        "created_at": team.created_at.isoformat() if team.created_at else None,
+        "updated_at": team.updated_at.isoformat() if team.updated_at else None,
+
         "detail_url": team.get_absolute_url(),
     }
 
