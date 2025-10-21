@@ -2,13 +2,13 @@
 {% load static %}
 
 {% block meta %}
-    <title>F1 Circuits - SpeedView</title>
+    <title>Circuits</title>
 {% endblock meta %}
 
 {% block content %}
 <div class="p-6 lg:p-10">
     <div class="flex justify-between items-center border-b border-gray-700 pb-3 mb-6">
-        <h1 class="text-3xl font-bold text-white">Formula 1 Circuits</h1>
+        <h1 class="text-3xl font-bold text-white">Circuits</h1>
         {% if user.is_authenticated and user.profile.role == 'admin' %}
         <a href="{% url 'circuit:circuit_create' %}" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
             + Add New Circuit
