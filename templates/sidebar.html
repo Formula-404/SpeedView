@@ -12,7 +12,7 @@
             <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 bg-gray-700 text-[#E6EDF3] rounded-lg hover:bg-gray-600 transition-colors">
                 Cancel
             </button>
-            <a href="{% url 'user:logout' %}" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-center">
+            <a href="{% url 'user:logout' %}" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-center" onclick="sessionStorage.clear()">
                 Logout
             </a>
         </div>
