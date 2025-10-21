@@ -1,6 +1,17 @@
 from django.urls import path
 
-from car.views import add_car, add_car_entry_ajax, delete_car, edit_car, show_car,show_json,show_json_by_id, show_main,show_xml,show_xml_by_id
+from apps.car.views import (
+    add_car,
+    add_car_entry_ajax,
+    delete_car,
+    edit_car,
+    show_car,
+    show_json,
+    show_json_by_id,
+    show_main,
+    show_xml,
+    show_xml_by_id,
+)
 app_name = "car"
 
 urlpatterns = [

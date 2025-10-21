@@ -5,8 +5,6 @@ from django.db import models
 
 
 class Car(models.Model):
-    """Represents a single telemetry snapshot returned by the OpenF1 car_data API."""
-
     class DRSStatus(models.IntegerChoices):
         OFF = 0, "DRS off"
         OFF_VARIANT = 1, "DRS off"
@@ -65,5 +63,4 @@ class Car(models.Model):
 
     @property
     def drs_state(self) -> str:
-        """Return a human readable interpretation of the DRS flag."""
         return self.get_drs_display()

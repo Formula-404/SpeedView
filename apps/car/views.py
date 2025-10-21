@@ -12,12 +12,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from car.forms import CarForm
-from car.models import Car
+from apps.car.forms import CarForm
+from apps.car.models import Car
 
 
 def admin_required(view_func):
-
+    """Helper decorator to check if request is sent by admin"""
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
         if not (request.user.is_staff or request.user.is_superuser):
