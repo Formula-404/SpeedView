@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta %}
+    <title>SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+    {% if user.is_authenticated %}
+    <div id="welcomeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-500">
+        <div class="bg-[#161B22] rounded-lg p-8 max-w-md w-full mx-4 border border-gray-700 transform transition-all">
+            <div class="text-center">
+                <div class="mb-4">
+                    <img src="{% static 'image/icon/speedview-black.png' %}" alt="SpeedView" class="h-16 mx-auto">
+                </div>
+                <h3 class="text-2xl font-bold text-[#E6EDF3] mb-2">Welcome Back!</h3>
+                <p class="text-[#E6EDF3]/70 mb-6">Hello, <span class="text-[#E6EDF3] font-semibold">{{ user.username }}</span>! You have successfully logged in.</p>
+                <button onclick="closeWelcomeModal()" class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold">
+                    Get Started
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class='flex h-screen w-full items-center justify-center'>
+        Ceritanya ini dashboard
+    </div>
+
+    <script>
+        function closeWelcomeModal() {
+            const modal = document.getElementById('welcomeModal');
+            if (modal) {
+                modal.classList.add('opacity-0');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 500);
+            }
+        }
+
+        window.addEventListener('load', function() {
+            const modal = document.getElementById('welcomeModal');
+            if (modal) {
+                const hasSeenWelcome = sessionStorage.getItem('hasSeenWelcome');
+                if (hasSeenWelcome) {
+                    modal.style.display = 'none';
+                } else {
+                    sessionStorage.setItem('hasSeenWelcome', 'true');
+                    setTimeout(() => {
+                        modal.classList.remove('opacity-0');
+                    }, 100);
+                }
+            }
+        });
+
+        const welcomeModal = document.getElementById('welcomeModal');
+        if (welcomeModal) {
+            welcomeModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeWelcomeModal();
+                }
+            });
+        }
+    </script>
+{% endblock content %}
