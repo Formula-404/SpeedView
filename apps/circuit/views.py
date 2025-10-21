@@ -10,33 +10,33 @@ class AdminRequiredMixin(UserPassesTestMixin):
     Jika tidak, pengguna akan diarahkan ke halaman daftar sirkuit.
     """
     def test_func(self):
-        if hasattr(self.request.user, 'profile'):
-            return self.request.user.profile.role == 'admin'
-        return False
-
-    def handle_no_permission(self):
-        return redirect('circuit:circuit_list')
+        return (hasattr(self.request.user, 'profile') and self.request.user.profile.role == 'admin')
 
 # --- Views untuk semua pengguna (Read-Only) ---
 class CircuitList(ListView):
     """Menampilkan daftar semua sirkuit"""
     model = Circuit
-    template_name = 'circuit/circuit_list.html'
+    template_name = 'circuit_list.html'
     context_object_name = 'circuits'
     paginate_by = 10  # Menampilkan 10 sirkuit per halaman
+    ordering = ['name'] # Mengurutkan sirkuit berdasarkan nama
 
 class CircuitDetail(DetailView):
     """Menampilkan detail dari satu sirkuit"""
     model = Circuit
-    template_name = 'circuit/circuit_detail.html'
+    template_name = 'circuit_detail.html'
     context_object_name = 'circuit'
 
 # --- Views hanya untuk Admin (CRUD) ---
 class CircuitCreate(AdminRequiredMixin, CreateView):
     """Halaman form untuk membuat sirkuit baru"""
     model = Circuit
-    template_name = 'circuit/circuit_form.html'
-    fields = '__all__'  # Tampilkan semua field dari model di form
+    template_name = 'circuit_form.html'
+    fields = [
+        'name', 'country', 'location', 'map_image_url', 
+        'circuit_type', 'direction', 'length_km', 'turns',
+        'grands_prix', 'seasons', 'grands_prix_held', 'last_used'
+    ]
     success_url = reverse_lazy('circuit:circuit_list')
 
     def get_context_data(self, **kwargs):
@@ -47,17 +47,21 @@ class CircuitCreate(AdminRequiredMixin, CreateView):
 class CircuitUpdate(AdminRequiredMixin, UpdateView):
     """Halaman form untuk mengedit sirkuit yang ada"""
     model = Circuit
-    template_name = 'circuit/circuit_form.html'
-    fields = '__all__'
+    template_name = 'circuit_form.html'
+    fields = [
+        'name', 'country', 'location', 'map_image_url', 
+        'circuit_type', 'direction', 'length_km', 'turns',
+        'grands_prix', 'seasons', 'grands_prix_held', 'last_used'
+    ]
     success_url = reverse_lazy('circuit:circuit_list')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_title'] = 'Edit Sirkuit'
+        context['page_title'] = f'Edit Sirkuit: {self.object.name}'
         return context
 
 class CircuitDelete(AdminRequiredMixin, DeleteView):
     """Halaman konfirmasi untuk menghapus sirkuit"""
     model = Circuit
-    template_name = 'circuit/circuit_confirm_delete.html'
+    template_name = 'circuit_confirm_delete.html'
     success_url = reverse_lazy('circuit:circuit_list')

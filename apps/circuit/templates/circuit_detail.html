@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block meta %}
+    <title>{{ circuit.name }} - SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="p-6 lg:p-10">
+    <div class="max-w-4xl mx-auto">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start border-b border-gray-700 pb-4 mb-6">
+            <div>
+                <h1 class="text-4xl font-bold text-white">{{ circuit.name }}</h1>
+                <p class="text-xl text-gray-400">{{ circuit.location }}, {{ circuit.country }}</p>
+            </div>
+            {% if user.is_authenticated and user.profile.role == 'admin' %}
+            <div class="mt-4 md:mt-0 flex space-x-3">
+                <a href="{% url 'circuit:circuit_update' circuit.pk %}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Edit</a>
+                <a href="{% url 'circuit:circuit_delete' circuit.pk %}" class="bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Delete</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="md:col-span-2">
+                {% if circuit.map_image_file %}
+                    <img src="{{ circuit.map_image_file.url }}" alt="Map of {{ circuit.name }}" class="w-full rounded-lg shadow-lg border border-gray-700/50">
+                {% else %}
+                    <div class="w-full h-80 bg-gray-800 flex items-center justify-center rounded-lg border border-gray-700/50">
+                        <span class="text-gray-500">No Map Image Available</span>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="bg-[#161B22] p-6 rounded-lg border border-gray-700/50">
+                <h3 class="text-xl font-bold text-white mb-4">Track Specifications</h3>
+                <ul class="space-y-3 text-gray-300">
+                    <li class="flex justify-between"><strong>Type:</strong> <span>{{ circuit.get_circuit_type_display }}</span></li>
+                    <li class="flex justify-between"><strong>Direction:</strong> <span>{{ circuit.get_direction_display }}</span></li>
+                    <li class="flex justify-between"><strong>Length:</strong> <span>{{ circuit.length_km }} km</span></li>
+                    <li class="flex justify-between"><strong>Turns:</strong> <span>{{ circuit.turns }}</span></li>
+                    <li class="flex justify-between"><strong>Last Used:</strong> <span>{{ circuit.last_used|default:"N/A" }}</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="mt-8 bg-[#161B22] p-6 rounded-lg border border-gray-700/50">
+            <h3 class="text-xl font-bold text-white mb-4">Grand Prix History</h3>
+            <ul class="space-y-3 text-gray-300">
+                <li class="flex justify-between"><strong>Grands Prix Held:</strong> <span>{{ circuit.grands_prix }}</span></li>
+                <li class="flex justify-between"><strong>Total Events:</strong> <span>{{ circuit.grands_prix_held }}</span></li>
+                <li class="flex justify-between"><strong>Active Seasons:</strong> <span>{{ circuit.seasons }}</span></li>
+            </ul>
+        </div>
+        
+        <div class="mt-8">
+             <a href="{% url 'circuit:circuit_list' %}" class="text-gray-400 hover:text-white">&larr; Back to Circuit List</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
