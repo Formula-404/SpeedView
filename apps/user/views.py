@@ -7,7 +7,7 @@ from .models import UserProfile
 
 def register_view(request):
     if request.user.is_authenticated:
-        return redirect('main:home')
+        return redirect('main:show_main')
 
     if request.method == 'POST':
         form = RegisterForm(request.POST)
@@ -23,11 +23,11 @@ def register_view(request):
     else:
         form = RegisterForm()
 
-    return render(request, 'user/register.html', {'form': form})
+    return render(request, 'register.html', {'form': form})
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('main:home')
+        return redirect('main:show_main')
 
     if request.method == 'POST':
         form = LoginForm(request.POST)
@@ -38,32 +38,30 @@ def login_view(request):
 
             if user is not None:
                 login(request, user)
-                messages.success(request, f'Welcome back, {username}!')
-                return redirect('main:home')
+                return redirect('main:show_main')
             else:
                 messages.error(request, 'Invalid username or password')
     else:
         form = LoginForm()
 
-    return render(request, 'user/login.html', {'form': form})
+    return render(request, 'login.html', {'form': form})
 
 @login_required
 def logout_view(request):
     logout(request)
-    messages.success(request, 'You have been logged out successfully.')
-    return redirect('user:login')
+    return redirect('main:show_main')
 
 def register_admin_view(request):
     if request.user.is_authenticated:
-        return redirect('main:home')
+        return redirect('main:show_main')
 
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
             UserProfile.objects.create(id=user, role='admin', theme_preference='dark')
-            messages.success(request, 'Admin registration successful! Please login via admin login page.')
-            return redirect('user:login_admin')
+            messages.success(request, 'Admin registration successful! Please login.')
+            return redirect('user:login')
         else:
             for field, errors in form.errors.items():
                 for error in errors:
@@ -71,32 +69,7 @@ def register_admin_view(request):
     else:
         form = RegisterForm()
 
-    return render(request, 'user/register_admin.html', {'form': form})
-
-def login_admin_view(request):
-    if request.user.is_authenticated:
-        return redirect('main:home')
-
-    if request.method == 'POST':
-        form = LoginForm(request.POST)
-        if form.is_valid():
-            username = form.cleaned_data['username']
-            password = form.cleaned_data['password']
-            user = authenticate(request, username=username, password=password)
-
-            if user is not None:
-                if hasattr(user, 'profile') and user.profile.role == 'admin':
-                    login(request, user)
-                    messages.success(request, f'Welcome back, Admin {username}!')
-                    return redirect('main:home')
-                else:
-                    messages.error(request, 'Access denied. This login page is for admins only.')
-            else:
-                messages.error(request, 'Invalid username or password')
-    else:
-        form = LoginForm()
-
-    return render(request, 'user/login_admin.html', {'form': form})
+    return render(request, 'register_admin.html', {'form': form})
 
 @login_required
 def profile_settings_view(request):
@@ -141,7 +114,7 @@ def profile_settings_view(request):
                 username = user.username
                 user.delete()
                 messages.success(request, f'Account {username} has been deleted successfully.')
-                return redirect('user:register')
+                return redirect('main:show_main')
             else:
                 for field, errors in delete_form.errors.items():
                     for error in errors:
@@ -154,4 +127,4 @@ def profile_settings_view(request):
         'user': user,
     }
 
-    return render(request, 'user/profile_settings.html', context)
+    return render(request, 'profile_settings.html', context)
