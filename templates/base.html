@@ -12,16 +12,18 @@
 
     <link rel="stylesheet" href="{% static 'style/global.css' %}" />
 </head>
-<body class="flex min-h-screen overflow-x-hidden">
+<body class="flex overflow-x-hidden">
     {% include 'sidebar.html' %}
 
-    <div class="ml-64 min-h-screen w-full flex flex-col">
-        <main class="w-full">
-            {% block content %}{% endblock content %}
+    <div class="ml-64 flex flex-col w-full">
+        <main class="flex-1 w-full">
+            <div class="w-full min-h-screen">
+                {% block content %}{% endblock content %}
+            </div>
         </main>
+
         {% include 'footer.html' %}
     </div>
-
 
     <script>
         

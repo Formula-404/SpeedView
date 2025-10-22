@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta %}
+    <title>Add Team - SpeedView</title>
+    <style>
+        .input-field { transition: all 0.3s ease; }
+        .input-field:focus { transform: translateY(-1px); }
+        .btn-primary { transition: all 0.3s ease; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="min-h-screen px-12 py-12">
+    <div class="mb-10">
+        <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+            <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+            <span>›</span>
+            <a class="hover:text-red-400" href="{% url 'team:list_page' %}">Team</a>
+            <span>›</span>
+            <span class="text-white">Add Team</span>
+        </div>
+        <h1 class="text-4xl font-bold text-[#E6EDF3] tracking-tight">Add Team</h1>
+        <p class="text-[#E6EDF3]/60 mt-1">Create a new team entry with basic information, links, and details.</p>
+    </div>
+
+    <form method="POST" action="{% url 'team:api_create' %}" class="space-y-10" id="team-form">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg text-sm">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div class="space-y-6">
+                <div>
+                    <label for="{{ form.team_name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Team Name <span class="text-red-500">*</span></label>
+                    {{ form.team_name }}
+                    {% for error in form.team_name.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+
+                <div>
+                    <label for="{{ form.short_code.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Short Code</label>
+                    {{ form.short_code }}
+                    {% for error in form.short_code.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+
+                <div>
+                    <label for="{{ form.team_logo_url.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Team Logo URL</label>
+                    {{ form.team_logo_url }}
+                    {% for error in form.team_logo_url.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.team_colour.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Primary Colour <span class="text-red-500">*</span></label>
+                        {{ form.team_colour }}
+                        {% for error in form.team_colour.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label for="{{ form.team_colour_secondary.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Secondary Colour</label>
+                        {{ form.team_colour_secondary }}
+                        {% for error in form.team_colour_secondary.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.country.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Country</label>
+                        {{ form.country }}
+                    </div>
+                    <div>
+                        <label for="{{ form.base.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Base</label>
+                        {{ form.base }}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.founded_year.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Founded Year</label>
+                    {{ form.founded_year }}
+                </div>
+
+                <div class="flex items-center gap-2 mt-2">
+                    {{ form.is_active }}
+                    <label for="{{ form.is_active.id_for_label }}" class="text-sm text-[#E6EDF3]">Active Team</label>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label for="{{ form.constructors_championships.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Constructors' Championships</label>
+                        {{ form.constructors_championships }}
+                    </div>
+                    <div>
+                        <label for="{{ form.drivers_championships.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Drivers' Championships</label>
+                        {{ form.drivers_championships }}
+                    </div>
+                    <div>
+                        <label for="{{ form.points.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Total Points</label>
+                        {{ form.points }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.race_victories.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Wins</label>
+                        {{ form.race_victories }}
+                    </div>
+                    <div>
+                        <label for="{{ form.podiums.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Podiums</label>
+                        {{ form.podiums }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <label for="{{ form.website.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Website</label>
+                    {{ form.website }}
+                </div>
+
+                <div>
+                    <label for="{{ form.wiki_url.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Wikipedia URL</label>
+                    {{ form.wiki_url }}
+                </div>
+
+                <div>
+                    <label for="{{ form.engines.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Engines</label>
+                    {{ form.engines }}
+                </div>
+
+                <div>
+                    <label for="{{ form.team_description.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Description</label>
+                    {{ form.team_description }}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-10 border-t border-gray-700/40 mt-10">
+            <a href="{% url 'team:list_page' %}" class="px-6 py-3 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3]/80 hover:text-white rounded-lg font-medium border border-gray-600/50 transition-all">
+                Cancel
+            </a>
+            <button type="submit" class="btn-primary px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-[#161B22]">
+                Add Team
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function() {
+        const form = document.getElementById('team-form');
+        if (!form) return;
+
+        const baseInput = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+        const baseTextarea = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+        const baseSelect = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+        const baseCheckbox = "h-4 w-4 rounded accent-red-600 focus:ring-red-500";
+
+        form.querySelectorAll('input[type="text"], input[type="url"], input[type="number"], input[type="email"], input[type="password"]').forEach(el => {
+            el.className = baseInput;
+        });
+        form.querySelectorAll('textarea').forEach(el => { el.className = baseTextarea; });
+        form.querySelectorAll('input[type="checkbox"]').forEach(el => { el.className = baseCheckbox; });
+
+        const setPlaceholder = (id, ph) => {
+            const el = document.getElementById(id);
+            if (el && !el.placeholder) el.placeholder = ph;
+        };
+        setPlaceholder("id_team_name", "Red Bull Racing");
+        setPlaceholder("id_short_code", "RBR");
+        setPlaceholder("id_team_logo_url", "https://…/logo.png");
+        setPlaceholder("id_team_colour", "#00A19A");
+        setPlaceholder("id_team_colour_secondary", "#FFDD00");
+        setPlaceholder("id_country", "United Kingdom");
+        setPlaceholder("id_base", "Milton Keynes");
+        setPlaceholder("id_founded_year", "2005");
+        setPlaceholder("id_website", "https://www.redbullracing.com");
+        setPlaceholder("id_wiki_url", "https://en.wikipedia.org/wiki/Red_Bull_Racing");
+        setPlaceholder("id_engines", "Honda, TAG Heuer, Renault, RBPT");
+    })();
+</script>
+{% endblock content %}
