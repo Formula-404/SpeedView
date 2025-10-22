@@ -19,6 +19,7 @@ class TeamForm(forms.ModelForm):
         },
     )
     team_colour_secondary = forms.CharField(
+        required=False,
         max_length=7,
         help_text="6-digit hex; with or without # (e.g., #00A19A or 00A19A).",
         widget=forms.TextInput(attrs={
@@ -27,7 +28,6 @@ class TeamForm(forms.ModelForm):
             "autocomplete": "off",
         }),
         error_messages={
-            "required": "Please provide a colour.",
             "max_length": "Hex colours are 6 characters (optionally prefixed by #).",
         },
     )
