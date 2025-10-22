@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+    <title>Teams – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+    <div class="px-12 py-12 mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+                    <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+                    <span>›</span> 
+                    <span class="text-white" href="{% url 'team:list_page' %}">Team</span>
+                </div>
+                <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+                    Teams
+                </h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <input
+                        id="team-search"
+                        type="text"
+                        placeholder="Search team..."
+                        class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        autocomplete="off"
+                    />
+                    <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
+                    </svg>
+                </div>
+                {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
+                    <a href="{% url 'team:add_page' %}"
+                       class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16M4 12h16"/>
+                        </svg>
+                        Add Team
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="meta-row" class="flex items-center justify-between mb-4">
+            <p id="results-info" class="text-sm text-white/60">Loading teams…</p>
+            <div class="flex items-center gap-2">
+                <span class="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70">
+                    Primary color
+                </span>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70">
+                    Secondary color
+                </span>
+            </div>
+        </div>
+
+        <div id="grid" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        </div>
+
+        <template id="card-template">
+            <a class="group block rounded-xl bg-[#0D1117]/80 border border-white/10 hover:border-red-500/50 transition overflow-hidden">
+                <div class="p-4 flex items-center gap-3">
+                    <img class="h-10 w-10 rounded-md bg-white/5 object-contain" alt="Team logo" />
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h3 class="truncate text-lg font-semibold text-white group-hover:text-red-400 transition"></h3>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-white/5 border border-white/10 text-white/70"></span>
+                        </div>
+                        <p class="text-xs text-white/60 truncate"></p>
+                    </div>
+                </div>
+                <div class="px-4 pb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1">
+                            <span class="inline-block h-4 w-4 rounded border border-white/10"></span>
+                            <span class="text-xs text-white/60"></span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="inline-block h-4 w-4 rounded border border-white/10"></span>
+                            <span class="text-xs text-white/60"></span>
+                        </div>
+                        <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full border"
+                              ></span>
+                    </div>
+                </div>
+            </a>
+        </template>
+    </div>
+
+    <script>
+        const API_LIST = "{% url 'team:api_list' %}";
+        const grid = document.getElementById("grid");
+        const searchInput = document.getElementById("team-search");
+        const resultsInfo = document.getElementById("results-info");
+        const cardTpl = document.getElementById("card-template");
+
+        let allTeams = [];
+        let viewTeams = [];
+
+        function setResultsInfo(total, filtered) {
+            if (!total && total !== 0) {
+                resultsInfo.textContent = "Loading teams…";
+                return;
+            }
+            if (filtered === total) {
+                resultsInfo.textContent = `${total} team${total === 1 ? "" : "s"}`;
+            } else {
+                resultsInfo.textContent = `${filtered} / ${total} teams`;
+            }
+        }
+
+        function toCountryDisplay(team) {
+            const parts = [];
+            if (team.country) parts.push(team.country);
+            if (team.base) parts.push(team.base);
+            return parts.join(" • ");
+        }
+
+        function renderCards(items) {
+            grid.innerHTML = "";
+            if (!items.length) {
+                grid.innerHTML = `
+                    <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-white/60">
+                        No teams match your search.
+                    </div>`;
+                return;
+            }
+
+            for (const t of items) {
+                const node = cardTpl.content.firstElementChild.cloneNode(true);
+
+                node.href = t.detail_url;
+
+                const img = node.querySelector("img");
+                img.src = t.team_logo_url || "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png";
+                img.onerror = () => { img.src = "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png"; };
+
+                node.querySelector("h3").textContent = t.team_name;
+                const code = node.querySelector("span.px-2");
+                code.textContent = t.short_code || "—";
+
+                node.querySelector("p.text-xs").textContent = toCountryDisplay(t) || "—";
+
+                const primSwatch = node.querySelectorAll("span.inline-block")[0];
+                primSwatch.style.background = t.team_colour_hex;
+                node.querySelectorAll("span.text-xs")[0].textContent = t.team_colour_hex;
+
+                const secSwatch = node.querySelectorAll("span.inline-block")[1];
+                const secText = node.querySelectorAll("span.text-xs")[1];
+                if (t.team_colour_secondary) {
+                    secSwatch.style.background = `#${t.team_colour_secondary}`;
+                    secText.textContent = `#${t.team_colour_secondary}`;
+                } else {
+                    secSwatch.style.background = "transparent";
+                    secText.textContent = "—";
+                }
+
+                const activeBadge = node.querySelector("span.ml-auto");
+                if (t.is_active) {
+                    activeBadge.textContent = "ACTIVE";
+                    activeBadge.className =
+                        "ml-auto text-[10px] px-2 py-0.5 rounded-full border border-green-500/40 text-green-400 bg-green-500/10";
+                } else {
+                    activeBadge.textContent = "INACTIVE";
+                    activeBadge.className =
+                        "ml-auto text-[10px] px-2 py-0.5 rounded-full border border-white/20 text-white/60 bg-white/5";
+                }
+
+                grid.appendChild(node);
+            }
+        }
+
+        function applyFilter() {
+            const q = (searchInput.value || "").trim().toLowerCase();
+            if (!q) {
+                viewTeams = allTeams.slice();
+            } else {
+                viewTeams = allTeams.filter(t =>
+                    (t.team_name || "").toLowerCase().includes(q) ||
+                    (t.short_code || "").toLowerCase().includes(q)
+                );
+            }
+            setResultsInfo(allTeams.length, viewTeams.length);
+            renderCards(viewTeams);
+        }
+
+        async function boot() {
+            try {
+                const res = await fetch(API_LIST);
+                if (!res.ok) {
+                    console.error("API_LIST status:", res.status, res.statusText);
+                }
+                const json = await res.json();
+                if (!json.ok) throw new Error(json.error || "Failed to load");
+                allTeams = json.data || [];
+                setResultsInfo(allTeams.length, allTeams.length);
+                renderCards(allTeams);
+            } catch (e) {
+                grid.innerHTML = `
+                    <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-red-400">
+                        Failed to load teams. Please try again later.
+                    </div>`;
+                setResultsInfo(0, 0);
+            }
+        }
+
+        searchInput.addEventListener("input", applyFilter);
+        boot();
+    </script>
+{% endblock content %}
