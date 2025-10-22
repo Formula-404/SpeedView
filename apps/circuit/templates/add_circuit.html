@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta %}
+    <title>Add Circuit - SpeedView</title>
+    <style>
+        .input-field { transition: all 0.3s ease; }
+        .input-field:focus { transform: translateY(-1px); }
+        .btn-primary { transition: all 0.3s ease; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="min-h-screen px-12 py-12">
+    <!-- Header -->
+    <div class="mb-10">
+        <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+            <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+            <span>›</span>
+            <a class="hover:text-red-400" href="{% url 'circuit:list_page' %}">Circuit</a>
+            <span>›</span>
+            <span class="text-white">Add Circuit</span>
+        </div>
+        <h1 class="text-4xl font-bold text-[#E6EDF3] tracking-tight">Add Circuit</h1>
+        <p class="text-[#E6EDF3]/60 mt-1">Create a new circuit entry. The map image will be downloaded automatically from the provided URL.</p>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" action="{% url 'circuit:api_create' %}" class="space-y-10" id="circuit-form">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg text-sm">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <!-- Kolom Kiri -->
+            <div class="space-y-6">
+                <div>
+                    <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Circuit Name <span class="text-red-500">*</span></label>
+                    {{ form.name }}
+                    {% for error in form.name.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label for="{{ form.map_image_url.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Map Image URL</label>
+                    {{ form.map_image_url }}
+                    {% for error in form.map_image_url.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.location.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Location <span class="text-red-500">*</span></label>
+                        {{ form.location }}
+                        {% for error in form.location.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label for="{{ form.country.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Country <span class="text-red-500">*</span></label>
+                        {{ form.country }}
+                        {% for error in form.country.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.circuit_type.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Type <span class="text-red-500">*</span></label>
+                        {{ form.circuit_type }}
+                        {% for error in form.circuit_type.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label for="{{ form.direction.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Direction <span class="text-red-500">*</span></label>
+                        {{ form.direction }}
+                        {% for error in form.direction.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+                 <div>
+                    <label for="{{ form.last_used.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Last used</label>
+                    {{ form.last_used }}
+                    {% for error in form.last_used.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+
+            <!-- Kolom Kanan -->
+            <div class="space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                     <div>
+                        <label for="{{ form.length_km.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Length (km) <span class="text-red-500">*</span></label>
+                        {{ form.length_km }}
+                        {% for error in form.length_km.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label for="{{ form.turns.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Turns <span class="text-red-500">*</span></label>
+                        {{ form.turns }}
+                        {% for error in form.turns.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+                <div>
+                    <label for="{{ form.grands_prix.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Grands Prix <span class="text-red-500">*</span></label>
+                    {{ form.grands_prix }}
+                    {% for error in form.grands_prix.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label for="{{ form.seasons.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Season(s) <span class="text-red-500">*</span></label>
+                    {{ form.seasons }}
+                    {% for error in form.seasons.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label for="{{ form.grands_prix_held.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Grands Prix Held <span class="text-red-500">*</span></label>
+                    {{ form.grands_prix_held }}
+                    {% for error in form.grands_prix_held.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tombol Aksi -->
+        <div class="flex justify-end gap-3 pt-10 border-t border-gray-700/40 mt-10">
+            <a href="{% url 'circuit:list_page' %}" class="px-6 py-3 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3]/80 hover:text-white rounded-lg font-medium border border-gray-600/50 transition-all">
+                Cancel
+            </a>
+            <button type="submit" class="btn-primary px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-[#161B22]">
+                Add Circuit
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function() {
+        const form = document.getElementById('circuit-form');
+        if (!form) return;
+
+        const baseInput = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+        const baseSelect = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+
+        form.querySelectorAll('input[type="text"], input[type="url"], input[type="number"]').forEach(el => {
+            el.className = baseInput;
+        });
+        form.querySelectorAll('select').forEach(el => {
+            el.className = baseSelect;
+        });
+
+        const setPlaceholder = (id, ph) => {
+            const el = document.getElementById(id);
+            if (el && !el.placeholder) el.placeholder = ph;
+        };
+        
+        setPlaceholder("id_name", "Silverstone Circuit");
+        setPlaceholder("id_map_image_url", "https://…/map.png");
+        setPlaceholder("id_location", "Silverstone");
+        setPlaceholder("id_country", "United Kingdom");
+        setPlaceholder("id_last_used", "2023");
+        setPlaceholder("id_length_km", "5.891");
+        setPlaceholder("id_turns", "18");
+        setPlaceholder("id_grands_prix", "British Grand Prix");
+        setPlaceholder("id_seasons", "1950–present");
+        setPlaceholder("id_grands_prix_held", "58");
+    })();
+</script>
+{% endblock content %}
