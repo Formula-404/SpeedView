@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block meta %}
+    <title>{{ page_title }}</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="p-6 lg:p-10 max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6 text-white border-b border-gray-700 pb-3">{{ page_title }}</h1>
+    
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        
+        {% for field in form %}
+        <div>
+            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-1">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+            <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
+            {% endif %}
+
+            {% if field.errors %}
+                {% for error in field.errors %}
+                <p class="text-red-400 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex items-center space-x-4 pt-4">
+            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Save Circuit</button>
+            <a href="{% url 'circuit:circuit_list' %}" class="text-gray-400 hover:text-white">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
