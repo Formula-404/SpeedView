@@ -1,7 +1,18 @@
 from django.urls import path
-# from . import views
+from . import views
 
 app_name = "circuit"
 
 urlpatterns = [
+    # API endpoints
+    path("api/", views.api_circuit_list, name="api_list"),
+    path("api/create/", views.api_circuit_create, name="api_create"),
+    path("api/<int:pk>/update/", views.api_circuit_update, name="api_update"), # DITAMBAHKAN
+    path("api/<int:pk>/delete/", views.api_circuit_delete, name="api_delete"),
+
+    # Page rendering (tampilan HTML)
+    path("", views.circuit_list_page, name="list_page"),
+    path("add/", views.add_circuit_page, name="add_page"),
+    path("<int:pk>/", views.circuit_detail_page, name="detail_page"),
+    path("<int:pk>/edit/", views.edit_circuit_page, name="edit_page")
 ]

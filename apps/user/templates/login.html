@@ -3,14 +3,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="{% static 'image/icon/speedview.png' %}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign In - SpeedView</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        }
         .input-field {
             transition: all 0.3s ease;
         }
@@ -26,8 +23,10 @@
             box-shadow: 0 8px 16px rgba(239, 68, 68, 0.3);
         }
     </style>
+
+    <link rel="stylesheet" href="{% static 'style/global.css' %}" />
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="flex items-center justify-center min-h-screen p-4 text-[#161B22]">
 <div class="w-full max-w-md">
     <div class="bg-white rounded-2xl shadow-2xl p-8">
         <div class="text-center mb-8">

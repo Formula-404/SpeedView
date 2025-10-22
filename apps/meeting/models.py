@@ -1,3 +1,4 @@
 from django.db import models
 
-# Create your models here.
+class Meeting(models.Model):
+    meeting_key = models.IntegerField(primary_key=True)

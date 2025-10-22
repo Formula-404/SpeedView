@@ -46,7 +46,7 @@ def login_view(request):
 
     return render(request, 'login.html', {'form': form})
 
-@login_required
+@login_required(login_url='/login')
 def logout_view(request):
     logout(request)
     return redirect('main:show_main')
@@ -71,7 +71,7 @@ def register_admin_view(request):
 
     return render(request, 'register_admin.html', {'form': form})
 
-@login_required
+@login_required(login_url='/login')
 def profile_settings_view(request):
     user = request.user
 
@@ -103,7 +103,7 @@ def profile_settings_view(request):
                 return redirect('user:profile_settings')
             else:
                 for error in password_form.non_field_errors():
-                    messages.error(request, error)
+                    messages.error(request, str(error))
                 for field, errors in password_form.errors.items():
                     for error in errors:
                         messages.error(request, f"{field}: {error}")

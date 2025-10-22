@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+    <title>Circuits – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-6 lg:px-12 py-12 mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+                <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+                <span>›</span> 
+                <span class="text-white">Circuit</span>
+            </div>
+            <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+                Circuits
+            </h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <input
+                    id="circuit-search"
+                    type="text"
+                    placeholder="Search circuit..."
+                    class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    autocomplete="off"
+                />
+                <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
+                </svg>
+            </div>
+            {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
+                <a href="{% url 'circuit:add_page' %}"
+                   class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16M4 12h16"/>
+                    </svg>
+                    Add Circuit
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <p id="results-info" class="text-sm text-white/60 mb-4">Loading circuits…</p>
+
+    <div id="grid" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <!-- Kartu sirkuit akan di-generate oleh JavaScript di sini -->
+    </div>
+
+    <template id="card-template">
+        <div class="group flex flex-col rounded-xl bg-[#0D1117]/80 border border-white/10 hover:border-red-500/50 transition overflow-hidden">
+            <a class="card-link" href="#">
+                <img class="card-img w-full h-40 object-cover bg-gray-800" alt="Circuit map" />
+            </a>
+            <div class="p-4 flex flex-col flex-grow">
+                <a class="card-link" href="#">
+                    <h3 class="card-name truncate text-lg font-semibold text-white group-hover:text-red-400 transition"></h3>
+                </a>
+                <p class="card-location text-sm text-white/60 truncate"></p>
+                
+                <div class="mt-auto pt-3">
+                {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
+                    <div class="flex justify-end items-center gap-4 mt-3 border-t border-white/10 pt-3">
+                        <a class="edit-link text-xs font-semibold text-yellow-400 hover:text-yellow-300" href="#">EDIT</a>
+                        <form class="delete-form" method="POST" action="#" onsubmit="return confirm('Are you sure you want to delete this circuit?');">
+                            {% csrf_token %}
+                            <button type="submit" class="text-xs font-semibold text-red-400 hover:text-red-300">DELETE</button>
+                        </form>
+                    </div>
+                {% endif %}
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // ... (fungsi renderCards, applyFilter, dan fetchCircuits tetap sama) ...
+        const API_LIST_URL = "{% url 'circuit:api_list' %}";
+        const grid = document.getElementById("grid");
+        const searchInput = document.getElementById("circuit-search");
+        const resultsInfo = document.getElementById("results-info");
+        const cardTemplate = document.getElementById("card-template");
+
+        let allCircuits = [];
+
+        function renderCards(circuits) {
+            grid.innerHTML = "";
+            if (!circuits.length) {
+                grid.innerHTML = `<div class="col-span-full text-center text-white/60 p-8 bg-white/5 rounded-lg">No circuits match your search.</div>`;
+                return;
+            }
+
+            circuits.forEach(c => {
+                const card = cardTemplate.content.firstElementChild.cloneNode(true);
+                
+                card.querySelector('.card-name').textContent = c.name;
+                card.querySelector('.card-location').textContent = `${c.location}, ${c.country}`;
+                
+                const img = card.querySelector('.card-img');
+                img.src = c.map_image_url || 'https://placehold.co/600x400/0D1117/E6EDF3?text=No+Map';
+                img.alt = `Map of ${c.name}`;
+                img.onerror = () => { img.src = 'https://placehold.co/600x400/0D1117/E6EDF3?text=No+Map'; };
+
+                card.querySelectorAll('.card-link').forEach(link => link.href = c.detail_url);
+
+                // Admin-only links
+                const editLink = card.querySelector('.edit-link');
+                const deleteForm = card.querySelector('.delete-form');
+                if (editLink && deleteForm) {
+                    // Membuat URL yang benar untuk halaman edit
+                    editLink.href = `/circuit/${c.id}/edit/`;
+                    
+                    // Membuat URL yang benar untuk API delete
+                    deleteForm.action = `/circuit/api/${c.id}/delete/`;
+                }
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function applyFilter() {
+            const query = searchInput.value.trim().toLowerCase();
+            const filteredCircuits = allCircuits.filter(c => 
+                c.name.toLowerCase().includes(query) ||
+                c.country.toLowerCase().includes(query) ||
+                c.location.toLowerCase().includes(query)
+            );
+            renderCards(filteredCircuits);
+            resultsInfo.textContent = `${filteredCircuits.length} of ${allCircuits.length} circuits shown.`;
+        }
+
+        async function fetchCircuits() {
+            try {
+                const response = await fetch(API_LIST_URL);
+                const result = await response.json();
+                if (result.ok) {
+                    allCircuits = result.data;
+                    applyFilter();
+                } else {
+                    throw new Error(result.error || "Failed to fetch data.");
+                }
+            } catch (error) {
+                grid.innerHTML = `<div class="col-span-full text-center text-red-400 p-8 bg-red-500/10 rounded-lg">${error.message}</div>`;
+                resultsInfo.textContent = "Could not load circuits.";
+            }
+        }
+        
+        searchInput.addEventListener('input', applyFilter);
+        fetchCircuits();
+    });
+</script>
+{% endblock content %}
+
