@@ -1,5 +1,4 @@
 from django.urls import path
-<<<<<<< HEAD
 
 from apps.car.views import (
     add_car,
@@ -13,6 +12,7 @@ from apps.car.views import (
     show_xml,
     show_xml_by_id,
 )
+
 app_name = "car"
 
 urlpatterns = [
@@ -26,11 +26,5 @@ urlpatterns = [
     path("json/", show_json, name="show_json"),
     path("xml/<int:car_id>/", show_xml_by_id, name="show_xml_by_id"),
     path("json/<int:car_id>/", show_json_by_id, name="show_json_by_id"),
-=======
-# from . import views
 
-app_name = "car"
-
-urlpatterns = [
->>>>>>> ee8189f382313940bac43421d753860aa5e34258
 ]

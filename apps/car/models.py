@@ -2,6 +2,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from apps.driver.models import Driver
+
 
 
 class Car(models.Model):
@@ -29,6 +31,14 @@ class Car(models.Model):
     throttle = models.PositiveSmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    driver = models.ForeignKey(
+        Driver,
+        to_field="driver_number",
+        db_column="driver_number",
+        on_delete=models.CASCADE,
+        related_name="cars",
+        db_index=True,
+    )
 
     class Meta:
         verbose_name = "Car telemetry sample"
@@ -59,7 +69,7 @@ class Car(models.Model):
         ]
 
     def __str__(self) -> str: 
-        return f"{self.driver_number} | {self.session_key} | {self.date:%Y-%m-%d %H:%M:%S}"
+        return f"{self.driver_number_id} | {self.session_key} | {self.date:%Y-%m-%d %H:%M:%S}"
 
     @property
     def drs_state(self) -> str:
