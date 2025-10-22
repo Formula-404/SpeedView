@@ -73,6 +73,21 @@
         let currentPage = 1;
         let currentQuery = "";
 
+        const formatSessionTime = (s) => {
+            let startStr = "N/A", endStr = "N/A", dateStr = "N/A";
+            try {
+                const dtStart = new Date(s.date_start); 
+                const dtEnd = new Date(s.date_end);                
+                dateStr = dtStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });                
+                startStr = dtStart.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });                
+                endStr = dtEnd.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });                
+                return `${dateStr}, ${startStr} - ${endStr}`;
+            } catch (e) { 
+                console.error("Error formatting date:", e, s.date_start, s.date_end);
+                return "Invalid date"; 
+            }
+        };
+
         async function fetchSessions(query, page) {
             resultsInfo.textContent = "Fetching sessions…";
             grid.innerHTML = ""; // Kosongkan grid saat loading
@@ -153,7 +168,8 @@
                             sessionListHtml += `
                                 <div class="p-3 rounded-lg bg-gray-700/30 border border-gray-600/50">
                                     <h5 class="font-semibold text-white">${s.session_name}</h5>
-                                    <p class="text-xs text-white/70">${s.date_start_str} - ${s.date_end_str}</p>
+                                    <!-- PERUBAHAN DI SINI: Memanggil fungsi formatSessionTime -->
+                                    <p class="text-xs text-white/70">${formatSessionTime(s)}</p>
                                 </div>
                             `;
                         });
@@ -208,4 +224,3 @@
         fetchSessions("", 1);
     </script>
 {% endblock content %}
-
