@@ -44,18 +44,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'main',
+    #'main',
     'apps.user',
-    'apps.driver',
+    'apps.driver',        # ← driver CRUD
     'apps.circuit',
     'apps.meeting',
     'apps.session',
     'apps.weather',
     'apps.team',
     'apps.car',
-    'apps.laps',
-    'apps.pit',
-    'apps.comparison'
+    'apps.laps',          # ← laps read-only
+    'apps.pit',           # ← pit read-only
+    'apps.comparison',
 ]
 
 MIDDLEWARE = [
@@ -78,6 +78,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',

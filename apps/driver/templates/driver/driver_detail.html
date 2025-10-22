@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block title %}#{{ object.driver_number }} · {{ object.full_name|default:object.name_acronym }} · SpeedView{% endblock %}
+{% block content %}
+
+<a href="{% url 'driver:driver_list' %}" class="text-white/60 hover:underline">← Back</a>
+
+<section class="mt-3 flex flex-wrap gap-6 items-center justify-between">
+  <div class="flex items-center gap-5">
+    <div class="w-28 h-28 rounded-xl border border-white/10 bg-slate-800/60 flex items-center justify-center overflow-hidden">
+      {% if object.headshot_url %}
+        <img src="{{ object.headshot_url }}" alt="Headshot {{ object.full_name|default:object.name_acronym }}" class="w-full h-full object-cover">
+      {% else %}
+        <span class="text-white/30 text-sm">No Image</span>
+      {% endif %}
+    </div>
+    <div>
+      <h1 class="text-3xl font-display tracking-widest">#{{ object.driver_number }} — {{ object.full_name|default:object.broadcast_name|default:object.name_acronym }}</h1>
+      <p class="text-white/60">
+        {% if object.team_name %}<b>{{ object.team_name }}</b>{% endif %}
+        {% if object.country_code %} · {{ object.country_code }}{% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'driver:driver_edit' object.pk %}"><button class="px-3 py-2 rounded bg-slate-700 hover:bg-slate-600">Edit</button></a>
+    <a href="{% url 'driver:driver_delete' object.pk %}"><button class="px-3 py-2 rounded bg-rose-700 hover:bg-rose-600">Delete</button></a>
+  </div>
+</section>
+
+<!-- Summary cards -->
+<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+  <div class="rounded-xl border border-white/10 bg-slate-800/50 p-4">
+    <div class="text-white/60">Best Lap</div>
+    <div class="text-xl font-semibold">{% firstof best_lap_duration "—" %}</div>
+  </div>
+  <div class="rounded-xl border border-white/10 bg-slate-800/50 p-4">
+    <div class="text-white/60">Avg Lap</div>
+    <div class="text-xl font-semibold">{% firstof avg_lap_str "—" %}</div>
+  </div>
+  <div class="rounded-xl border border-white/10 bg-slate-800/50 p-4">
+    <div class="text-white/60">Pit Stops</div>
+    <div class="text-xl font-semibold">{{ object.pitstops.count }}</div>
+  </div>
+  <div class="rounded-xl border border-white/10 bg-slate-800/50 p-4">
+    <div class="text-white/60">Last Pit Lap</div>
+    <div class="text-xl font-semibold">{% firstof object.last_pit_lap "—" %}</div>
+  </div>
+</div>
+
+<!-- Filter bar (opsional) -->
+<form method="get" class="mt-6 flex flex-wrap items-end gap-3">
+  <label class="text-sm">Session
+    <input type="number" name="session" value="{{ request.GET.session|default_if_none:'' }}"
+           class="ml-2 bg-slate-800/60 border border-white/10 rounded px-3 py-2 w-36">
+  </label>
+  <label class="text-sm inline-flex items-center gap-2">
+    <input type="checkbox" name="valid" value="1" {% if request.GET.valid %}checked{% endif %}>
+    Only valid laps
+  </label>
+  <button class="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500">Apply</button>
+</form>
+
+<!-- Tabs sederhana -->
+<div class="mt-6 flex gap-4 text-sm">
+  <a href="#laps" class="hover:underline">Laps</a>
+  <a href="#pit" class="hover:underline">Pit Stops</a>
+</div>
+
+<!-- LAPS TABLE -->
+<section id="laps" class="mt-3 rounded-xl border border-white/10 bg-slate-800/40 p-3 overflow-auto">
+  <h2 class="font-semibold mb-3">Laps</h2>
+  {% with laps_qs=view.get_laps_queryset %}
+    {% if laps_qs %}
+      <table class="min-w-full text-sm">
+        <thead class="text-white/60">
+          <tr class="border-b border-white/10">
+            <th class="text-left py-2 pr-4">Lap</th>
+            <th class="text-left py-2 pr-4">Lap Time</th>
+            <th class="text-left py-2 pr-4">S1</th>
+            <th class="text-left py-2 pr-4">S2</th>
+            <th class="text-left py-2 pr-4">S3</th>
+            <th class="text-left py-2 pr-4">Out</th>
+            <th class="text-left py-2 pr-4">Pit Out</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in laps_qs %}
+          <tr class="border-b border-white/5 {% if l.lap_duration and best_lap_duration and l.lap_duration == best_lap_duration %}bg-emerald-500/10{% endif %}">
+            <td class="py-2 pr-4">{{ l.lap_number }}</td>
+            <td class="py-2 pr-4">{{ l.lap_duration|default:"—" }}</td>
+            <td class="py-2 pr-4">{{ l.duration_sector_1|default:"—" }}</td>
+            <td class="py-2 pr-4">{{ l.duration_sector_2|default:"—" }}</td>
+            <td class="py-2 pr-4">{{ l.duration_sector_3|default:"—" }}</td>
+            <td class="py-2 pr-4">{% if l.is_out_lap %}✓{% else %}—{% endif %}</td>
+            <td class="py-2 pr-4">{% if l.is_pit_out_lap %}✓{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-white/60">Belum ada data laps.</p>
+    {% endif %}
+  {% endwith %}
+</section>
+
+<!-- PIT TABLE -->
+<section id="pit" class="mt-6 rounded-xl border border-white/10 bg-slate-800/40 p-3 overflow-auto">
+  <h2 class="font-semibold mb-3">Pit Stops</h2>
+  {% with pit_qs=view.get_pit_queryset %}
+    {% if pit_qs %}
+      <table class="min-w-full text-sm">
+        <thead class="text-white/60">
+          <tr class="border-b border-white/10">
+            <th class="text-left py-2 pr-4">Lap</th>
+            <th class="text-left py-2 pr-4">Pit Duration</th>
+            <th class="text-left py-2 pr-4">Tire In</th>
+            <th class="text-left py-2 pr-4">Tire Out</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pit_qs %}
+          <tr class="border-b border-white/5">
+            <td class="py-2 pr-4">{{ p.lap_number }}</td>
+            <td class="py-2 pr-4">{{ p.pit_duration|default:"—" }}</td>
+            <td class="py-2 pr-4">{{ p.tire_in|default:"—" }}</td>
+            <td class="py-2 pr-4">{{ p.tire_out|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-white/60">Belum ada pit stop.</p>
+    {% endif %}
+  {% endwith %}
+</section>
+
+{% endblock %}

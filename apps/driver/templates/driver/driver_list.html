@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Driver Profile · SpeedView{% endblock %}
+{% block content %}
+
+<!-- breadcrumb mini -->
+<p class="text-xs text-white/50 mb-2">Home / <span class="text-white/70">Driver Profile</span></p>
+
+<h1 class="font-display tracking-widerx text-4xl md:text-5xl mb-6">DRIVER PROFILE</h1>
+
+<!-- FILTER BAR: sekarang input & select berada di dalam <form> yang sama -->
+<form method="get" class="flex flex-wrap items-end gap-3 mb-6" role="search" aria-label="Filter drivers">
+  <label class="sr-only" for="q">Search</label>
+  <input id="q" type="search" name="q" value="{{ request.GET.q|default_if_none:'' }}"
+         placeholder="Search name / #"
+         class="bg-slate-800/60 border border-white/10 rounded px-3 py-2 placeholder-white/40 w-64 font-mono">
+
+  <label class="sr-only" for="order">Order</label>
+  <select id="order" name="order"
+          class="bg-slate-800/60 border border-white/10 rounded px-3 py-2">
+    <option value="num" {% if request.GET.order == 'num' or not request.GET.order %}selected{% endif %}>By Number</option>
+    <option value="name" {% if request.GET.order == 'name' %}selected{% endif %}>By Name</option>
+    <option value="team" {% if request.GET.order == 'team' %}selected{% endif %}>By Team</option>
+  </select>
+
+  <button type="submit" class="px-3 py-2 rounded bg-slate-700 hover:bg-slate-600">Apply</button>
+
+  <a href="{% url 'driver:driver_add' %}" class="ml-auto">
+    <button type="button" class="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-500">+ Add Driver</button>
+  </a>
+</form>
+
+{% if object_list %}
+  <!-- GRID 4 kolom -->
+  <section class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {% for d in object_list %}
+    <a href="{% url 'driver:driver_detail' d.pk %}"
+       class="group rounded-2xl border border-white/10 bg-slate-900/50 hover:bg-slate-900/80 p-6 transition">
+      <div class="aspect-square rounded-xl border border-white/10 bg-gradient-to-b from-slate-800 to-slate-900 mb-5
+                  flex items-center justify-center overflow-hidden">
+        {% if d.headshot_url %}
+          <img src="{{ d.headshot_url }}" alt="Headshot {{ d.full_name|default:d.name_acronym }}"
+               class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition">
+        {% else %}
+          <div class="w-28 h-28 rounded-full border border-white/10 bg-slate-800/70"></div>
+        {% endif %}
+      </div>
+
+      <h3 class="font-mono text-xl font-bold tracking-wide">
+        {{ d.full_name|default:d.broadcast_name|default:d.name_acronym }}
+      </h3>
+      <p class="font-mono text-white/60">
+        #{{ d.driver_number }}{% if d.team_name %} – {{ d.team_name }}{% endif %}
+      </p>
+
+      <div class="mt-4 text-xs text-white/40 opacity-0 group-hover:opacity-100 transition">
+        <a class="hover:underline" href="{% url 'driver:driver_edit' d.pk %}">edit</a>
+        <span class="px-1">·</span>
+        <a class="hover:underline" href="{% url 'driver:driver_delete' d.pk %}">delete</a>
+      </div>
+    </a>
+    {% endfor %}
+  </section>
+{% else %}
+  <!-- SKELETON jika kosong -->
+  <section class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {% for _ in "12345678" %}
+    <div class="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+      <div class="aspect-square rounded-xl border border-white/10 bg-slate-800/50 mb-5
+                  flex items-center justify-center">
+        <div class="w-28 h-28 rounded-full border border-white/10 bg-slate-800/70"></div>
+      </div>
+      <div class="h-5 w-40 bg-white/10 rounded mb-2"></div>
+      <div class="h-4 w-28 bg-white/10 rounded"></div>
+    </div>
+    {% endfor %}
+  </section>
+{% endif %}
+
+{% endblock %}
