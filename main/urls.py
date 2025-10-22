@@ -1,4 +1,3 @@
-# main/urls.py
 from django.urls import path
 from main.views import show_main
 
