@@ -1,12 +1,18 @@
 from django.urls import path
-from .views import CircuitList, CircuitDetail, CircuitCreate, CircuitUpdate, CircuitDelete
+from . import views
 
 app_name = "circuit"
 
 urlpatterns = [
-    path('', CircuitList.as_view(), name='circuit_list'),
-    path('<int:pk>/', CircuitDetail.as_view(), name='circuit_detail'),
-    path('new/', CircuitCreate.as_view(), name='circuit_create'),
-    path('<int:pk>/edit/', CircuitUpdate.as_view(), name='circuit_update'),
-    path('<int:pk>/delete/', CircuitDelete.as_view(), name='circuit_delete'),
+    # API endpoints
+    path("api/", views.api_circuit_list, name="api_list"),
+    path("api/create/", views.api_circuit_create, name="api_create"),
+    path("api/<int:pk>/update/", views.api_circuit_update, name="api_update"), # DITAMBAHKAN
+    path("api/<int:pk>/delete/", views.api_circuit_delete, name="api_delete"),
+
+    # Page rendering (tampilan HTML)
+    path("", views.circuit_list_page, name="list_page"),
+    path("add/", views.add_circuit_page, name="add_page"),
+    path("<int:pk>/", views.circuit_detail_page, name="detail_page"),
+    path("<int:pk>/edit/", views.edit_circuit_page, name="edit_page")
 ]
