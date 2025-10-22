@@ -12,7 +12,7 @@
                 <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
                     <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
                     <span>›</span> 
-                    <a class="hover:text-red-400" href="{% url 'team:list_page' %}">Team</a>
+                    <span class="text-white" href="{% url 'team:list_page' %}">Team</span>
                 </div>
                 <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
                     Teams
@@ -56,7 +56,6 @@
         </div>
 
         <div id="grid" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <!-- cards injected here -->
         </div>
 
         <template id="card-template">
@@ -189,6 +188,9 @@
         async function boot() {
             try {
                 const res = await fetch(API_LIST);
+                if (!res.ok) {
+                    console.error("API_LIST status:", res.status, res.statusText);
+                }
                 const json = await res.json();
                 if (!json.ok) throw new Error(json.error || "Failed to load");
                 allTeams = json.data || [];

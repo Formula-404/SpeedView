@@ -66,7 +66,7 @@ def add_team_page(request):
         return redirect('user:login')
     if not is_admin(request):
         return redirect('team:list_page')
-    return render(request, "add_team.html")
+    return render(request, "add_team.html", {"form": TeamForm()})
 
 def edit_team_page(request, team_name):
     if not request.user.is_authenticated:
@@ -104,9 +104,19 @@ def api_team_create(request):
         try:
             with transaction.atomic():
                 team = form.save()
+
+            if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
+               "application/json" not in request.headers.get("Accept", ""):
+                return HttpResponseRedirect(reverse("team:list_page"))
+
             return JsonResponse({"ok": True, "data": serialize_team(team)}, status=201)
+
         except IntegrityError:
             form.add_error("team_name", "A team with this name already exists.")
+
+    if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
+       "application/json" not in request.headers.get("Accept", ""):
+        return render(request, "add_team.html", {"form": form})
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 @csrf_protect

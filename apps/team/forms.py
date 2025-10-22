@@ -18,6 +18,19 @@ class TeamForm(forms.ModelForm):
             "max_length": "Hex colours are 6 characters (optionally prefixed by #).",
         },
     )
+    team_colour_secondary = forms.CharField(
+        max_length=7,
+        help_text="6-digit hex; with or without # (e.g., #00A19A or 00A19A).",
+        widget=forms.TextInput(attrs={
+            "placeholder": "#00A19A",
+            "pattern": "#?[0-9A-Fa-f]{6}",
+            "autocomplete": "off",
+        }),
+        error_messages={
+            "required": "Please provide a colour.",
+            "max_length": "Hex colours are 6 characters (optionally prefixed by #).",
+        },
+    )
 
     # ============ Meta ============
     class Meta:
@@ -28,7 +41,6 @@ class TeamForm(forms.ModelForm):
             "country", "base", "founded_year", "is_active",
             "website", "wiki_url",
             "team_description", "engines",
-            "first_entry", "last_entry",
             "constructors_championships", "drivers_championships",
             "race_victories", "podiums", "points",
         ]
@@ -46,7 +58,8 @@ class TeamForm(forms.ModelForm):
             },
         }
         widgets = {
-            "team_description": forms.Textarea(attrs={"rows": 4}),
+            "team_logo_url": forms.Textarea(attrs={"rows": 2}),
+            "team_description": forms.Textarea(attrs={"rows": 20}),
             "engines": forms.Textarea(attrs={"rows": 2}),
         }
 
@@ -77,7 +90,7 @@ class TeamForm(forms.ModelForm):
         if raw.startswith("#"):
             raw = raw[1:]
         if len(raw) != 6:
-            raise ValidationError("Secondary colour must be exactly 6 hex digits.")
+            raise ValidationError("Secondary colour must be exactly 6 hex digits, e.g., 00A19A.")
         for ch in raw:
             if ch not in "0123456789ABCDEFabcdef":
                 raise ValidationError("Secondary colour must contain only 0–9 or A–F characters.")
