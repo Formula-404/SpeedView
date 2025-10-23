@@ -63,7 +63,7 @@ class Driver(models.Model):
     # Helper: daftar session_key yang pernah diikuti driver ini (distinct)
     @property
     def session_keys(self):
-        return list(self.entries.values_list("session_key", flat=True).distinct())
+        return list(self.entries.values_list("session_key", flat=True).distinct()) # type: ignore
 
 
 class DriverEntry(models.Model):
@@ -80,8 +80,8 @@ class DriverEntry(models.Model):
     # Ganti FK Session -> integer key
     session_key = models.PositiveIntegerField(
         db_index=True,
-        null=True,         # ← tambah
-        blank=True,        # ← tambah
+        null=True,       
+        blank=True,      
         help_text="OpenF1 session_key.",
     )
 
@@ -121,7 +121,7 @@ class DriverEntry(models.Model):
         ]
 
     def __str__(self):
-        return f"Entry #{self.driver_id} @ session {self.session_key}"
+        return f"Entry #{self.driver.driver_number} @ session {self.session_key}"
 
 
 class DriverTeam(models.Model):
@@ -167,4 +167,4 @@ class DriverTeam(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.driver_id} ↔ {self.team_id}"
+        return f"{self.driver.driver_number} ↔ {self.team}"
