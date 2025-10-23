@@ -11,7 +11,7 @@
   <div class="text-sm text-white/60 tracking-wide mb-4 space-x-2">
     <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a><span>›</span>
     <a class="hover:text-red-400" href="{% url 'driver:driver_list' %}">Drivers</a><span>›</span>
-    <span class="text-white">#{{ driver.driver_number }}</span>
+    <span class="text-white">{{ driver.full_name }}</span>
   </div>
 
   <!-- Header card -->
