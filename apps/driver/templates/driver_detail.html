@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+  <title>Driver #{{ driver.driver_number }} – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto max-w-5xl">
+  <div class="text-sm text-white/60 tracking-wide mb-4 space-x-2">
+    <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a><span>›</span>
+    <a class="hover:text-red-400" href="{% url 'driver:driver_list' %}">Drivers</a><span>›</span>
+    <span class="text-white">#{{ driver.driver_number }}</span>
+  </div>
+
+  <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 overflow-hidden">
+    <div class="grid md:grid-cols-3 gap-0">
+      <div class="md:col-span-1 h-64 md:h-full bg-white/5">
+        <img src="{{ driver.headshot_url|default:'https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png' }}"
+             onerror="this.src='https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png'"
+             class="w-full h-full object-cover" alt="Headshot">
+      </div>
+      <div class="md:col-span-2 p-6">
+        <h1 class="text-2xl font-bold text-white">{{ driver.full_name|default:driver.broadcast_name|default:driver.name_acronym|default:'#'|add:driver.driver_number }}</h1>
+        <p class="text-white/60 text-sm mt-1">Country: {{ driver.country_code|default:"—" }}</p>
+
+        <div class="mt-6 flex gap-2">
+          <a href="/laps/{{ driver.driver_number }}/" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Laps</a>
+          <a href="/pit/{{ driver.driver_number }}/" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Pit</a>
+
+          {% if user.is_authenticated and user.profile.role == "admin" %}
+          <a href="{% url 'driver:edit_page' driver.driver_number %}" class="ml-auto px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">Edit</a>
+          <a href="{% url 'driver:delete_page' driver.driver_number %}" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
