@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta %}
+  <title>Add Driver – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="min-h-screen px-12 py-12">
+  <!-- Breadcrumb + Title -->
+  <div class="mb-10">
+    <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+      <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+      <span>›</span>
+      <a class="hover:text-red-400" href="{% url 'driver:driver_list' %}">Drivers</a>
+      <span>›</span>
+      <span class="text-white">Add Driver</span>
+    </div>
+    <h1 class="text-4xl font-bold text-[#E6EDF3]" style="font-family: Alphacorsa, Inter, sans-serif;">Add Driver</h1>
+    <p class="text-[#E6EDF3]/60 mt-1">Isi identitas dasar pengemudi. Kamu bisa menambahkan tim lebih dari satu.</p>
+  </div>
+
+  <!-- Non-field errors -->
+  {% if form.non_field_errors %}
+    <div class="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg text-sm mb-6">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <form method="POST" action="{% url 'driver:api_create' %}" id="driver-form" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    {% csrf_token %}
+
+    <!-- LEFT: Form fields -->
+    <div class="lg:col-span-2 space-y-8">
+      <!-- Identity -->
+      <section class="rounded-xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <h2 class="text-lg font-semibold text-white mb-4">Identity</h2>
+
+        <!-- Driver number -->
+        <div class="mb-5">
+          <label for="{{ form.driver_number.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-1">
+            Driver Number <span class="text-red-500">*</span>
+          </label>
+          {{ form.driver_number }}
+          {% for error in form.driver_number.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+          <p class="text-xs text-white/40 mt-1">Unique. Angka 1–999.</p>
+        </div>
+
+        <!-- Full name -->
+        <div class="mb-5">
+          <label for="{{ form.full_name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-1">
+            Full Name <span class="text-red-500">*</span>
+          </label>
+          {{ form.full_name }}
+          {% for error in form.full_name.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+        </div>
+
+        <!-- Broadcast name -->
+        <div class="mb-5">
+          <label for="{{ form.broadcast_name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-1">
+            Broadcast Name
+          </label>
+          {{ form.broadcast_name }}
+          {% for error in form.broadcast_name.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+          <p class="text-xs text-white/40 mt-1">Nama yang muncul di siaran/TV. Opsional.</p>
+        </div>
+
+        <!-- Country code -->
+        <div class="mb-5">
+          <label for="{{ form.country_code.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-1">
+            Country Code
+          </label>
+          {{ form.country_code }}
+          {% for error in form.country_code.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+          <p class="text-xs text-white/40 mt-1">Tiga huruf huruf besar, misal: IDN, GBR, NLD.</p>
+        </div>
+
+        <!-- Headshot URL -->
+        <div class="mb-2">
+          <label for="{{ form.headshot_url.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-1">
+            Headshot URL
+          </label>
+          {{ form.headshot_url }}
+          {% for error in form.headshot_url.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+          <p class="text-xs text-white/40 mt-1">URL gambar potret. Boleh dikosongkan.</p>
+        </div>
+      </section>
+
+      <!-- Teams -->
+      <section class="rounded-xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <h2 class="text-lg font-semibold text-white mb-4">Teams</h2>
+        <div>
+          <label for="{{ form.teams.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-1">
+            Select Team(s)
+          </label>
+          {{ form.teams }}
+          {% for error in form.teams.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+          <p class="text-xs text-white/40 mt-1">Gunakan Ctrl/⌘ untuk memilih lebih dari satu tim. Opsional.</p>
+        </div>
+      </section>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-6">
+        <a href="{% url 'driver:driver_list' %}" class="px-6 py-3 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3]/80 hover:text-white rounded-lg font-medium border border-gray-600/50 transition-all">
+          Cancel
+        </a>
+        <button type="submit" class="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-[#161B22]">
+          Add Driver
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Live preview -->
+    <aside class="space-y-4">
+      <div class="rounded-xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <h3 class="text-sm font-semibold text-white mb-4">Live Preview</h3>
+        <div class="flex items-center gap-4">
+          <img id="headshot-preview" class="h-16 w-16 rounded-full object-cover bg-white/5 border border-white/10"
+               src="https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png"
+               alt="Headshot preview">
+          <div class="min-w-0">
+            <p id="preview-name" class="text-white font-semibold truncate">Driver Name</p>
+            <p class="text-xs text-white/60">
+              <span id="preview-number">#—</span> • <span id="preview-country">—</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-yellow-500/10 border border-yellow-500/30 p-4 text-yellow-200 text-sm">
+        Tips: isi <b>Full Name</b> untuk identitas utama. Broadcast Name hanya untuk tampilan siaran. Country Code otomatis diubah ke huruf besar.
+      </div>
+    </aside>
+  </form>
+</div>
+
+<!-- Lightweight JS styling + helpers -->
+<script>
+  // Tambahkan kelas Tailwind ke semua field Form (tanpa widget_tweaks)
+  const classy = "w-full px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+  const byId = (id) => document.getElementById(id);
+
+  // Ambil elemen yang dirender Django
+  const elNum   = byId("id_driver_number");
+  const elName  = byId("id_full_name");
+  const elBroad = byId("id_broadcast_name");
+  const elCode  = byId("id_country_code");
+  const elShot  = byId("id_headshot_url");
+  const elTeams = byId("id_teams");
+
+  // Tambah kelas tampilan
+  [elNum, elName, elBroad, elCode, elShot].forEach(el => { if (el) el.className = classy; });
+  if (elTeams) {
+    elTeams.className = classy;
+    elTeams.setAttribute("size", Math.min(8, Math.max(4, elTeams.options.length || 6)));
+  }
+
+  // Placeholder
+  if (elNum)   elNum.placeholder = "e.g. 44";
+  if (elName)  elName.placeholder = "Lewis Hamilton";
+  if (elBroad) elBroad.placeholder = "LEWIS H.";
+  if (elCode)  elCode.placeholder = "GBR";
+  if (elShot)  elShot.placeholder = "https://…/headshot.jpg";
+
+  // Number constraints
+  if (elNum) {
+    elNum.setAttribute("min", "1");
+    elNum.setAttribute("max", "999");
+    elNum.addEventListener("input", () => {
+      const v = parseInt(elNum.value || ""); 
+      if (Number.isFinite(v)) {
+        elNum.value = Math.min(999, Math.max(1, v));
+      }
+      updatePreview();
+    });
+  }
+
+  // Auto-uppercase Country Code, batasi 3 huruf
+  if (elCode) {
+    elCode.addEventListener("input", () => {
+      elCode.value = (elCode.value || "").replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0,3);
+      updatePreview();
+    });
+  }
+
+  // Headshot live preview + fallback
+  const imgPrev = byId("headshot-preview");
+  const defaultImg = "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png";
+  if (elShot) {
+    const setImg = () => {
+      const url = (elShot.value || "").trim();
+      imgPrev.src = url || defaultImg;
+    };
+    elShot.addEventListener("input", setImg);
+    imgPrev.onerror = () => { imgPrev.src = defaultImg; };
+  }
+
+  // Name/number/country preview
+  const namePrev = byId("preview-name");
+  const numPrev  = byId("preview-number");
+  const ctyPrev  = byId("preview-country");
+
+  function updatePreview() {
+    if (namePrev && elName)  namePrev.textContent = elName.value || "Driver Name";
+    if (numPrev  && elNum)   numPrev.textContent  = elNum.value ? `#${elNum.value}` : "#—";
+    if (ctyPrev  && elCode)  ctyPrev.textContent  = elCode.value || "—";
+  }
+
+  [elName, elNum, elCode].forEach(el => el && el.addEventListener("input", updatePreview));
+  updatePreview();
+</script>
+{% endblock content %}

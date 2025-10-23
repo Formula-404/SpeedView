@@ -1,3 +1,2 @@
-from django.db import models
-
-# Create your models here.
+# apps/pit/models.py
+# Tidak ada model database untuk Pit. Data diambil langsung dari OpenF1.
