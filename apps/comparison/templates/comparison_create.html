@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+    <title>Create Comparison – SpeedView</title>
+    <style>
+        .input-field { transition: all .2s ease; }
+        .input-field:focus { transform: translateY(-1px); }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+            <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+            <span>›</span>
+            <span class="text-white">Create Comparison</span>
+        </div>
+        <h1 class="text-4xl font-bold text-white">Create Comparison</h1>
+        <p class="text-white/60 mt-1">Choose a module and select 2–4 items to compare.</p>
+    </div>
+
+    <!-- Module -->
+    <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6 mb-6">
+        <h2 class="text-white text-lg font-semibold mb-3">Module</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button data-module="team" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white hover:border-red-500/40">Team</button>
+            <button data-module="car" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white">Car</button>
+            <button data-module="driver" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white">Driver</button>
+            <button data-module="circuit" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white">Circuit</button>
+        </div>
+    </div>
+
+    <!-- Picker -->
+    <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="picker-title" class="text-white text-lg font-semibold">Select Teams</h2>
+            <div class="text-sm text-white/60">Pick 2–4</div>
+        </div>
+        <div class="flex items-center gap-3 mb-4">
+            <input id="search" type="text" placeholder="Search…" class="input-field w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+            <div id="count" class="text-white/60 text-sm">0 selected</div>
+        </div>
+        <div id="list" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+        <template id="opt-tpl">
+            <label class="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3 hover:border-red-500/40 cursor-pointer">
+                <input type="checkbox" class="h-4 w-4 accent-red-600">
+                <img class="h-8 w-8 rounded bg-white/5 object-contain">
+                <div class="min-w-0">
+                    <div class="text-white font-medium truncate"></div>
+                    <div class="text-xs text-white/60 truncate"></div>
+                </div>
+            </label>
+        </template>
+        <div class="flex justify-end gap-3 mt-6">
+            <a href="{% url 'team:list_page' %}" class="px-6 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white/80 hover:text-white">Cancel</a>
+            <button id="create-btn" class="px-6 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700">Create</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        /* state */
+        let moduleSel = "team";
+        let options = [];
+        let filtered = [];
+
+        /* nodes */
+        const list = document.getElementById("list");
+        const tpl = document.getElementById("opt-tpl");
+        const search = document.getElementById("search");
+        const count = document.getElementById("count");
+        const createBtn = document.getElementById("create-btn");
+        const pickerTitle = document.getElementById("picker-title");
+
+        /* module */
+        document.querySelectorAll(".module-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                moduleSel = btn.dataset.module;
+                document.querySelectorAll(".module-btn").forEach(b => b.classList.remove("border-red-500","text-white"));
+                btn.classList.add("border-red-500","text-white");
+                pickerTitle.textContent = moduleSel === "team" ? "Select Teams" : "Select Items";
+                loadOptions();
+            });
+        });
+
+        /* fetch options */
+        async function loadOptions() {
+            let url = "";
+            if (moduleSel === "team") url = "{% url 'team:api_list' %}";
+            list.innerHTML = "";
+            options = [];
+            filtered = [];
+            try {
+                const res = await fetch(url);
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error("Failed");
+                options = (json.data || []).map(t => ({
+                    id: t.team_name,
+                    name: t.team_name,
+                    sub: t.short_code || "",
+                    logo: t.team_logo_url || "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png"
+                }));
+                filtered = options.slice();
+                render();
+            } catch (e) {
+                list.innerHTML = `<div class="text-red-400">Failed to load items.</div>`;
+            }
+        }
+
+        /* render grid */
+        function render() {
+            list.innerHTML = "";
+            for (const opt of filtered) {
+                const n = tpl.content.firstElementChild.cloneNode(true);
+                n.querySelector("input").value = opt.id;
+                n.querySelector("img").src = opt.logo;
+                n.querySelector(".text-white").textContent = opt.name;
+                n.querySelector(".text-xs").textContent = opt.sub;
+                n.querySelector("input").addEventListener("change", limitSelection);
+                list.appendChild(n);
+            }
+            updateCount();
+        }
+
+        /* search */
+        search.addEventListener("input", () => {
+            const q = search.value.trim().toLowerCase();
+            filtered = options.filter(o => o.name.toLowerCase().includes(q) || o.sub.toLowerCase().includes(q));
+            render();
+        });
+
+        /* selection limits */
+        function getSelectedIds() {
+            return Array.from(list.querySelectorAll("input[type=checkbox]")).filter(c => c.checked).map(c => c.value);
+        }
+        function updateCount() {
+            const n = getSelectedIds().length;
+            count.textContent = `${n} selected`;
+        }
+        function limitSelection(e) {
+            const boxes = Array.from(list.querySelectorAll("input[type=checkbox]"));
+            const selected = boxes.filter(b => b.checked);
+            if (selected.length > 4) {
+                e.target.checked = false;
+                return;
+            }
+            boxes.forEach(b => { b.disabled = !b.checked && selected.length >= 4; });
+            updateCount();
+        }
+
+        /* create */
+        createBtn.addEventListener("click", async () => {
+            const items = getSelectedIds();
+            if (items.length < 2 || items.length > 4) {
+                alert("Pick 2–4 items.");
+                return;
+            }
+            try {
+                const res = await fetch("{% url 'comparison:api_create' %}", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+                    body: JSON.stringify({ module: moduleSel, items })
+                });
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error(json.error || "Failed");
+                window.location.href = json.redirect;
+            } catch (e) {
+                alert(e.message || "Failed to create comparison.");
+            }
+        });
+
+        loadOptions();
+    })();
+</script>
+{% endblock content %}
