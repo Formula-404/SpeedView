@@ -23,13 +23,6 @@
     </div>
 
     <div class="flex items-center gap-3">
-      {% if is_admin %}
-      <a href="{% url 'driver:add_page' %}">
-        <button class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-          + Add Driver
-        </button>
-      </a>
-      {% endif %}
       <div class="relative">
         <input id="driver-search" type="text" placeholder="Search driver..."
                class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
@@ -38,6 +31,13 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
         </svg>
       </div>
+      {% if is_admin %}
+      <a href="{% url 'driver:add_page' %}">
+        <button class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+          + Add Driver
+        </button>
+      </a>
+      {% endif %}
     </div>
   </div>
 
