@@ -37,57 +37,25 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Application definition
 
-# INSTALLED_APPS = [
-#     'django.contrib.admin',
-#     'django.contrib.auth',
-#     'django.contrib.contenttypes',
-#     'django.contrib.sessions',
-#     'django.contrib.messages',
-#     'django.contrib.staticfiles',
-#     'main',
-#     'apps.user',
-#     #'apps.driver',
-#     'apps.circuit',
-#     #'apps.meeting',
-
-#     'apps.session',
-#     'apps.meeting',
-#     #'apps.weather',
-#     'apps.team',
-#     #'apps.car',
-#     #'apps.laps',
-#     #'apps.pit',
-#     #'apps.comparison'
-# ]
-
-
 INSTALLED_APPS = [
-    # --- Django core apps ---
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # --- Project apps yang aman ---
     'main',
     'apps.user',
+    'apps.driver',
     'apps.circuit',
     'apps.meeting',
-    'apps.team',
-
-    # App session kamu (read-only, tanpa model) boleh aktif
     'apps.session',
-
-    # PENTING: aktifkan driver dengan AppConfig eksplisit
-    'apps.driver.apps.DriverConfig',
-
-    # ====== TUNDA DULU (aktifkan nanti setelah driver beres) ======
-    # 'apps.car',
-    # 'apps.laps',
-    # 'apps.pit',
-    # 'apps.comparison',
+    'apps.weather',
+    'apps.team',
+    'apps.car',
+    'apps.laps',
+    'apps.pit',
+    'apps.comparison'
 ]
 
 
