@@ -35,6 +35,29 @@
 {% endblock meta %}
 
 {% block content %}
+    <div id="deleteAccountModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-[#161B22] rounded-lg p-6 max-w-sm w-full mx-4 border border-gray-700">
+            <div class="flex items-center mb-4">
+                <svg class="w-6 h-6 text-red-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <h3 class="text-lg font-semibold text-[#E6EDF3]">Confirm Account Deletion</h3>
+            </div>
+            <p class="text-[#E6EDF3]/70 mb-6">Are you absolutely sure you want to delete your account? This action cannot be undone!</p>
+            <form method="POST" action="{% url 'user:profile_settings' %}" id="deleteAccountForm">
+                {% csrf_token %}
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeDeleteModal()" class="flex-1 px-4 py-2 bg-gray-700 text-[#E6EDF3] rounded-lg hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" name="delete_account" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                        Delete Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="min-h-screen flex items-center justify-center">
         <div class="max-w-4xl w-full mx-auto">
             <div class="mb-8">
@@ -213,9 +236,7 @@
                             </div>
                         </div>
     
-                        <form method="POST" action="{% url 'user:profile_settings' %}" class="space-y-4" onsubmit="return confirm('Are you absolutely sure you want to delete your account? This action cannot be undone!');">
-                            {% csrf_token %}
-    
+                        <div class="space-y-4">
                             <div>
                                 <label for="delete_password" class="block text-sm font-medium text-[#E6EDF3] mb-2">Confirm Password</label>
                                 <input
@@ -223,11 +244,10 @@
                                     id="delete_password"
                                     name="password"
                                     placeholder="Enter your password to confirm"
-                                    required
                                     class="input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                 >
                             </div>
-    
+
                             <div>
                                 <label for="confirm_text" class="block text-sm font-medium text-[#E6EDF3] mb-2">Type 'DELETE' to confirm</label>
                                 <input
@@ -235,21 +255,20 @@
                                     id="confirm_text"
                                     name="confirm_text"
                                     placeholder="Type DELETE in capital letters"
-                                    required
                                     class="input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                 >
                             </div>
-    
+
                             <div class="flex justify-end">
                                 <button
-                                    type="submit"
-                                    name="delete_account"
+                                    type="button"
+                                    onclick="openDeleteModal()"
                                     class="btn-danger px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-[#161B22]"
                                 >
                                     Delete My Account
                                 </button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -276,5 +295,45 @@
             activeButton.classList.remove('text-[#E6EDF3]/70');
             activeButton.classList.add('text-[#E6EDF3]');
         }
+
+        function openDeleteModal() {
+            const password = document.getElementById('delete_password').value;
+            const confirmText = document.getElementById('confirm_text').value;
+
+            if (!password) {
+                alert('Please enter your password');
+                return;
+            }
+
+            if (confirmText !== 'DELETE') {
+                alert('Please type DELETE in capital letters to confirm');
+                return;
+            }
+
+            const form = document.getElementById('deleteAccountForm');
+            const passwordInput = document.createElement('input');
+            passwordInput.type = 'hidden';
+            passwordInput.name = 'password';
+            passwordInput.value = password;
+            form.appendChild(passwordInput);
+
+            const confirmInput = document.createElement('input');
+            confirmInput.type = 'hidden';
+            confirmInput.name = 'confirm_text';
+            confirmInput.value = confirmText;
+            form.appendChild(confirmInput);
+
+            document.getElementById('deleteAccountModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteAccountModal').classList.add('hidden');
+        }
+
+        document.getElementById('deleteAccountModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
+            }
+        });
     </script>
 {% endblock content %}
