@@ -1,5 +1,3 @@
-# apps/driver/models.py
-
 from django.db import models
 from django.urls import reverse
 
@@ -7,7 +5,7 @@ class Driver(models.Model):
     """
     Entitas utama Driver. Primary key = driver_number.
     Catatan:
-    - Relasi ke Session: M2M via DriverEntry (wajib menyertakan meeting).
+    - Relasi ke Session TIDAK lagi pakai FK/M2M. Kita simpan session_key (int) di DriverEntry.
     - Relasi ke Team: M2M via DriverTeam (kontrak/riwayat tim).
     - Model lain (car, laps, pit) cukup FK ke Driver (driver_number).
     """
@@ -38,14 +36,6 @@ class Driver(models.Model):
         blank=True,
     )
 
-    # Relasi Many-to-Many ke Session via DriverEntry
-    sessions = models.ManyToManyField(
-        "session.Session",
-        through="DriverEntry",
-        related_name="drivers",
-        blank=True,
-    )
-
     debut_meeting = models.ForeignKey(
         "meeting.Meeting",
         on_delete=models.SET_NULL,
@@ -64,28 +54,38 @@ class Driver(models.Model):
         ordering = ["driver_number"]
 
     def __str__(self):
-        return f"{self.driver_number} - {self.broadcast_name or self.full_name or (self.first_name + ' ' + self.last_name).strip()}"
+        name = self.broadcast_name or self.full_name or (self.first_name + " " + self.last_name).strip()
+        return f"{self.driver_number} - {name}"
 
     def get_absolute_url(self):
         return reverse("driver:driver_detail", kwargs={"driver_number": self.pk})
+
+    # Helper: daftar session_key yang pernah diikuti driver ini (distinct)
+    @property
+    def session_keys(self):
+        return list(self.entries.values_list("session_key", flat=True).distinct())
 
 
 class DriverEntry(models.Model):
     """
     Penghubung Driver <-> Session (M:N) + menyertakan Meeting.
-    Ini mewakili 'entry' seorang driver pada suatu session (latihan/kualifikasi/balap).
+    TIDAK ada FK ke Session; kita simpan session_key dari OpenF1.
     """
     driver = models.ForeignKey(
         Driver,
         on_delete=models.CASCADE,
         related_name="entries",
     )
-    session = models.ForeignKey(
-        "session.Session",
-        on_delete=models.CASCADE,
-        related_name="driver_entries",
+
+    # Ganti FK Session -> integer key
+    session_key = models.PositiveIntegerField(
+        db_index=True,
+        null=True,         # ← tambah
+        blank=True,        # ← tambah
+        help_text="OpenF1 session_key.",
     )
-    # Foreign key untuk meeting di entity session
+
+    # Foreign key untuk meeting (kalau Meeting-mu model lokal; jika tidak, ubah ke meeting_key IntegerField)
     meeting = models.ForeignKey(
         "meeting.Meeting",
         on_delete=models.CASCADE,
@@ -114,16 +114,14 @@ class DriverEntry(models.Model):
 
     class Meta:
         db_table = "driver_entry"
-        unique_together = (
-            ("driver", "session"),
-        )
+        unique_together = (("driver", "session_key"),)
         indexes = [
-            models.Index(fields=["driver", "session"]),
+            models.Index(fields=["driver", "session_key"]),
             models.Index(fields=["meeting"]),
         ]
 
     def __str__(self):
-        return f"Entry #{self.driver_id} @ {self.session_id}"
+        return f"Entry #{self.driver_id} @ session {self.session_key}"
 
 
 class DriverTeam(models.Model):

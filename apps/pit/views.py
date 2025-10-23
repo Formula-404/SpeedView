@@ -1,35 +1,37 @@
-from django.shortcuts import render, get_object_or_404
+# apps/pit/views.py
+import requests
 from django.http import JsonResponse
-from .models import Pit
+from django.shortcuts import render
+from datetime import datetime
 
-# ================== Helpers ==================
-def serialize_pit(pit: Pit):
-    return {
-        "pit_duration": pit.pit_duration,
-        "date": pit.date.isoformat() if pit.date else None,
-        "lap_number": pit.lap_number,
-        "driver_number": pit.driver.driver_number,
-        "session_key": pit.session.session_key,
-        "meeting_key": pit.meeting.meeting_key,
-        "created_at": pit.created_at.isoformat() if pit.created_at else None,
-        "updated_at": pit.updated_at.isoformat() if pit.updated_at else None,
-    }
+OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
 
-# ================== Views ==================
 def pit_list_page(request):
-    pits = Pit.objects.all()
-    return render(request, "pit_list.html", {"pits": pits})
+    return render(request, "pit_list.html")
 
-def pit_detail_page(request, pit_id):
-    pit = get_object_or_404(Pit, pk=pit_id)
-    return render(request, "pit_detail.html", {"pit": pit})
+def pit_detail_page(request, driver_number):   # sesuaikan dengan link /pit/<driver_number>/
+    return render(request, "pit_detail.html", {"driver_number": driver_number})
 
-# ================== API ==================
+def _fmt(dt):
+    if not dt:
+        return None
+    try:
+        return datetime.fromisoformat(dt).strftime("%d %b, %H:%M")
+    except Exception:
+        return dt
+
 def api_pit_list(request):
-    pits = Pit.objects.all()
-    data = [serialize_pit(p) for p in pits]
-    return JsonResponse({"ok": True, "count": len(data), "data": data})
-
-def api_pit_detail(request, pit_id):
-    pit = get_object_or_404(Pit, pk=pit_id)
-    return JsonResponse({"ok": True, "data": serialize_pit(pit)})
+    params = {}
+    for key in ("session_key", "driver_number", "lap_number", "meeting_key"):
+        val = request.GET.get(key)
+        if val:
+            params[key] = val
+    try:
+        r = requests.get(f"{OPENF1_API_BASE_URL}/pit", params=params, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        for row in data:
+            row["date_str"] = _fmt(row.get("date"))
+        return JsonResponse({"ok": True, "count": len(data), "data": data})
+    except requests.RequestException as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=502)

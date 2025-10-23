@@ -24,10 +24,7 @@ def serialize_driver(driver: Driver):
         "full_name": driver.full_name,
         "broadcast_name": driver.broadcast_name or "",
         "headshot_url": driver.headshot_url or "",
-        # "team_name": driver.team_name or "",
         "country_code": driver.country_code or "",
-        # "team_colour": driver.team_colour or "",
-        # "session_key": driver.session_key or "",
         "created_at": driver.created_at.isoformat() if driver.created_at else None,
         "updated_at": driver.updated_at.isoformat() if driver.updated_at else None,
         "detail_url": driver.get_absolute_url(),
@@ -46,9 +43,16 @@ def json_error(message, status=400, field_errors=None):
     return JsonResponse(payload, status=status)
 
 # ================== Page ==================
+# def driver_list_page(request):
+#     drivers = Driver.objects.all()
+#     return render(request, "driver_list.html", {"drivers": drivers})
 def driver_list_page(request):
     drivers = Driver.objects.all()
-    return render(request, "driver_list.html", {"drivers": drivers})
+    return render(
+        request,
+        "driver_list.html",
+        {"drivers": drivers, "is_admin": is_admin(request)}  
+    )
 
 def driver_detail_page(request, driver_number):
     driver = get_object_or_404(Driver, pk=driver_number)
@@ -57,15 +61,15 @@ def driver_detail_page(request, driver_number):
 def add_driver_page(request):
     if not request.user.is_authenticated:
         return redirect('user:login')
-    # if not is_admin(request):
-    #     return redirect('driver:list_page')
+    if not is_admin(request):                                   # hanya admin
+        return redirect('driver:driver_list')
     return render(request, "add_driver.html", {"form": DriverForm()})
 
 def edit_driver_page(request, driver_number):
     if not request.user.is_authenticated:
         return redirect('user:login')
-    # if not is_admin(request):
-    #     return redirect('driver:driver_list')
+    if not is_admin(request):                                   # hanya admin
+        return redirect('driver:driver_detail', driver_number=driver_number)
     driver = get_object_or_404(Driver, pk=driver_number)
     return render(request, "edit_driver.html", {"form": DriverForm(instance=driver)})
 
@@ -101,8 +105,8 @@ def api_driver_detail(request, driver_number):
 def api_driver_create(request):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
-    # if not is_admin(request):
-    #     return json_error("Admin role required.", status=403)
+    if not is_admin(request):                                   # hanya admin
+        return json_error("Admin role required.", status=403)
 
     payload = request.POST.dict() or parse_json(request)
     if payload is None:
@@ -128,10 +132,11 @@ def api_driver_create(request):
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 @csrf_protect
+@require_POST                                                    # wajib POST
 def api_driver_update(request, driver_number):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
-    if not is_admin(request):
+    if not is_admin(request):                                    # hanya admin
         return json_error("Admin role required.", status=403)
 
     driver = get_object_or_404(Driver, pk=driver_number)
@@ -144,17 +149,23 @@ def api_driver_update(request, driver_number):
         try:
             with transaction.atomic():
                 updated = form.save()
+            # Cek jika bukan XMLHttpRequest (AJAX)
+            if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
+               "application/json" not in request.headers.get("Accept", ""):
+                return HttpResponseRedirect(reverse("driver:driver_list"))  # Redirect setelah update.
+
             return JsonResponse({"ok": True, "data": serialize_driver(updated)})
         except IntegrityError:
             form.add_error("driver_number", "Another driver already uses this number.")
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 @csrf_protect
+@require_POST                                                    # wajib POST
 def api_driver_delete(request, driver_number):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
-    # if not is_admin(request):
-    #     return json_error("Admin role required.", status=403)
+    if not is_admin(request):                                    # hanya admin
+        return json_error("Admin role required.", status=403)
 
     driver = get_object_or_404(Driver, pk=driver_number)
     driver.delete()

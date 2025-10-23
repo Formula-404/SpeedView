@@ -16,8 +16,7 @@
   <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
     <h1 class="text-xl font-bold text-white">Delete this driver?</h1>
     <p class="text-white/70 mt-2">
-      {{ driver.full_name|default:driver.broadcast_name|default:driver.name_acronym }} (#{{
-      driver.driver_number }})
+       {{ driver.full_name|default:driver.broadcast_name|default:driver.name_acronym }} (#{{ driver.driver_number }})
     </p>
 
     <form method="POST" class="mt-6">

@@ -1,37 +1,46 @@
-from django.shortcuts import render, get_object_or_404
+# apps/laps/views.py
+import requests
 from django.http import JsonResponse
-from .models import Laps
+from django.shortcuts import render
+from datetime import datetime
 
-# ================== Helpers ==================
-def serialize_lap(lap: Laps):
-    return {
-        "lap_number": lap.lap_number,
-        "driver_number": lap.driver.driver_number,
-        "session_key": lap.session.session_key,
-        "lap_duration": lap.lap_duration,
-        "i1_speed": lap.i1_speed,
-        "i2_speed": lap.i2_speed,
-        "is_pit_out_lap": lap.is_pit_out_lap,
-        "date_start": lap.date_start.isoformat() if lap.date_start else None,
-        "created_at": lap.created_at.isoformat() if lap.created_at else None,
-        "updated_at": lap.updated_at.isoformat() if lap.updated_at else None,
-    }
+OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
 
-# ================== Views ==================
+# ---------- Page ----------
 def laps_list_page(request):
-    laps = Laps.objects.all()
-    return render(request, "laps_list.html", {"laps": laps})
+    return render(request, "laps_list.html")  # buat template sederhana seperti session_list.html
 
-def lap_detail_page(request, lap_number):
-    lap = get_object_or_404(Laps, pk=lap_number)
-    return render(request, "lap_detail.html", {"lap": lap})
+def lap_detail_page(request, driver_number):   # disesuaikan dengan link di UI
+    return render(request, "lap_detail.html", {"driver_number": driver_number})
 
-# ================== API ==================
+# ---------- Helpers ----------
+def _fmt(dt):
+    if not dt:
+        return None
+    try:
+        return datetime.fromisoformat(dt).strftime("%d %b, %H:%M")
+    except Exception:
+        return dt
+
+def _get(params):
+    r = requests.get(f"{OPENF1_API_BASE_URL}/laps", params=params, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    for row in data:
+        row["date_start_str"] = _fmt(row.get("date_start"))
+    return data
+
+# ---------- API ----------
 def api_laps_list(request):
-    laps = Laps.objects.all()
-    data = [serialize_lap(l) for l in laps]
-    return JsonResponse({"ok": True, "count": len(data), "data": data})
-
-def api_lap_detail(request, lap_number):
-    lap = get_object_or_404(Laps, pk=lap_number)
-    return JsonResponse({"ok": True, "data": serialize_lap(lap)})
+    # Meneruskan filter yang ada di OpenF1: session_key, driver_number, lap_number, meeting_key
+    params = {}
+    for key in ("session_key", "driver_number", "lap_number", "meeting_key"):
+        val = request.GET.get(key)
+        if val:
+            params[key] = val
+    try:
+        data = _get(params)
+        return JsonResponse({"ok": True, "count": len(data), "data": data})
+    except requests.RequestException as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=502)
+ 

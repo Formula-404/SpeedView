@@ -9,8 +9,7 @@
 <div class="px-12 py-12 mx-auto">
   <!-- ==== FLAG untuk JS (tanpa bikin linter error) ==== -->
   <div id="page-flags"
-       data-can-edit="{% if user.is_authenticated %}1{% else %}0{% endif %}"
-       data-is-admin="{% if user.is_authenticated and user.profile.role == 'admin' %}1{% else %}0{% endif %}"
+       data-is-admin="{% if is_admin %}1{% else %}0{% endif %}"
        class="hidden"></div>
 
   <div class="flex items-center justify-between mb-6">
@@ -26,7 +25,7 @@
     </div>
 
     <div class="flex items-center gap-3">
-      {% if user.is_authenticated %}
+      {% if is_admin %}
       <a href="{% url 'driver:add_page' %}">
         <button class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
           + Add Driver
@@ -75,8 +74,7 @@
 <script>
   // ====== Ambil flag dari HTML (tanpa template tag di JS) ======
   const FLAGS = document.getElementById("page-flags").dataset;
-  const CAN_EDIT = FLAGS.canEdit === "1";   // semua user login boleh edit/delete
-  const IS_ADMIN = FLAGS.isAdmin === "1";   // kalau butuh beda perilaku admin
+  const IS_ADMIN = FLAGS.isAdmin === "1";   // hanya admin
 
   // ====== API & element ======
   const API_LIST = "{% url 'driver:api_list' %}";
@@ -140,8 +138,7 @@
       actionBar.appendChild(lapBtn);
       actionBar.appendChild(pitBtn);
 
-      // Edit/Delete untuk SEMUA user login
-      if (CAN_EDIT) {
+      if (IS_ADMIN) {
         actionBar.classList.add("gap-2");
         actionBar.appendChild(document.createElement('div')).className = "flex-1";
 
