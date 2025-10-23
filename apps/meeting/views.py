@@ -1,10 +1,4 @@
 import requests
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.shortcuts import render
-from datetime import datetime
-import json
-
-import requests
 from django.http import JsonResponse
 from django.shortcuts import render
 from datetime import datetime
