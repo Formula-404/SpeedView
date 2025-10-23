@@ -78,7 +78,7 @@ def _build_session_catalog(meetings: Iterable[int]) -> dict[str, List[dict[str, 
             continue
         catalog.setdefault(str(session.meeting_key), []).append(
             {
-                "value": session.session_key,
+                "value": str(session.session_key),
                 "label": str(session),
             }
         )
