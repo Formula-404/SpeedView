@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}<title>Laps – SpeedView</title>{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-10 space-y-6">
+  <div class="text-sm text-white/60 tracking-wide">
+    <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+    <span>›</span><span class="text-white">Laps</span>
+  </div>
+
+  <h1 class="text-3xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">Laps (Read-only)</h1>
+
+  <form id="f" class="grid gap-3 sm:grid-cols-4 md:grid-cols-6">
+    <input name="session_key" placeholder="session_key" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
+    <input name="driver_number" placeholder="driver_number" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
+    <input name="lap_number" placeholder="lap_number" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
+    <input name="meeting_key" placeholder="meeting_key" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
+    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Load</button>
+    <button type="button" id="clear" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">Clear</button>
+  </form>
+
+  <p id="meta" class="text-sm text-white/60">—</p>
+
+  <div class="overflow-x-auto rounded border border-white/10">
+    <table class="min-w-full text-sm text-white/80">
+      <thead class="bg-white/5">
+        <tr>
+          <th class="px-3 py-2 text-left">Date</th>
+          <th class="px-3 py-2 text-left">Driver</th>
+          <th class="px-3 py-2 text-left">Lap</th>
+          <th class="px-3 py-2 text-left">S1</th>
+          <th class="px-3 py-2 text-left">S2</th>
+          <th class="px-3 py-2 text-left">S3</th>
+          <th class="px-3 py-2 text-left">Lap Time</th>
+          <th class="px-3 py-2 text-left">i1</th>
+          <th class="px-3 py-2 text-left">i2</th>
+          <th class="px-3 py-2 text-left">ST</th>
+          <th class="px-3 py-2 text-left">Pit out?</th>
+        </tr>
+      </thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API = "{% url 'laps:api_laps_list' %}";
+const f = document.getElementById('f');
+const tb = document.getElementById('tb');
+const meta = document.getElementById('meta');
+
+function fmt(v, d='—'){ return (v ?? v===0) ? v : d; }
+function sec(s){ return (s||s===0) ? Number(s).toFixed(3) : '—'; }
+
+async function load(params){
+  tb.innerHTML = `<tr><td class="px-3 py-3 text-white/60" colspan="11">Loading…</td></tr>`;
+  const qs = new URLSearchParams(params);
+  const res = await fetch(`${API}?${qs.toString()}`);
+  const json = await res.json();
+  if(!json.ok){ tb.innerHTML = `<tr><td class="px-3 py-3 text-red-400" colspan="11">${json.error||'Failed'}</td></tr>`; meta.textContent='—'; return; }
+  const rows = json.data || [];
+  meta.textContent = `${rows.length} item(s)`;
+  if(!rows.length){ tb.innerHTML = `<tr><td class="px-3 py-3 text-white/60" colspan="11">No data.</td></tr>`; return; }
+  tb.innerHTML = rows.map(r => `
+    <tr class="border-t border-white/10">
+      <td class="px-3 py-2">${fmt(r.date_start_str)}</td>
+      <td class="px-3 py-2">#${fmt(r.driver_number)}</td>
+      <td class="px-3 py-2">${fmt(r.lap_number)}</td>
+      <td class="px-3 py-2">${sec(r.duration_sector_1)}</td>
+      <td class="px-3 py-2">${sec(r.duration_sector_2)}</td>
+      <td class="px-3 py-2">${sec(r.duration_sector_3)}</td>
+      <td class="px-3 py-2">${sec(r.lap_duration)}</td>
+      <td class="px-3 py-2">${fmt(r.i1_speed)}</td>
+      <td class="px-3 py-2">${fmt(r.i2_speed)}</td>
+      <td class="px-3 py-2">${fmt(r.st_speed)}</td>
+      <td class="px-3 py-2">${r.is_pit_out_lap ? 'Yes' : 'No'}</td>
+    </tr>`).join('');
+}
+
+f.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(f).entries());
+  Object.keys(data).forEach(k => { if(!data[k]) delete data[k]; });
+  load(data);
+});
+
+document.getElementById('clear').onclick = () => { f.reset(); meta.textContent='—'; tb.innerHTML=''; };
+
+// --- prefill & auto-load dari query string (tidak pakai template tag) ---
+const params = Object.fromEntries(new URLSearchParams(window.location.search).entries());
+for (const [k,v] of Object.entries(params)) { if (f.elements[k]) f.elements[k].value = v; }
+if (Object.keys(params).length) load(params);
+</script>
+{% endblock content %}
