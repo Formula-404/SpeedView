@@ -73,8 +73,17 @@ def edit_team_page(request, team_name):
         return redirect('user:login')
     if not is_admin(request):
         return redirect('team:list_page')
-    get_object_or_404(Team, pk=team_name)
-    return render(request, "edit_team.html")
+    team = get_object_or_404(Team, pk=team_name)
+    if request.method == "POST":
+        form = TeamForm(request.POST, instance=team)
+        if form.is_valid():
+            updated = form.save()
+            return redirect(updated.get_absolute_url())
+        return render(request, "edit_team.html", {"form": form, "team": team})
+
+    form = TeamForm(instance=team)
+    return render(request, "edit_team.html", {"form": form, "team": team})
+
 
 # ================== API ==================
 @require_GET

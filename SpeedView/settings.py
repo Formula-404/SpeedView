@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.comparison'
 ]
 
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

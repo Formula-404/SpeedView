@@ -1,6 +1,6 @@
 import json
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseRedirect
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import redirect, render, get_object_or_404
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.db import IntegrityError, transaction
@@ -23,7 +23,7 @@ def serialize_circuit(circuit: Circuit):
         "name": circuit.name,
         "country": circuit.country,
         "location": circuit.location,
-        "map_image_url": circuit.map_image_file.url if circuit.map_image_file else None,
+        "map_image_url": circuit.map_image_url,
         "detail_url": reverse('circuit:detail_page', kwargs={'pk': circuit.pk}),
     }
 
