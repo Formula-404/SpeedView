@@ -10,7 +10,7 @@
     <span>›</span><span class="text-white">Pit</span>
   </div>
 
-  <h1 class="text-3xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">Pit Stops (Read-only)</h1>
+  <h1 class="text-3xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">Pit Stops</h1>
 
   <form id="f" class="grid gap-3 sm:grid-cols-4 md:grid-cols-6">
     <input name="session_key" placeholder="session_key" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
@@ -77,7 +77,7 @@ f.addEventListener('submit', (e)=>{
 
 document.getElementById('clear').onclick = () => { f.reset(); meta.textContent='—'; tb.innerHTML=''; };
 
-// prefill & auto-load dari query string
+
 const params = Object.fromEntries(new URLSearchParams(window.location.search).entries());
 for (const [k,v] of Object.entries(params)) { if (f.elements[k]) f.elements[k].value = v; }
 if (Object.keys(params).length) load(params);

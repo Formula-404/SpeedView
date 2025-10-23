@@ -11,7 +11,6 @@ class Driver(models.Model):
     """
     driver_number = models.PositiveSmallIntegerField(primary_key=True)
 
-    # Identitas dasar
     first_name = models.CharField(max_length=64, blank=True)
     last_name = models.CharField(max_length=64, blank=True)
     full_name = models.CharField(max_length=128, blank=True)
@@ -28,7 +27,7 @@ class Driver(models.Model):
     country_code = models.CharField(max_length=3, blank=True)
     headshot_url = models.URLField(blank=True)
 
-    # Relasi Many-to-Many ke Team via DriverTeam
+
     teams = models.ManyToManyField(
         "team.Team",
         through="DriverTeam",
@@ -60,7 +59,6 @@ class Driver(models.Model):
     def get_absolute_url(self):
         return reverse("driver:driver_detail", kwargs={"driver_number": self.pk})
 
-    # Helper: daftar session_key yang pernah diikuti driver ini (distinct)
     @property
     def session_keys(self):
         return list(self.entries.values_list("session_key", flat=True).distinct()) # type: ignore
@@ -77,15 +75,13 @@ class DriverEntry(models.Model):
         related_name="entries",
     )
 
-    # Ganti FK Session -> integer key
     session_key = models.PositiveIntegerField(
         db_index=True,
-        null=True,       
-        blank=True,      
+        null=True,        
+        blank=True,       
         help_text="OpenF1 session_key.",
     )
 
-    # Foreign key untuk meeting (kalau Meeting-mu model lokal; jika tidak, ubah ke meeting_key IntegerField)
     meeting = models.ForeignKey(
         "meeting.Meeting",
         on_delete=models.CASCADE,
@@ -93,7 +89,6 @@ class DriverEntry(models.Model):
         help_text="Meeting yang menaungi session ini."
     )
 
-    # Snapshot atribut yang memang per-session/meeting
     team = models.ForeignKey(
         "team.Team",
         on_delete=models.SET_NULL,
@@ -108,7 +103,6 @@ class DriverEntry(models.Model):
         help_text="Hex colour pada session ini (RRGGBB)."
     )
 
-    # Metadata waktu dari API
     date_start = models.DateTimeField(null=True, blank=True)
     date_end = models.DateTimeField(null=True, blank=True)
 
@@ -140,7 +134,7 @@ class DriverTeam(models.Model):
         related_name="driver_links",
     )
 
-    # Opsional: periode kontrak/afiliasi
+
     start_meeting = models.ForeignKey(
         "meeting.Meeting",
         on_delete=models.SET_NULL,
@@ -156,7 +150,7 @@ class DriverTeam(models.Model):
         related_name="driver_team_ends",
     )
 
-    # Snapshot properti visual yang sering berubah
+
     team_colour = models.CharField(max_length=6, blank=True)
 
     class Meta:

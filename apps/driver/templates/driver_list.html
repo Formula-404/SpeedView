@@ -52,7 +52,7 @@
       <div class="p-6 md:p-8 flex flex-col md:flex-row md:items-end gap-4">
         <div class="text-white">
           <h2 class="text-2xl md:text-3xl font-extrabold" style="font-family: Alphacorsa, Inter, sans-serif;">LAPS</h2>
-          <p class="text-white/80 text-sm md:text-base">Masukkan filter lalu buka halaman Laps (read-only).</p>
+          <p class="text-white/80 text-sm md:text-base">Masukkan filter lalu buka halaman Laps</p>
         </div>
         <form id="lapsForm" class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2 md:ml-6">
           <input name="driver_number" placeholder="driver_number"
@@ -79,7 +79,7 @@
       <div class="p-6 md:p-8 flex flex-col md:flex-row md:items-end gap-4">
         <div class="text-white">
           <h2 class="text-2xl md:text-3xl font-extrabold" style="font-family: Alphacorsa, Inter, sans-serif;">PIT STOPS</h2>
-          <p class="text-white/80 text-sm md:text-base">Filter cepat dan buka halaman Pit (read-only).</p>
+          <p class="text-white/80 text-sm md:text-base">Filter cepat dan buka halaman Pit </p>
         </div>
         <form id="pitForm" class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2 md:ml-6">
           <input name="driver_number" placeholder="driver_number"
@@ -141,7 +141,7 @@
   }
   function go(base, form){
     const qs = toQS(form);
-    window.location.href = qs ? `${base}?${qs}` : base;  // ← kalau kosong, langsung /laps/ atau /pit/
+    window.location.href = qs ? `${base}?${qs}` : base; 
   }
   document.getElementById('lapsForm').addEventListener('submit', (e)=>{ e.preventDefault(); go('/laps/', e.currentTarget); });
   document.getElementById('pitForm').addEventListener('submit',  (e)=>{ e.preventDefault(); go('/pit/',  e.currentTarget); });

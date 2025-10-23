@@ -43,9 +43,6 @@ def json_error(message, status=400, field_errors=None):
     return JsonResponse(payload, status=status)
 
 # ================== Page ==================
-# def driver_list_page(request):
-#     drivers = Driver.objects.all()
-#     return render(request, "driver_list.html", {"drivers": drivers})
 def driver_list_page(request):
     drivers = Driver.objects.all()
     return render(
@@ -61,14 +58,14 @@ def driver_detail_page(request, driver_number):
 def add_driver_page(request):
     if not request.user.is_authenticated:
         return redirect('user:login')
-    if not is_admin(request):                                   # hanya admin
+    if not is_admin(request):                                
         return redirect('driver:driver_list')
     return render(request, "add_driver.html", {"form": DriverForm()})
 
 def edit_driver_page(request, driver_number):
     if not request.user.is_authenticated:
         return redirect('user:login')
-    if not is_admin(request):                                   # hanya admin
+    if not is_admin(request):                                 
         return redirect('driver:driver_detail', driver_number=driver_number)
     driver = get_object_or_404(Driver, pk=driver_number)
     return render(request, "edit_driver.html", {"form": DriverForm(instance=driver)})
@@ -77,7 +74,6 @@ def edit_driver_page(request, driver_number):
 @require_http_methods(["GET", "POST"])
 def delete_driver_page(request, driver_number):
     if not request.user.is_authenticated or not is_admin(request):
-        # non-admin diarahkan ke detail saja
         return redirect('driver:driver_detail', driver_number=driver_number)
 
     driver = get_object_or_404(Driver, pk=driver_number)
@@ -105,7 +101,7 @@ def api_driver_detail(request, driver_number):
 def api_driver_create(request):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
-    if not is_admin(request):                                   # hanya admin
+    if not is_admin(request):                                
         return json_error("Admin role required.", status=403)
 
     payload = request.POST.dict() or parse_json(request)
@@ -132,11 +128,11 @@ def api_driver_create(request):
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 @csrf_protect
-@require_POST                                                    # wajib POST
+@require_POST                                                 
 def api_driver_update(request, driver_number):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
-    if not is_admin(request):                                    # hanya admin
+    if not is_admin(request):                                    
         return json_error("Admin role required.", status=403)
 
     driver = get_object_or_404(Driver, pk=driver_number)
@@ -149,10 +145,9 @@ def api_driver_update(request, driver_number):
         try:
             with transaction.atomic():
                 updated = form.save()
-            # Cek jika bukan XMLHttpRequest (AJAX)
             if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
                "application/json" not in request.headers.get("Accept", ""):
-                return HttpResponseRedirect(reverse("driver:driver_list"))  # Redirect setelah update.
+                return HttpResponseRedirect(reverse("driver:driver_list")) 
 
             return JsonResponse({"ok": True, "data": serialize_driver(updated)})
         except IntegrityError:
@@ -160,11 +155,11 @@ def api_driver_update(request, driver_number):
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 @csrf_protect
-@require_POST                                                    # wajib POST
+@require_POST                                           
 def api_driver_delete(request, driver_number):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
-    if not is_admin(request):                                    # hanya admin
+    if not is_admin(request):                                   
         return json_error("Admin role required.", status=403)
 
     driver = get_object_or_404(Driver, pk=driver_number)

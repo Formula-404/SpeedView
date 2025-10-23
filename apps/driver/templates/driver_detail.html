@@ -15,24 +15,59 @@
 
   <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 overflow-hidden">
     <div class="grid md:grid-cols-3 gap-0">
+      <!-- Headshot -->
       <div class="md:col-span-1 h-64 md:h-full bg-white/5">
-        <img src="{{ driver.headshot_url|default:'https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png' }}"
-             onerror="this.src='https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png'"
-             class="w-full h-full object-cover" alt="Headshot">
+        <img
+          src="{{ driver.headshot_url|default:'https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png' }}"
+          onerror="this.src='https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png'"
+          class="w-full h-full object-cover"
+          alt="Headshot">
       </div>
-      <div class="md:col-span-2 p-6">
-        <h1 class="text-2xl font-bold text-white">{{ driver.full_name|default:driver.broadcast_name|default:driver.name_acronym|default:'#'|add:driver.driver_number }}</h1>
-        <p class="text-white/60 text-sm mt-1">Country: {{ driver.country_code|default:"—" }}</p>
 
-        <div class="mt-6 flex gap-2">
-          <a href="/laps/{{ driver.driver_number }}/" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Laps</a>
-          <a href="/pit/{{ driver.driver_number }}/" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Pit</a>
+      <!-- Info -->
+      <div class="md:col-span-2 p-6">
+        <div class="flex items-start gap-3">
+          <div class="flex-1">
+            <h1 class="text-2xl font-bold text-white">
+              {{ driver.full_name|default:driver.broadcast_name|default:driver.name_acronym|default:'#'|add:driver.driver_number }}
+            </h1>
+            <p class="text-white/60 text-sm mt-1">
+              Country: {{ driver.country_code|default:"—" }}
+            </p>
+          </div>
 
           {% if user.is_authenticated and user.profile.role == "admin" %}
-          <a href="{% url 'driver:edit_page' driver.driver_number %}" class="ml-auto px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">Edit</a>
-          <a href="{% url 'driver:delete_page' driver.driver_number %}" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete</a>
+          <!-- Admin-only: icon buttons kecil -->
+          <div class="flex items-center gap-2">
+            <a href="{% url 'driver:edit_page' driver.driver_number %}"
+               class="inline-flex w-9 h-9 items-center justify-center rounded-md border
+                      bg-yellow-500/10 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/20"
+               title="Edit" aria-label="Edit">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M16.862 3.487a1.5 1.5 0 012.121 2.121L8.25 16.343 5 17l.657-3.25L16.862 3.487z"/>
+              </svg>
+            </a>
+            <a href="{% url 'driver:delete_page' driver.driver_number %}"
+               class="inline-flex w-9 h-9 items-center justify-center rounded-md border
+                      bg-red-500/10 border-red-500/40 text-red-300 hover:bg-red-500/20"
+               title="Delete" aria-label="Delete">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m-3 0h14"/>
+              </svg>
+            </a>
+          </div>
           {% endif %}
         </div>
+
+        <!-- (opsional) tempatkan bio/teams/dll di sini -->
+        {% if driver.biography %}
+        <div class="mt-6">
+          <h2 class="text-white font-semibold mb-2">Biography</h2>
+          <p class="text-white/70 leading-relaxed whitespace-pre-line">{{ driver.biography }}</p>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
