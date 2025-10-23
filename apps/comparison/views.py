@@ -44,6 +44,30 @@ def serialize_team_for_compare(t: Team):
     }
 
 # ================== pages ==================
+
+@login_required
+def list_page(request):
+    return render(request, "comparison_list.html")
+
+@login_required
+def api_list(request):
+    mode = request.GET.get("filter", "all")
+    if mode == "mine":
+        comparisons = Comparison.objects.filter(owner=request.user)
+    else:
+        comparisons = Comparison.objects.filter(is_public=True)
+    data = [
+        {
+            "id": str(c.id),
+            "title": c.title,
+            "module": c.get_module_display(), # type: ignore
+            "owner": c.owner.username,
+            "created_at": c.created_at.strftime("%Y-%m-%d"),
+        }
+        for c in comparisons.order_by("-created_at")
+    ]
+    return JsonResponse({"ok": True, "data": data})
+
 @login_required
 def create_page(request):
     return render(request, "comparison_create.html")

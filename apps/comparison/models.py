@@ -9,15 +9,16 @@ class Comparison(models.Model):
     MODULE_DRIVER = "driver"
     MODULE_CIRCUIT = "circuit"
     MODULE_CHOICES = [
-        (MODULE_TEAM, "Team"),
-        (MODULE_CAR, "Car"),
-        (MODULE_DRIVER, "Driver"),
-        (MODULE_CIRCUIT, "Circuit"),
+        ("team", "Team"),
+        ("car", "Car"),
+        ("driver", "Driver"),
+        ("circuit", "Circuit"),
     ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comparisons")
-    module = models.CharField(max_length=16, choices=MODULE_CHOICES)
+    module = models.CharField(max_length=20, choices=MODULE_CHOICES)
+    title = models.CharField(max_length=100, default="My Comparison")
+    is_public = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def get_absolute_url(self):
