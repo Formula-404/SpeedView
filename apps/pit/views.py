@@ -1,4 +1,3 @@
-# apps/pit/views.py
 import requests
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -9,7 +8,7 @@ OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
 def pit_list_page(request):
     return render(request, "pit_list.html")
 
-def pit_detail_page(request, driver_number):   # sesuaikan dengan link /pit/<driver_number>/
+def pit_detail_page(request, driver_number):  
     return render(request, "pit_detail.html", {"driver_number": driver_number})
 
 def _fmt(dt):
