@@ -1,64 +1,94 @@
-from datetime import datetime
-
 import requests
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_POST
-
-from apps.meeting.models import Meeting
+from datetime import datetime
 
 OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
 
+def meeting_list_page(request):
+    """
+    Hanya merender template HTML. Data akan diambil oleh JavaScript.
+    """
+    return render(request, 'meeting_list.html')
 
-def meeting_list(request):
+
+def api_meeting_list(request):
     """
-    Mengambil dan menampilkan daftar meeting dari API OpenF1.
+    API endpoint untuk mengambil data meeting dari OpenF1.
+    Akan mengembalikan data dengan paginasi (10 meeting per halaman).
     """
-    meetings = []
-    error = None
+    query = request.GET.get('q', '').strip().lower()
     try:
-        response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
-        response.raise_for_status()
-        meetings_data = response.json()
-        for meeting in meetings_data:
-            if meeting.get("date_start"):
-                meeting["date_start"] = datetime.fromisoformat(
-                    meeting["date_start"]
-                )
-        meetings = sorted(
-            meetings_data,
-            key=lambda m: m.get("date_start") or datetime.min,
-            reverse=True,
-        )
+        page = int(request.GET.get('page', 1))
+    except ValueError:
+        page = 1
+
+    page_size = 10 # Tampilkan 10 meeting per halaman
+    meetings_to_process = []
+    meeting_keys: list[int] = []
+    try:
+        # Ambil semua meeting
+        meetings_response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
+        meetings_response.raise_for_status()
+        all_meetings = meetings_response.json()
+
+        # Tentukan meeting mana yang akan diproses
+        if query:
+            for meeting in all_meetings:
+                meeting_name = meeting.get('meeting_name', '').lower()
+                circuit_name = meeting.get('circuit_short_name', '').lower()
+                country_name = meeting.get('country_name', '').lower()
+                if query in meeting_name or query in circuit_name or query in country_name:
+                    meetings_to_process.append(meeting)
+        else:
+            meetings_to_process = all_meetings
+        
+        # Urutkan agar yang terbaru muncul di atas
+        meetings_to_process.sort(key=lambda m: m.get('date_start', ''), reverse=True)
+        # --- LOGIKA PAGINASI ---
+        total_meetings = len(meetings_to_process)
+        total_pages = (total_meetings + page_size - 1) // page_size
+        start_index = (page - 1) * page_size
+        end_index = page * page_size
+        meetings_for_this_page = meetings_to_process[start_index:end_index]
+
+        if not meetings_for_this_page:
+             return JsonResponse({'ok': True, 'data': [], 'pagination': {
+                 'current_page': page, 'total_pages': total_pages, 
+                 'has_previous': False, 'has_next': False, 'total_meetings': 0
+             }})
+
+        results = []
+        for meeting in meetings_for_this_page:
+            meeting_key_value = meeting.get('meeting_key')
+            if meeting_key_value is not None:
+                try:
+                    meeting_keys.append(int(meeting_key_value))
+                except (TypeError, ValueError):
+                    pass
+            meeting['date_start_str'] = format_date(meeting.get('date_start'))
+            results.append(meeting)
+        
+        pagination_data = {
+            'current_page': page,
+            'total_pages': total_pages,
+            'has_previous': page > 1,
+            'has_next': page < total_pages,
+            'total_meetings': total_meetings
+        }
+
+        return JsonResponse({'ok': True, 'data': results, 'meeting_keys': meeting_keys, 'pagination': pagination_data})
     except requests.exceptions.RequestException as e:
-        error = f"Gagal mengambil data dari OpenF1 API: {e}"
+        return JsonResponse({'ok': False, 'error': f"Gagal mengambil data dari OpenF1 API: {e}"}, status=500)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
 
-    context = {
-        "meetings": meetings,
-        "error": error,
-    }
-    return render(request, "meeting_list.html", context)
-
-
-@require_POST
-def add_meetings(request):
+def format_date(date_string):
+    """Helper untuk memformat string ISO date menjadi 'd F, H:i'"""
+    if not date_string:
+        return "N/A"
     try:
-        response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
-        response.raise_for_status()
-        meetings_data = response.json()
-    except requests.exceptions.RequestException as exc:
-        return JsonResponse(
-            {"ok": False, "error": f"Gagal mengambil data meetings: {exc}"},
-            status=502,
-        )
-
-    created = 0
-    for meeting in meetings_data:
-        key = meeting.get("meeting_key")
-        if key is None:
-            continue
-        _, was_created = Meeting.objects.get_or_create(meeting_key=key)
-        if was_created:
-            created += 1
-
-    return JsonResponse({"ok": True, "created": created})
+        dt = datetime.fromisoformat(date_string)
+        return dt.strftime('%d %B')
+    except (ValueError, TypeError):
+        return date_string

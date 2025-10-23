@@ -1,19 +1,9 @@
 from django.db import models
 
-from apps.meeting.models import Meeting
-
 
 class Session(models.Model):
     session_key = models.IntegerField(primary_key=True)
-    meeting = models.ForeignKey(
-        Meeting,
-        db_column="meeting_key",
-        to_field="meeting_key",
-        null=True,
-        blank=True,
-        related_name="sessions",
-        on_delete=models.SET_NULL,
-    )
+    meeting_key = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     name = models.CharField(max_length=120, blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
 
