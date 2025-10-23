@@ -2,8 +2,6 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.driver.models import Driver
-from apps.meeting.models import Meeting
-from apps.session.models import Session
 
 
 class Car(models.Model):
@@ -25,30 +23,14 @@ class Car(models.Model):
     date = models.DateTimeField(db_index=True)
     driver_number = models.PositiveSmallIntegerField(db_index=True)
     drs = models.PositiveSmallIntegerField(choices=DRSStatus.choices)
-    meeting_key = models.ForeignKey(
-        Meeting,
-        to_field="meeting_key",
-        db_column="meeting_key",
-        related_name="cars",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
+    meeting_key = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     n_gear = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(8)]
     )
     rpm = models.PositiveIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(20000)]
     )
-    session_key = models.ForeignKey(
-        Session,
-        to_field="session_key",
-        db_column="session_key",
-        related_name="cars",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
+    session_key = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     speed = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(450)]
     )
@@ -83,7 +65,7 @@ class Car(models.Model):
         ]
 
     def __str__(self) -> str:
-        session_label = self.session_key_id or "?"
+        session_label = self.session_key or "?"
         return f"{self.driver_number} | {session_label} | {self.date:%Y-%m-%d %H:%M:%S}"
 
     @property
@@ -92,8 +74,8 @@ class Car(models.Model):
 
     @property
     def meeting_key_value(self) -> int | None:
-        return self.meeting_key_id
+        return self.meeting_key
 
     @property
     def session_key_value(self) -> int | None:
-        return self.session_key_id
+        return self.session_key

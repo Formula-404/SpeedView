@@ -1,15 +1,7 @@
 import requests
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.shortcuts import render
-from datetime import datetime
-import json
-
-import requests
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_POST
-
-from apps.meeting.models import Meeting
+from datetime import datetime
 
 OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
 
@@ -33,6 +25,7 @@ def api_meeting_list(request):
 
     page_size = 10 # Tampilkan 10 meeting per halaman
     meetings_to_process = []
+    meeting_keys: list[int] = []
     try:
         # Ambil semua meeting
         meetings_response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
@@ -67,6 +60,12 @@ def api_meeting_list(request):
 
         results = []
         for meeting in meetings_for_this_page:
+            meeting_key_value = meeting.get('meeting_key')
+            if meeting_key_value is not None:
+                try:
+                    meeting_keys.append(int(meeting_key_value))
+                except (TypeError, ValueError):
+                    pass
             meeting['date_start_str'] = format_date(meeting.get('date_start'))
             results.append(meeting)
         
@@ -78,7 +77,7 @@ def api_meeting_list(request):
             'total_meetings': total_meetings
         }
 
-        return JsonResponse({'ok': True, 'data': results, 'pagination': pagination_data})
+        return JsonResponse({'ok': True, 'data': results, 'meeting_keys': meeting_keys, 'pagination': pagination_data})
     except requests.exceptions.RequestException as e:
         return JsonResponse({'ok': False, 'error': f"Gagal mengambil data dari OpenF1 API: {e}"}, status=500)
     except Exception as e:

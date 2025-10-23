@@ -48,6 +48,8 @@
   </div>
 </div>
 
+{{ session_catalog|json_script:"session-catalog-data" }}
+
 <script>
   function setupAjaxForm(formId, alertId, options = {}) {
     const form = document.getElementById(formId);
@@ -116,18 +118,88 @@
     });
   }
 
-  if (typeof fetchCarTelemetryFromServer === "function") {
-    setupAjaxForm("add-car-form", "add-car-alerts", {
-      onSuccess() {
+  document.addEventListener("DOMContentLoaded", () => {
+    const catalogElement = document.getElementById("session-catalog-data");
+    const sessionCatalog = catalogElement ? JSON.parse(catalogElement.textContent) : {};
+    const meetingSelect = document.querySelector("#add-car-form select[name='meeting_key']");
+    const sessionSelect = document.querySelector("#add-car-form select[name='session_key']");
+    const defaultPlaceholder = sessionSelect ? sessionSelect.getAttribute("data-placeholder") || "Pilih session" : "Pilih session";
+    const emptyPlaceholder =
+      sessionSelect ? sessionSelect.getAttribute("data-empty-placeholder") || "Tidak ada session untuk meeting ini" : "Tidak ada session untuk meeting ini";
+
+    function populateSessionOptions(meetingValue, preserveSelection = true) {
+      if (!sessionSelect) {
+        return;
+      }
+
+      const meetingKey = meetingValue ? String(meetingValue) : "";
+      const previousValue = preserveSelection ? sessionSelect.value : "";
+      const options = meetingKey ? sessionCatalog[meetingKey] || [] : [];
+
+      sessionSelect.innerHTML = "";
+
+      const placeholderOption = document.createElement("option");
+      placeholderOption.value = "";
+      placeholderOption.textContent = meetingKey
+        ? options.length
+          ? defaultPlaceholder
+          : emptyPlaceholder
+        : defaultPlaceholder;
+      sessionSelect.appendChild(placeholderOption);
+
+      let matched = false;
+      options.forEach(({ value, label }) => {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = label;
+        if (previousValue && String(value) === String(previousValue)) {
+          option.selected = true;
+          matched = true;
+        }
+        sessionSelect.appendChild(option);
+      });
+
+      if (!matched) {
+        sessionSelect.selectedIndex = 0;
+      }
+
+      if (!meetingKey || options.length === 0) {
+        sessionSelect.setAttribute("disabled", "disabled");
+      } else {
+        sessionSelect.removeAttribute("disabled");
+      }
+    }
+
+    if (meetingSelect && sessionSelect) {
+      populateSessionOptions(meetingSelect.value, true);
+      meetingSelect.addEventListener("change", (event) => {
+        populateSessionOptions(event.target.value, false);
+      });
+    }
+
+    const ajaxOptions = {};
+    if (typeof fetchCarTelemetryFromServer === "function") {
+      ajaxOptions.onSuccess = () => {
         fetchCarTelemetryFromServer();
-        document.getElementById("add-car-form").reset();
-      },
-    });
-  } else {
-    setupAjaxForm("add-car-form", "add-car-alerts");
-  }
+        const formEl = document.getElementById("add-car-form");
+        if (formEl) {
+          formEl.reset();
+        }
+        populateSessionOptions(meetingSelect ? meetingSelect.value : "", false);
+      };
+    } else {
+      ajaxOptions.onSuccess = () => {
+        const formEl = document.getElementById("add-car-form");
+        if (formEl) {
+          formEl.reset();
+        }
+        populateSessionOptions(meetingSelect ? meetingSelect.value : "", false);
+      };
+    }
+
+    setupAjaxForm("add-car-form", "add-car-alerts", ajaxOptions);
+  });
 </script>
 
 {% endblock %}
-
 

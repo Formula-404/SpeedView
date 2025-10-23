@@ -14,7 +14,7 @@
     <div class="bg-white rounded-lg border border-gray-200 p-6 sm:p-8 form-style">
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-gray-900 mb-2">Edit Car Telemetry</h1>
-        <p class="text-gray-600">Perbarui data telemetry manual di database internal SpeedView.</p>
+        <p class="text-gray-600">Edit data telemetry in SpeedView.</p>
       </div>
       <form id="add-car-form" method="POST" action="{% url 'car:edit_car' car.id %}" class="space-y-6">
         {% csrf_token %}
@@ -40,13 +40,15 @@
             Cancel
           </a>
           <button type="submit" class="order-1 sm:order-2 flex-1 bg-green-600 text-white px-6 py-3 rounded-md font-medium hover:bg-green-700 transition-colors">
-            Update Car Telemetry
+            Edit Car Telemetry
           </button>
         </div>
       </form>
-    </div>
-  </div>
 </div>
+</div>
+</div>
+
+{{ session_catalog|json_script:"session-catalog-data" }}
 
 <script>
   function setupAjaxForm(formId, alertId, options = {}) {
@@ -116,16 +118,67 @@
     });
   }
 
-  if (typeof fetchCarTelemetryFromServer === "function") {
-    setupAjaxForm("add-car-form", "add-car-alerts", {
-      onSuccess() {
-        fetchCarTelemetryFromServer();
-        document.getElementById("add-car-form").reset();
-      },
-    });
-  } else {
+  document.addEventListener("DOMContentLoaded", () => {
+    const catalogElement = document.getElementById("session-catalog-data");
+    const sessionCatalog = catalogElement ? JSON.parse(catalogElement.textContent) : {};
+    const meetingSelect = document.querySelector("#add-car-form select[name='meeting_key']");
+    const sessionSelect = document.querySelector("#add-car-form select[name='session_key']");
+    const defaultPlaceholder = sessionSelect ? sessionSelect.getAttribute("data-placeholder") || "Pilih session" : "Pilih session";
+    const emptyPlaceholder =
+      sessionSelect ? sessionSelect.getAttribute("data-empty-placeholder") || "Tidak ada session untuk meeting ini" : "Tidak ada session untuk meeting ini";
+
+    function populateSessionOptions(meetingValue, preserveSelection = true) {
+      if (!sessionSelect) {
+        return;
+      }
+
+      const meetingKey = meetingValue ? String(meetingValue) : "";
+      const previousValue = preserveSelection ? sessionSelect.value : "";
+      const options = meetingKey ? sessionCatalog[meetingKey] || [] : [];
+
+      sessionSelect.innerHTML = "";
+
+      const placeholderOption = document.createElement("option");
+      placeholderOption.value = "";
+      placeholderOption.textContent = meetingKey
+        ? options.length
+          ? defaultPlaceholder
+          : emptyPlaceholder
+        : defaultPlaceholder;
+      sessionSelect.appendChild(placeholderOption);
+
+      let matched = false;
+      options.forEach(({ value, label }) => {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = label;
+        if (previousValue && String(value) === String(previousValue)) {
+          option.selected = true;
+          matched = true;
+        }
+        sessionSelect.appendChild(option);
+      });
+
+      if (!matched) {
+        sessionSelect.selectedIndex = 0;
+      }
+
+      if (!meetingKey || options.length === 0) {
+        sessionSelect.setAttribute("disabled", "disabled");
+      } else {
+        sessionSelect.removeAttribute("disabled");
+      }
+    }
+
+    if (meetingSelect && sessionSelect) {
+      populateSessionOptions(meetingSelect.value, true);
+      meetingSelect.addEventListener("change", (event) => {
+        populateSessionOptions(event.target.value, false);
+      });
+    }
+
     setupAjaxForm("add-car-form", "add-car-alerts");
-  }
+  });
 </script>
 
 {% endblock %}
