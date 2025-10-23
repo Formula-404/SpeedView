@@ -1,3 +1,2 @@
-from django.db import models
-
-# Create your models here.
+# apps/laps/models.py
+# Tidak ada model database untuk Laps. Data diambil langsung dari OpenF1.

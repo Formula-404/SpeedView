@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+  <title>Drivers – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto">
+  <!-- ==== FLAG untuk JS (tanpa bikin linter error) ==== -->
+  <div id="page-flags"
+       data-is-admin="{% if is_admin %}1{% else %}0{% endif %}"
+       class="hidden"></div>
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+        <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+        <span>›</span>
+        <span class="text-white">Drivers</span>
+      </div>
+      <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+        DRIVERS PROFILE
+      </h1>
+    </div>
+
+    <div class="flex items-center gap-3">
+      {% if is_admin %}
+      <a href="{% url 'driver:add_page' %}">
+        <button class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+          + Add Driver
+        </button>
+      </a>
+      {% endif %}
+
+      <div class="relative">
+        <input id="driver-search" type="text" placeholder="Search driver..."
+               class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+               autocomplete="off"/>
+        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div id="meta-row" class="flex items-center justify-between mb-4">
+    <p id="results-info" class="text-sm text-white/60">Loading drivers…</p>
+  </div>
+
+  <!-- Grid portrait -->
+  <div id="grid" class="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"></div>
+
+  <!-- Card template: portrait, gambar atas, deskripsi, tombol -->
+  <template id="card-template">
+    <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 hover:border-red-500/50 transition overflow-hidden">
+      <!-- area klik ke detail -->
+      <a class="block group" data-link>
+        <div class="w-full h-56 md:h-64 bg-white/5 overflow-hidden">
+          <img class="w-full h-full object-cover" alt="Driver headshot" />
+        </div>
+        <div class="p-4">
+          <h3 class="text-lg font-semibold text-white group-hover:text-red-400 transition truncate"></h3>
+          <p class="text-xs text-white/60 mt-1 truncate"></p>
+        </div>
+      </a>
+      <div class="px-4 pb-4 pt-1 flex items-center gap-2">
+        <!-- tombol diinject via JS -->
+      </div>
+    </div>
+  </template>
+</div>
+
+<script>
+  // ====== Ambil flag dari HTML (tanpa template tag di JS) ======
+  const FLAGS = document.getElementById("page-flags").dataset;
+  const IS_ADMIN = FLAGS.isAdmin === "1";   // hanya admin
+
+  // ====== API & element ======
+  const API_LIST = "{% url 'driver:api_list' %}";
+  const grid = document.getElementById("grid");
+  const searchInput = document.getElementById("driver-search");
+  const resultsInfo = document.getElementById("results-info");
+  const cardTpl = document.getElementById("card-template");
+
+  let allDrivers = [];
+  let viewDrivers = [];
+
+  function setResultsInfo(total, filtered) {
+    if (!total && total !== 0) { resultsInfo.textContent = "Loading drivers…"; return; }
+    resultsInfo.textContent = (filtered === total) ? `${total} driver${total === 1 ? "" : "s"}`
+                                                   : `${filtered} / ${total} drivers`;
+  }
+
+  function toCountryDisplay(d) { return d.country_code || "—"; }
+
+  function renderCards(items) {
+    grid.innerHTML = "";
+    if (!items.length) {
+      grid.innerHTML = `
+        <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-white/60">
+          No drivers match your search.
+        </div>`;
+      return;
+    }
+
+    for (const d of items) {
+      const node = cardTpl.content.firstElementChild.cloneNode(true);
+
+      // klik ke detail
+      const anchor = node.querySelector("[data-link]");
+      anchor.href = d.detail_url;
+
+      // gambar
+      const img = node.querySelector("img");
+      img.src = d.headshot_url || "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png";
+      img.onerror = () => { img.src = "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png"; };
+
+      // teks
+      node.querySelector("h3").textContent = d.full_name || d.broadcast_name || d.name_acronym || `#${d.driver_number}`;
+      node.querySelector("p.text-xs").textContent = toCountryDisplay(d);
+
+      // tombol bar
+      const actionBar = node.querySelector(".px-4.pb-4.pt-1");
+
+      // Laps
+      const lapBtn = document.createElement('button');
+      lapBtn.textContent = 'Laps';
+      lapBtn.className = "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700";
+      lapBtn.onclick = (e) => { e.preventDefault(); window.location.href = `/laps/${d.driver_number}/`; };
+
+      // Pit
+      const pitBtn = document.createElement('button');
+      pitBtn.textContent = 'Pit';
+      pitBtn.className = "px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700";
+      pitBtn.onclick = (e) => { e.preventDefault(); window.location.href = `/pit/${d.driver_number}/`; };
+
+      actionBar.appendChild(lapBtn);
+      actionBar.appendChild(pitBtn);
+
+      if (IS_ADMIN) {
+        actionBar.classList.add("gap-2");
+        actionBar.appendChild(document.createElement('div')).className = "flex-1";
+
+        const editBtn = document.createElement('a');
+        editBtn.href = `/driver/${d.driver_number}/edit/`;
+        editBtn.className = "px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700";
+        editBtn.textContent = "Edit";
+
+        const delBtn = document.createElement('a');
+        delBtn.href = `/driver/${d.driver_number}/delete/confirm/`;
+        delBtn.className = "px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700";
+        delBtn.textContent = "Delete";
+
+        actionBar.appendChild(editBtn);
+        actionBar.appendChild(delBtn);
+      }
+
+      grid.appendChild(node);
+    }
+  }
+
+  function applyFilter() {
+    const q = (searchInput.value || "").trim().toLowerCase();
+    viewDrivers = !q ? allDrivers.slice() : allDrivers.filter(d =>
+      (d.full_name || "").toLowerCase().includes(q) ||
+      (d.broadcast_name || "").toLowerCase().includes(q) ||
+      (d.name_acronym || "").toLowerCase().includes(q) ||
+      String(d.driver_number || "").includes(q)
+    );
+    setResultsInfo(allDrivers.length, viewDrivers.length);
+    renderCards(viewDrivers);
+  }
+
+  async function boot() {
+    try {
+      const res = await fetch(API_LIST);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to load");
+      allDrivers = json.data || [];
+      viewDrivers = allDrivers.slice();
+      setResultsInfo(allDrivers.length, viewDrivers.length);
+      renderCards(viewDrivers);
+    } catch (e) {
+      grid.innerHTML = `
+        <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-red-400">
+          Failed to load drivers. Please try again later.
+        </div>`;
+      setResultsInfo(0, 0);
+    }
+  }
+
+  searchInput.addEventListener("input", applyFilter);
+  boot();
+</script>
+{% endblock content %}
