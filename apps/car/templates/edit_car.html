@@ -1,22 +1,22 @@
 {% extends 'base.html' %}
 {% block meta %}
-<title>Add Car - SpeedView</title>
+<title>Edit Car Telemetry - SpeedView</title>
 {% endblock meta %}
 
 {% block content %}
 <div class="bg-gray-50 w-full min-h-screen">
   <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-6">
-      <a href="{% url 'main:show_main' %}" class="text-gray-600 hover:text-gray-900 font-medium transition-colors">
+      <a href="{% url 'car:manual_list' %}" class="text-gray-600 hover:text-gray-900 font-medium transition-colors">
         &larr; Back to Telemetry
       </a>
     </div>
     <div class="bg-white rounded-lg border border-gray-200 p-6 sm:p-8 form-style">
       <div class="mb-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Add Car</h1>
-        <p class="text-gray-600">Capture a new snapshot from the OpenF1 car data feed.</p>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Edit Car Telemetry</h1>
+        <p class="text-gray-600">Perbarui data telemetry manual di database internal SpeedView.</p>
       </div>
-      <form id="add-car-form" method="POST" action="{% url 'main:add_car' %}" class="space-y-6">
+      <form id="add-car-form" method="POST" action="{% url 'car:edit_car' car.id %}" class="space-y-6">
         {% csrf_token %}
         <div id="add-car-alerts"></div>
 
@@ -36,11 +36,11 @@
         {% endfor %}
 
         <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
-          <a href="{% url 'main:show_main' %}" class="order-2 sm:order-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors text-center">
+          <a href="{% url 'car:manual_list' %}" class="order-2 sm:order-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors text-center">
             Cancel
           </a>
           <button type="submit" class="order-1 sm:order-2 flex-1 bg-green-600 text-white px-6 py-3 rounded-md font-medium hover:bg-green-700 transition-colors">
-            Add Car Telemetry
+            Update Car Telemetry
           </button>
         </div>
       </form>
@@ -129,3 +129,7 @@
 </script>
 
 {% endblock %}
+
+
+
+

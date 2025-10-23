@@ -1,9 +1,9 @@
-from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from apps.driver.models import Driver
 
+from apps.driver.models import Driver
+from apps.meeting.models import Meeting
+from apps.session.models import Session
 
 
 class Car(models.Model):
@@ -19,38 +19,58 @@ class Car(models.Model):
         UNKNOWN_13 = 13, "Unknown"
         ON_HIGH = 14, "DRS on"
 
-    brake = models.PositiveSmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    brake = models.PositiveSmallIntegerField(
+        choices=[(0, "Off"), (100, "Full brake")],
+    )
     date = models.DateTimeField(db_index=True)
     driver_number = models.PositiveSmallIntegerField(db_index=True)
     drs = models.PositiveSmallIntegerField(choices=DRSStatus.choices)
-    meeting_key = models.PositiveIntegerField(db_index=True)
-    n_gear = models.PositiveSmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(8)])
-    rpm = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(20000)])
-    session_key = models.PositiveIntegerField(db_index=True)
-    speed = models.PositiveSmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(450)])
-    throttle = models.PositiveSmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    meeting_key = models.ForeignKey(
+        Meeting,
+        to_field="meeting_key",
+        db_column="meeting_key",
+        related_name="cars",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    n_gear = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(8)]
+    )
+    rpm = models.PositiveIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(20000)]
+    )
+    session_key = models.ForeignKey(
+        Session,
+        to_field="session_key",
+        db_column="session_key",
+        related_name="cars",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    speed = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(450)]
+    )
+    throttle = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    is_manual = models.BooleanField(default=False, db_index=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     driver = models.ForeignKey(
         Driver,
         to_field="driver_number",
-        db_column="driver_number",
+        db_column="driver",
         on_delete=models.CASCADE,
         related_name="cars",
         db_index=True,
+        blank=True,
+        default=None,
+        null=True,
     )
 
     class Meta:
-        verbose_name = "Car telemetry sample"
-        verbose_name_plural = "Car telemetry samples"
-        ordering = ["-date"]
-        default_permissions = ("view",)
-        permissions = [
-            (
-                "manage_car_records",
-                "Can create, update, and delete car telemetry records",
-            )
-        ]
         indexes = [
             models.Index(
                 fields=["session_key", "driver_number", "date"],
@@ -61,16 +81,19 @@ class Car(models.Model):
                 name="car_meeting_driver_idx",
             ),
         ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["session_key", "driver_number", "date"],
-                name="unique_car_sample_per_timestamp",
-            )
-        ]
 
-    def __str__(self) -> str: 
-        return f"{self.driver_number_id} | {self.session_key} | {self.date:%Y-%m-%d %H:%M:%S}"
+    def __str__(self) -> str:
+        session_label = self.session_key_id or "?"
+        return f"{self.driver_number} | {session_label} | {self.date:%Y-%m-%d %H:%M:%S}"
 
     @property
     def drs_state(self) -> str:
         return self.get_drs_display()
+
+    @property
+    def meeting_key_value(self) -> int | None:
+        return self.meeting_key_id
+
+    @property
+    def session_key_value(self) -> int | None:
+        return self.session_key_id
