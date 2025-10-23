@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+    <title>Manual Car Telemetry - SpeedView</title>
+    <style>
+        html, body {
+            height: auto !important;
+            min-height: 100vh;
+        }
+        body {
+            overflow-y: auto;
+        }
+        body > .ml-64.flex {
+            min-height: 100vh;
+        }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-6 py-10 pb-24 md:px-12">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+                <a class="hover:text-red-400 transition" href="{% url 'main:show_main' %}">Home</a>
+                <span>&gt;</span>
+                <a class="hover:text-red-400 transition" href="{% url 'car:list_page' %}">Car Telemetry</a>
+                <span>&gt;</span>
+                <span class="text-white">Manual Data</span>
+            </div>
+            <h1 class="mt-1 text-3xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+                Manual Telemetry Entries
+            </h1>
+            <p class="text-sm text-white/60 mt-2">Entries created atau diubah manual melalui dashboard admin.</p>
+        </div>
+        <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end md:flex-none">
+            <a href="{% url 'car:list_page' %}" class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition">
+                &larr; Back to Telemetry
+            </a>
+            <a href="{% url 'car:add_car' %}" class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700">
+                Add
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for message in messages %}
+        <div class="rounded-xl border border-green-400/40 bg-green-500/10 px-4 py-3 text-sm text-green-300">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if manual_entries %}
+    <div class="overflow-x-auto rounded-2xl border border-white/10 bg-[#0D1117]/80 shadow-lg shadow-black/30">
+        <table class="min-w-full divide-y divide-white/10 text-sm text-white/80">
+            <thead class="bg-white/5 text-xs uppercase tracking-wide text-white/60">
+                <tr>
+                    <th class="px-4 py-3 text-left">Date</th>
+                    <th class="px-4 py-3 text-left">Driver</th>
+                    <th class="px-4 py-3 text-left">Meeting</th>
+                    <th class="px-4 py-3 text-left">Session</th>
+                    <th class="px-4 py-3 text-left">Speed</th>
+                    <th class="px-4 py-3 text-left">Throttle</th>
+                    <th class="px-4 py-3 text-left">Brake</th>
+                    <th class="px-4 py-3 text-left">Gear</th>
+                    <th class="px-4 py-3 text-left">RPM</th>
+                    <th class="px-4 py-3 text-left">DRS</th>
+                    <th class="px-4 py-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10">
+                {% for car in manual_entries %}
+                <tr class="hover:bg-white/5 transition">
+                    <td class="px-4 py-3 font-mono text-xs text-white/70">{{ car.date|date:"Y-m-d H:i:s" }}</td>
+                    <td class="px-4 py-3">#{{ car.driver_number }}{% if car.driver %} &ndash; {{ car.driver.full_name|default:car.driver.name_acronym|default:"Driver" }}{% endif %}</td>
+                    <td class="px-4 py-3">{{ car.meeting_key_id|default:"-" }}</td>
+                    <td class="px-4 py-3">{{ car.session_key_id|default:"-" }}{% if car.session_key and car.session_key.name %} &ndash; {{ car.session_key.name }}{% endif %}</td>
+                    <td class="px-4 py-3">{{ car.speed }} km/h</td>
+                    <td class="px-4 py-3">{{ car.throttle }}%</td>
+                    <td class="px-4 py-3">{{ car.brake }}%</td>
+                    <td class="px-4 py-3">{{ car.n_gear }}</td>
+                    <td class="px-4 py-3">{{ car.rpm }}</td>
+                    <td class="px-4 py-3">{{ car.get_drs_display }}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <a href="{% url 'car:edit_car' car.id %}" class="inline-flex items-center gap-1 rounded-md border border-white/20 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10 transition">Edit</a>
+                            <form method="post" action="{% url 'car:delete_car' car.id %}" onsubmit="return confirm('Delete manual telemetry entry?');">
+                                {% csrf_token %}
+                                <button type="submit" class="inline-flex items-center gap-1 rounded-md border border-red-400/60 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/10 transition">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-6 py-10 text-center text-white/60">
+            No manual telemetry yet.
+        </div>
+    {% endif %}
+</div>
+{% endblock content %}
