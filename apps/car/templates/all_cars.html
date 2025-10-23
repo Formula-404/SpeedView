@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+    <title>Car Telemetry - SpeedView</title>
+    
+    <style>
+      html, body {
+        height: auto !important;
+        min-height: 100vh;
+      }
+      body {
+        overflow-y: auto;
+      }
+      body > .ml-64.flex {
+        min-height: 100vh;
+      }
+      
+      .scrollbar {
+        scrollbar-width: thin;              
+        scrollbar-color: rgba(255,255,255,.36) transparent;
+        scrollbar-gutter: stable both-edges;  
+      }
+      .scrollbar::-webkit-scrollbar {         
+        height: 10px;                         
+      }
+      .scrollbar::-webkit-scrollbar-track {
+        background: rgba(255,255,255,.08);
+        border-radius: 9999px;
+      }
+      .scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,.36);
+        border-radius: 9999px;
+      }
+      .scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,.5);
+      }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-6 py-10 pb-24 md:px-12">
+    <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div>
+            <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+                <a class="hover:text-red-400 transition" href="{% url 'main:show_main' %}">Home</a>
+                <span>&gt;</span>
+                <span class="text-white">Car Telemetry</span>
+            </div>
+            <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+                Car Telemetry Overview
+            </h1>
+            <p class="text-sm text-white/60 mt-2 max-w-2xl">
+                Pull the latest telemetry per meeting, lock in a speed window, and compare key metrics across drivers.
+            </p>
+        </div>
+        <div class="flex flex-wrap md:flex-nowrap items-center gap-2 bg-white/5 border border-white/10 rounded-lg p-2">
+            <button type="button" class="metric-toggle data-[active=true]:bg-red-500 data-[active=true]:text-white px-4 py-2 rounded-md text-sm font-semibold text-white/70 hover:text-white transition" data-metric="speed">
+                Speed
+            </button>
+            <button type="button" class="metric-toggle data-[active=true]:bg-red-500 data-[active=true]:text-white px-4 py-2 rounded-md text-sm font-semibold text-white/70 hover:text-white transition" data-metric="rpm">
+                RPM
+            </button>
+            <button type="button" class="metric-toggle data-[active=true]:bg-red-500 data-[active=true]:text-white px-4 py-2 rounded-md text-sm font-semibold text-white/70 hover:text-white transition" data-metric="throttle">
+                Throttle
+            </button>
+            {% if request.user.is_authenticated and request.user.profile.role == "admin" %}
+            <a href="{% url 'car:manual_list' %}" class="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:text-white transition">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19.5v-15A1.5 1.5 0 0 1 5.5 3h9A1.5 1.5 0 0 1 16 4.5v15M8 7h4M8 11h4m-2 4h2"/></svg>
+                Manual Data
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <form id="telemetry-filters" class="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 md:p-6 shadow-lg shadow-black/20">
+        <div class="grid gap-4 md:grid-cols-12 md:items-end">
+            <div class="md:col-span-3">
+                <label for="meeting-key-input" class="block text-xs font-semibold uppercase tracking-wide text-white/60 mb-2">Meeting key</label>
+                <input
+                    id="meeting-key-input"
+                    type="number"
+                    min="0"
+                    class="w-full rounded-xl border border-white/10 bg-[#0D1117] px-4 py-2 text-white placeholder-white/40 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="e.g. 1219"
+                    required
+                >
+            </div>
+            <div class="md:col-span-6">
+                <label class="block text-xs font-semibold uppercase tracking-wide text-white/60 mb-2">Speed range (km/h)</label>
+                <div class="rounded-xl border border-white/10 bg-[#0D1117] px-4 py-4">
+                    <div class="flex items-center justify-between text-xs text-white/60 font-medium">
+                        <span>Min <span id="speed-min-label" class="text-white font-semibold">310</span></span>
+                        <span>Max <span id="speed-max-label" class="text-white font-semibold">320</span></span>
+                    </div>
+                    <div class="mt-4 flex flex-col gap-3">
+                        <input id="speed-min" type="range" min="310" max="320" value="310" step="1" class="w-full accent-red-500">
+                        <input id="speed-max" type="range" min="310" max="320" value="320" step="1" class="w-full accent-red-500">
+                    </div>
+                </div>
+            </div>
+            <div class="md:col-span-3 hidden" id="session-filter">
+                <label for="session-select" class="block text-xs font-semibold uppercase tracking-wide text-white/60 mb-2">Session key</label>
+                <select
+                    id="session-select"
+                    class="w-full rounded-xl border border-white/10 bg-[#0D1117] px-4 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
+                    disabled
+                >
+                    <option value="">All sessions</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <span id="search-status" class="text-xs text-white/60 min-h-[1em]"></span>
+            <button id="apply-button" type="submit" class="inline-flex w-full md:w-auto items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700">
+                Load Telemetry
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-8">
+        <div id="groups-summary" class="text-sm text-white/60 mb-4">Loading telemetry groups...</div>
+        <div id="groups-container" class="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+        </div>
+    </div>
+</div>
+
+<script>
+const API_GROUPED = "{% url 'car:api_grouped' %}";
+const API_REFRESH = "{% url 'car:api_refresh' %}";
+
+const groupsContainer = document.getElementById("groups-container");
+const groupsSummary = document.getElementById("groups-summary");
+const metricButtons = document.querySelectorAll(".metric-toggle");
+const filtersForm = document.getElementById("telemetry-filters");
+const meetingInput = document.getElementById("meeting-key-input");
+const speedMinSlider = document.getElementById("speed-min");
+const speedMaxSlider = document.getElementById("speed-max");
+const speedMinLabel = document.getElementById("speed-min-label");
+const speedMaxLabel = document.getElementById("speed-max-label");
+const statusText = document.getElementById("search-status");
+const applyButton = document.getElementById("apply-button");
+const sessionFilter = document.getElementById("session-filter");
+const sessionSelect = document.getElementById("session-select");
+const defaultApplyLabel = applyButton.textContent;
+
+const METRIC_META = {
+    speed: { label: "Speed (km/h)", color: "#ef4444" },
+    rpm: { label: "RPM", color: "#3b82f6" },
+    throttle: { label: "Throttle (%)", color: "#22c55e" },
+};
+
+let currentMetric = "speed";
+let activeFilters = {};
+
+function formatTime(isoString) {
+    if (!isoString) return "Unknown";
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return isoString;
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function buildPolylineChart(data, keys, colors) {
+    const width = 640;   
+    const height = 200;
+    const pad = 24;
+
+    if (!data.length) {
+        return `<svg viewBox="0 0 ${width} ${height}" class="w-full h-56 text-white/40">
+            <text x="${width / 2}" y="${height / 2}" dominant-baseline="middle" text-anchor="middle">No data</text>
+        </svg>`;
+    }
+
+    const values = data.flatMap(d => keys.map(key => typeof d[key] === "number" ? d[key] : 0));
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = (max - min) || 1;
+
+    const xFor = (index, length) => pad + (index * (width - 2 * pad)) / Math.max(1, length - 1);
+    const yFor = value => pad + ((max - value) * (height - 2 * pad)) / range;
+
+    const gridLines = 4;
+    const grid = Array.from({ length: gridLines + 1 }, (_, i) => {
+        const y = pad + (i * (height - 2 * pad)) / gridLines;
+        return `<line x1="${pad}" x2="${width - pad}" y1="${y}" y2="${y}" class="stroke-white/20" stroke-width="1"></line>`;
+    }).join("");
+
+    const axes = `<line x1="${pad}" x2="${pad}" y1="${pad}" y2="${height - pad}" class="stroke-white/30" stroke-width="1"></line>
+                  <line x1="${pad}" x2="${width - pad}" y1="${height - pad}" y2="${height - pad}" class="stroke-white/30" stroke-width="1"></line>`;
+
+    const series = keys.map((key, idx) => {
+        const points = data.map((sample, index) => `${xFor(index, data.length)},${yFor(typeof sample[key] === "number" ? sample[key] : 0)}`).join(" ");
+        return `<polyline points="${points}" fill="none" stroke-width="2.2" stroke="${colors[idx]}" stroke-linecap="round" stroke-linejoin="round"></polyline>`;
+    }).join("");
+
+    return `<svg viewBox="0 0 ${width} ${height}" class="w-full h-56">${grid}${axes}${series}</svg>`;
+}
+
+function setActiveMetric(metric) {
+    currentMetric = metric;
+    metricButtons.forEach(button => {
+        button.dataset.active = button.dataset.metric === metric ? "true" : "false";
+    });
+}
+
+function renderGroups(groups) {
+    if (!groups.length) {
+        groupsSummary.textContent = "No telemetry groups found.";
+        groupsContainer.innerHTML = `
+            <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-white/60">
+                No telemetry samples available. Try loading data first.
+            </div>`;
+        return;
+    }
+
+    groupsSummary.textContent = `${groups.length} telemetry group${groups.length === 1 ? "" : "s"} loaded (metric: ${METRIC_META[currentMetric].label}).`;
+
+    const color = METRIC_META[currentMetric].color;
+    groupsContainer.innerHTML = groups.map(group => {
+        const telemetry = group.telemetry || [];
+        const chart = buildPolylineChart(telemetry, [currentMetric], [color]);
+
+        const rows = telemetry.map(sample => `
+            <div class="flex-none w-[280px] md:w-[320px] rounded-lg border border-white/10 bg-white/5 p-3 snap-start">
+                <div class="font-semibold text-white">${formatTime(sample.date)}</div>
+                <div class="text-xs text-white/60 flex items-center gap-2 mt-1">
+                    <span>Gear ${sample.gear ?? "-"}</span>
+                    <span>DRS ${sample.drs ?? "-"}</span>
+                </div>
+                <div class="text-xs text-white/60 mt-1">
+                    Brake ${sample.brake}% - Throttle ${sample.throttle}% - RPM ${sample.rpm} - Speed ${sample.speed} km/h
+                </div>
+            </div>
+        `).join("");
+
+        return `
+        <section class="rounded-2xl bg-[#0D1117]/80 border border-white/10 shadow-lg">
+            <div class="border-b border-white/10 px-6 py-4 flex flex-wrap gap-4 justify-between items-start">
+                <div>
+                    <h3 class="text-xl font-semibold text-white font-mono">Driver #${group.driver_number}</h3>
+                    <p class="text-xs text-white/60 mt-1">
+                        Meeting ${group.meeting_key} - Session ${group.session_key}
+                    </p>
+                </div>
+                <div class="text-xs text-white/60 bg-white/5 border border-white/10 rounded-md px-3 py-1">
+                    Telemetry points: ${telemetry.length}
+                </div>
+            </div>
+            <div class="px-6 py-5 space-y-5">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-white/70 font-semibold">${METRIC_META[currentMetric].label}</span>
+                        <span class="text-xs text-white/40">${telemetry.length ? "Range auto-scaled" : "No data"}</span>
+                    </div>
+                    ${chart}
+                </div>
+                <div class="overflow-x-scroll scrollbar pb-2">
+                    <div class="flex gap-3 md:gap-4 flex-nowrap snap-x snap-mandatory">
+                        ${rows || `<div class="text-center text-white/60 py-4 border border-dashed border-white/20 rounded-lg w-full">No telemetry rows to display.</div>`}
+                    </div>
+                </div>
+            </div>
+        </section>`;
+    }).join("");
+}
+
+function setStatus(message, tone = "muted") {
+    statusText.textContent = message;
+    if (tone === "error") {
+        statusText.className = "text-xs text-red-400";
+    } else if (tone === "success") {
+        statusText.className = "text-xs text-green-400";
+    } else {
+        statusText.className = "text-xs text-white/60";
+    }
+}
+
+function syncSpeedLabels(changedSlider) {
+    const minValue = Number(speedMinSlider.value);
+    const maxValue = Number(speedMaxSlider.value);
+    if (minValue > maxValue) {
+        if (changedSlider === speedMinSlider) {
+            speedMaxSlider.value = minValue;
+        } else {
+            speedMinSlider.value = maxValue;
+        }
+    }
+    speedMinLabel.textContent = speedMinSlider.value;
+    speedMaxLabel.textContent = speedMaxSlider.value;
+}
+
+[speedMinSlider, speedMaxSlider].forEach(slider => {
+    slider.addEventListener("input", () => syncSpeedLabels(slider));
+});
+syncSpeedLabels(speedMaxSlider);
+
+function getCSRFToken() {
+    const name = "csrftoken=";
+    return document.cookie.split(";").map(token => token.trim()).find(token => token.startsWith(name))?.slice(name.length) || "";
+}
+
+function updateSessionOptions(keys) {
+    sessionSelect.innerHTML = '<option value="">All sessions</option>';
+    if (!keys.length) {
+        sessionSelect.disabled = true;
+        sessionFilter.classList.add("hidden");
+        return;
+    }
+    const uniqueKeys = Array.from(new Set(keys)).sort((a, b) => a - b);
+    const total = uniqueKeys.length;
+    uniqueKeys.forEach((key, index) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = index === total - 1 ? `${key} - RACE` : `${key}`;
+        sessionSelect.appendChild(option);
+    });
+    sessionSelect.disabled = false;
+    sessionFilter.classList.remove("hidden");
+    sessionSelect.value = activeFilters.session_key || "";
+}
+
+async function refreshTelemetryData(event) {
+    event.preventDefault();
+    const meetingKey = meetingInput.value.trim();
+    const minSpeed = Number(speedMinSlider.value);
+    const maxSpeed = Number(speedMaxSlider.value);
+
+    if (!meetingKey) {
+        setStatus("Meeting key is required.", "error");
+        return;
+    }
+    if (Number.isNaN(minSpeed) || Number.isNaN(maxSpeed)) {
+        setStatus("Speed range is invalid.", "error");
+        return;
+    }
+
+    applyButton.disabled = true;
+    applyButton.textContent = "Loading...";
+    setStatus("Refreshing telemetry data...", "muted");
+    sessionSelect.value = "";
+    sessionSelect.disabled = true;
+    sessionFilter.classList.add("hidden");
+    delete activeFilters.session_key;
+
+    try {
+        const response = await fetch(API_REFRESH, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken(),
+            },
+            body: JSON.stringify({
+                meeting_key: Number(meetingKey),
+                min_speed: minSpeed,
+                max_speed: maxSpeed,
+            }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+            throw new Error(payload.error || `Status ${response.status}`);
+        }
+
+        setStatus(`Loaded ${payload.created} samples for meeting ${payload.meeting_key}.`, "success");
+        loadTelemetry({ meeting_key: payload.meeting_key });
+    } catch (error) {
+        console.error(error);
+        setStatus("Failed to refresh telemetry data.", "error");
+        updateSessionOptions([]);
+    } finally {
+        applyButton.disabled = false;
+        applyButton.textContent = defaultApplyLabel;
+    }
+}
+
+async function loadTelemetry(nextFilters) {
+    if (nextFilters !== undefined) {
+        activeFilters = nextFilters;
+    }
+
+    const params = new URLSearchParams({ metric: currentMetric });
+    Object.entries(activeFilters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).length > 0) {
+            params.append(key, value);
+        }
+    });
+
+    groupsContainer.innerHTML = `
+        <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-white/60 animate-pulse">
+            Loading telemetry data...
+        </div>`;
+
+    try {
+        const response = await fetch(`${API_GROUPED}?${params.toString()}`);
+        if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+
+        const payload = await response.json();
+        if (!payload.ok) throw new Error(payload.error || "Failed to load telemetry.");
+
+        const sessionKeys = (payload.groups || []).map(group => group.session_key).filter(key => key !== undefined && key !== null);
+        updateSessionOptions(sessionKeys);
+        renderGroups(payload.groups || []);
+    } catch (error) {
+        console.error(error);
+        groupsContainer.innerHTML = `
+            <div class="col-span-full rounded-xl bg-white/5 border border-red-500/40 text-red-300 p-8 text-center">
+                Failed to load telemetry data. Please try again later.
+            </div>`;
+        groupsSummary.textContent = "Unable to fetch telemetry data.";
+        updateSessionOptions([]);
+    }
+}
+
+metricButtons.forEach(button => {
+    button.addEventListener("click", () => {
+        const metric = button.dataset.metric;
+        if (metric === currentMetric) return;
+        setActiveMetric(metric);
+        loadTelemetry();
+    });
+});
+
+filtersForm.addEventListener("submit", refreshTelemetryData);
+sessionSelect.addEventListener("change", () => {
+    const value = sessionSelect.value;
+    if (value) {
+        activeFilters.session_key = value;
+    } else {
+        delete activeFilters.session_key;
+    }
+    loadTelemetry();
+});
+
+setActiveMetric(currentMetric);
+loadTelemetry({});
+</script>
+{% endblock content %}
