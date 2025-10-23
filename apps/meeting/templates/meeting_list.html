@@ -1,49 +1,181 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block meta %}
-    <title>Meetings</title>
+    <title>Meetings – SpeedView</title>
 {% endblock meta %}
 
 {% block content %}
-<div class="p-6 lg:p-10">
-    <h1 class="text-3xl font-bold mb-6 text-white border-b border-gray-700 pb-3">Meetings</h1>
+    <div class="px-12 py-12 mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+                    <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+                    <span>›</span> 
+                    <span class="text-white" href="{% url 'meeting:list_page' %}">Meetings</span>
+                </div>
+                <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+                    MEETINGS
+                </h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <form id="search-form" class="relative">
+                    <input
+                        id="meeting-search"
+                        type="text"
+                        name="q"
+                        placeholder="Search meeting..."
+                        class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        autocomplete="off"
+                    />
+                    <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
 
-    {% if error %}
-        <div class="bg-red-900 border border-red-600 text-red-200 px-4 py-3 rounded-lg" role="alert">
-            <strong class="font-bold">Error!</strong>
-            <span class="block sm:inline">{{ error }}</span>
+        <!-- Konten Hasil AJAX -->
+        <div id="results-container">
+            <div class="flex justify-between items-center mb-4">
+                <p id="results-info" class="text-sm text-white/60">Loading meetings…</p>
+                <!-- Tombol Paginasi -->
+                <div id="pagination-controls" class="flex items-center gap-2">
+                    <button id="prev-page" class="px-4 py-2 rounded-lg bg-gray-700/50 text-white font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        &larr; Previous
+                    </button>
+                    <span id="page-info" class="text-sm text-white/70 w-24 text-center">Page 1 of 1</span>
+                    <button id="next-page" class="px-4 py-2 rounded-lg bg-gray-700/50 text-white font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition">
+                        Next &rarr;
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Grid untuk kotak-kotak meeting -->
+            <div id="grid" class="mt-4 space-y-5">
+                <!-- JavaScript akan mengisi ini -->
+            </div>
         </div>
-    {% else %}
-        <div class="overflow-x-auto bg-[#161B22] rounded-lg border border-gray-700/50 shadow-lg">
-            <table class="w-full table-fixed divide-y divide-gray-700" style="min-width: 900px;">
-                <thead class="bg-gray-800/50">
-                    <tr>
-                        <th scope="col" class="w-[200px] px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Meeting Name</th>
-                        <th scope="col" class="w-[150px] px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Country</th>
-                        <th scope="col" class="w-[150px] px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Location</th>
-                        <th scope="col" class="w-[100px] px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                        <th scope="col" class="w-[70px] px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Year</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-[#161B22] divide-y divide-gray-700/50">
-                    {% for meeting in meetings %}
-                    <tr class="hover:bg-gray-800/40 transition-colors duration-200">
-                        <td class="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis text-sm font-medium text-white">{{ meeting.meeting_name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis text-sm text-gray-300">{{ meeting.country_name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis text-sm text-gray-300">{{ meeting.location }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis text-sm text-gray-300">{{ meeting.date_start|date:"d F" }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis text-sm text-gray-300">{{ meeting.year }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No meetings found.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-</div>
+    </div>
+
+    <script>
+        const API_LIST_URL = "{% url 'meeting:api_list' %}";
+        const searchForm = document.getElementById("search-form");
+        const searchInput = document.getElementById("meeting-search");
+        const resultsInfo = document.getElementById("results-info");
+        const grid = document.getElementById("grid");
+        
+        const prevButton = document.getElementById("prev-page");
+        const nextButton = document.getElementById("next-page");
+        const pageInfo = document.getElementById("page-info");
+
+        let currentPage = 1;
+        let currentQuery = "";
+
+        async function fetchMeetings(query, page) {
+            resultsInfo.textContent = "Fetching meetings…";
+            grid.innerHTML = "";
+            
+            currentQuery = query;
+            currentPage = page;
+
+            let params = new URLSearchParams();
+            params.append('page', page);
+            if (query) {
+                params.append('q', query);
+            }
+            const url = `${API_LIST_URL}?${params.toString()}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`);
+                
+                const data = await res.json();
+                if (data.ok) {
+                    renderData(data.data, data.pagination);
+                } else {
+                    throw new Error(data.error || "Unknown API error");
+                }
+            } catch (e) {
+                resultsInfo.textContent = "";
+                grid.innerHTML = `<div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-red-400">Error loading meetings: ${e.message}</div>`;
+            }
+        }
+
+        function renderData(meetings, pagination) {
+            grid.innerHTML = "";
+            
+            // --- Update Info Paginasi ---
+            if (pagination.total_meetings === 0) {
+                if (currentQuery) {
+                    resultsInfo.textContent = `No meetings found for "${currentQuery}".`;
+                } else {
+                    resultsInfo.textContent = "No meetings found.";
+                }
+            } else {
+                resultsInfo.textContent = `Showing ${meetings.length} of ${pagination.total_meetings} meetings.`;
+            }
+            
+            pageInfo.textContent = `Page ${pagination.current_page} of ${pagination.total_pages}`;
+            prevButton.disabled = !pagination.has_previous;
+            nextButton.disabled = !pagination.has_next;
+            // --- Selesai Update Paginasi ---
+
+            // --- Render Kotak Meeting ---
+            meetings.forEach(meeting => {
+                const meetingCardHtml = `
+                    <div class="block rounded-xl bg-[#0D1117]/80 border border-white/10 p-6 shadow-lg transition-all hover:border-red-500/50">
+                        <!-- Judul Besar -->
+                        <h2 class="text-3xl font-bold text-white mb-3" style="font-family: Alphacorsa, Inter, sans-serif;">
+                            ${meeting.meeting_name}
+                        </h2>
+                        
+                        <!-- Info Lainnya -->
+                        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/70 border-t border-white/10 pt-3 mt-3">
+                            <span class="flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 4.71 7.97 4 10 4c2.03 0 3.488.71 4.756 1.321a6.012 6.012 0 011.912 2.706C17.02 8.64 17 9.31 17 10s.02 1.36-.244 1.973a6.012 6.012 0 01-1.912 2.706C13.488 15.29 12.03 16 10 16c-2.03 0-3.488-.71-4.756-1.321a6.012 6.012 0 01-1.912-2.706C2.98 11.36 3 10.69 3 10s-.02-1.36.244-1.973zM10 8a2 2 0 100 4 2 2 0 000-4z" clip-rule="evenodd"></path></svg>
+                                <strong>Country:</strong> ${meeting.country_name}
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>
+                                <strong>Location:</strong> ${meeting.location}
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path></svg>
+                                <strong>Date:</strong> ${meeting.date_start_str}
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zM1 10a9 9 0 1118 0 9 9 0 01-18 0z"></path><path d="M10 4a1 1 0 011 1v4a1 1 0 01-2 0V5a1 1 0 011-1zM10 10a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1z"></path></svg>
+                                <strong>Year:</strong> ${meeting.year}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += meetingCardHtml;
+            });
+            // --- Selesai Render ---
+        }
+
+        // --- Event Listeners ---
+        searchForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            fetchMeetings(searchInput.value, 1);
+        });
+
+        prevButton.addEventListener("click", () => {
+            if (currentPage > 1) {
+                fetchMeetings(currentQuery, currentPage - 1);
+            }
+        });
+
+        nextButton.addEventListener("click", () => {
+            fetchMeetings(currentQuery, currentPage + 1);
+        });
+
+        // Muat data awal (halaman 1)
+        fetchMeetings("", 1);
+    </script>
 {% endblock content %}
-
