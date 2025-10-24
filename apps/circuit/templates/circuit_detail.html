@@ -41,17 +41,15 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
         <!-- Map Image -->
         <div class="lg:col-span-1">
-            {% if circuit.map_image_file %}
-                <img src="{{ circuit.map_image_file.url }}" alt="Map of {{ circuit.name }}" class="w-full h-auto rounded-lg object-cover border border-white/10 aspect-video">
-            
-            {% elif circuit.map_image_url %}
-                <img src="{{ circuit.map_image_url }}" alt="Map of {{ circuit.name }} (from URL)" class="w-full h-auto rounded-lg object-cover border border-white/10 aspect-video">
-
-            {% else %}
-                <div class="w-full h-64 flex items-center justify-center bg-[#0D1117] border border-white/10 rounded-lg text-white/60 aspect-video">
-                    No map image available.
-                </div>
-            {% endif %}
+            <div class="bg-white p-4 rounded-lg border border-white/10"> 
+                {% if circuit.map_image_url %}
+                    <img src="{{ circuit.map_image_url }}" alt="Map of {{ circuit.name }} (from URL)" class="w-full h-auto object-contain aspect-video">
+                {% else %}
+                    <div class="w-full h-64 flex items-center justify-center bg-gray-200 rounded-lg text-gray-500 aspect-video">
+                        No map image available.
+                    </div>
+                {% endif %}
+            </div>
         </div>
         
         <!-- Circuit Details -->
