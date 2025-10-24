@@ -2,6 +2,7 @@ from django.shortcuts import render
 import requests
 from django.http import JsonResponse
 from datetime import datetime
+from apps.driver.models import Driver
 
 def show_main(request):
     return render(request, "index.html")
@@ -62,11 +63,20 @@ def api_dashboard_data(request):
             s['date_start_str'] = format_date(s.get('date_start'))
             s['date_end_str'] = format_date(s.get('date_end'))
 
+        drivers = list(Driver.objects.all())
         data = {
             'meeting': meeting_info[0] if meeting_info else None,
             'sessions': sessions,
             'weather': weather_data,
-            'drivers': [], # Placeholder - API akan ditambahkan nanti
+            'drivers': [
+                {
+                    "driver_number": d.driver_number,
+                    "full_name": d.full_name,
+                    "broadcast_name": d.broadcast_name or "",
+                    "headshot_url": d.headshot_url or "",
+                    "country_code": d.country_code or "",
+                } for d in drivers
+            ],
             'laps': [],    # Placeholder - API akan ditambahkan nanti
             'car_data': [],# Placeholder - API akan ditambahkan nanti
         }
