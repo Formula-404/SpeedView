@@ -205,6 +205,7 @@ def api_comparison_create(request):
 
     return JsonResponse({"ok": True, "redirect": cmp.get_absolute_url()})
 
+@require_GET
 def api_comparison_list(request):
     scope = request.GET.get("scope", "all")
     qs = Comparison.objects.select_related("owner").order_by("-created_at")

@@ -52,55 +52,97 @@
     const container = document.getElementById("comparison-list");
     const resultsInfo = document.getElementById("results-info");
 
+    function renderEmpty() {
+        container.innerHTML = `
+            <div class="rounded-xl bg-white/5 border border-white/10 p-8 text-center">
+                <p class="text-[#E6EDF3]/70 mb-4">No comparisons listed.</p>
+            </div>`;
+        resultsInfo.textContent = "0 comparisons";
+    }
+
+    function renderError(msg) {
+        container.innerHTML = `
+            <div class="rounded-xl bg-red-500/10 border border-red-500/40 p-4">
+                <div class="text-red-400 text-sm">${msg}</div>
+            </div>`;
+        resultsInfo.textContent = "Error";
+    }
+
     async function fetchComparisons(filter = "all") {
-        container.innerHTML = `<div class='text-[#E6EDF3]/60'>Loading comparisons...</div>`;
+        container.innerHTML = `<div class="text-[#E6EDF3]/60">Loading comparisons…</div>`;
         resultsInfo.textContent = "Loading comparisons…";
 
         const scope = filter === "mine" ? "my" : filter;
-        const res = await fetch(`{% url 'comparison:api_list' %}?scope=${scope}`);
-        const json = await res.json();
+        const url = `{% url 'comparison:api_list' %}?scope=${encodeURIComponent(scope)}`;
 
-        if (!json.ok || (json.data || []).length === 0) {
-            container.innerHTML = `
-                <div class="rounded-xl bg-white/5 border border-white/10 p-8 text-center">
-                    <p class="text-[#E6EDF3]/70 mb-4">No comparisons listed.</p>
-                </div>`;
-            resultsInfo.textContent = "0 comparisons";
-            return;
-        }
+        try {
+            const res = await fetch(url, {
+                headers: { "Accept": "application/json" },
+                credentials: "same-origin"
+            });
 
-        const items = json.data || [];
-        const total = items.length;
-        resultsInfo.textContent = `${total} comparison${total === 1 ? "" : "s"}`;
+            if (res.redirected) {
+                renderError("You need to sign in to view this content.");
+                return;
+            }
 
-        container.innerHTML = items.map(c => {
-            const href = c.detail_url || `/comparison/${c.id}/`;
-            const isPublic = !!c.is_public;
-            const badgeText = isPublic ? "PUBLIC" : "PRIVATE";
-            const badgeClass = isPublic
-                ? "border-green-500/40 text-green-400 bg-green-500/10"
-                : "border-white/20 text-white/70 bg-white/5";
+            const ctype = (res.headers.get("content-type") || "").toLowerCase();
+            if (!ctype.includes("application/json")) {
+                const text = await res.text().catch(() => "");
+                renderError("Unexpected response from server.");
+                console.warn("Non-JSON response:", text);
+                return;
+            }
 
-            const moduleLabel = c.module_label || c.module || "—";
-            const ownerName = c.owner_name || "—";
-            const createdAt = c.created_at || "";
-            const subjectList = (c.items && c.items.length) ? c.items.join(", ") : "—";
+            const json = await res.json();
 
-            return `
-                <a href="${href}"
-                   class="block bg-[#0D1117] border border-gray-700 rounded-lg px-6 py-4 hover:border-red-500/50 transition-all">
-                    <div class="flex justify-between items-center mb-1">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <h2 class="text-lg font-semibold text-[#E6EDF3] truncate">${c.title}</h2>
-                            <span class="px-2.5 py-0.5 text-[10px] rounded-full border ${badgeClass}">${badgeText}</span>
+            if (!res.ok || json.ok === false) {
+                renderError(json.error || `Request failed with status ${res.status}`);
+                return;
+            }
+
+            const items = json.data || [];
+            if (!items.length) {
+                renderEmpty();
+                return;
+            }
+
+            const total = items.length;
+            resultsInfo.textContent = `${total} comparison${total === 1 ? "" : "s"}`;
+
+            container.innerHTML = items.map(c => {
+                const href = c.detail_url || `/comparison/${c.id}/`;
+                const isPublic = !!c.is_public;
+                const badgeText = isPublic ? "PUBLIC" : "PRIVATE";
+                const badgeClass = isPublic
+                    ? "border-green-500/40 text-green-400 bg-green-500/10"
+                    : "border-white/20 text-white/70 bg-white/5";
+
+                const moduleLabel = c.module_label || c.module || "—";
+                const ownerName = c.owner_name || "—";
+                const createdAt = c.created_at || "";
+                const subjectList = (c.items && c.items.length) ? c.items.join(", ") : "—";
+
+                return `
+                    <a href="${href}"
+                       class="block bg-[#0D1117] border border-gray-700 rounded-lg px-6 py-4 hover:border-red-500/50 transition-all">
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <h2 class="text-lg font-semibold text-[#E6EDF3] truncate">${c.title}</h2>
+                                <span class="px-2.5 py-0.5 text-[10px] rounded-full border ${badgeClass}">${badgeText}</span>
+                            </div>
+                            <span class="text-xs text-[#E6EDF3]/50">${createdAt}</span>
                         </div>
-                        <span class="text-xs text-[#E6EDF3]/50">${createdAt}</span>
-                    </div>
-                    <p class="text-sm text-[#E6EDF3]/70 truncate">Module: ${moduleLabel} • ${subjectList}</p>
-                    <p class="text-sm text-[#E6EDF3]/60">By ${ownerName}</p>
-                </a>
-            `;
-        }).join("");
+                        <p class="text-sm text-[#E6EDF3]/70 truncate">Module: ${moduleLabel} • ${subjectList}</p>
+                        <p class="text-sm text-[#E6EDF3]/60">By ${ownerName}</p>
+                    </a>
+                `;
+            }).join("");
+
+        } catch (e) {
+            console.error(e);
+            renderError("Network error while loading comparisons.");
+        }
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -108,20 +150,21 @@
         const btnMine = document.getElementById("btn-mine");
 
         const setActive = (mode) => {
-            if (mode === "mine") {
-                btnMine.className = "tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700";
-                btnAll.className = "tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700";
-            } else {
-                btnAll.className = "tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700";
-                btnMine.className = "tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700";
-            }
+            if (btnMine) btnMine.className = mode === "mine"
+                ? "tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700"
+                : "tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700";
+            if (btnAll) btnAll.className = mode !== "mine"
+                ? "tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700"
+                : "tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700";
         };
 
-        btnAll.addEventListener("click", () => { setActive("all"); fetchComparisons("all"); });
-        btnMine.addEventListener("click", () => { setActive("mine"); fetchComparisons("mine"); });
+        if (btnAll) btnAll.addEventListener("click", () => { setActive("all"); fetchComparisons("all"); });
+        if (btnMine) btnMine.addEventListener("click", () => { setActive("mine"); fetchComparisons("mine"); });
 
+        setActive("all");
         fetchComparisons("all");
     });
 </script>
+
 
 {% endblock %}
