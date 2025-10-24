@@ -19,6 +19,7 @@
         .thin-scrollbar:hover::-webkit-scrollbar-thumb {
             background-color: rgba(255,255,255,0.30);
         }
+        html, body { overflow-x: hidden; }
         /* gradient fade atas/bawah saat area scroll */
         .fade-top { pointer-events:none; position:absolute; left:0; right:0; top:0; height:16px;
             background: linear-gradient(to bottom, rgba(13,17,23,0.8), rgba(13,17,23,0)); }
@@ -107,11 +108,10 @@
                 </div>
             </div>
 
-            <!-- 6. Widget Car Speed -->
-            <div id="widget-car-speed" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 h-96">
-                <h2 class="text-2xl font-bold text-white mb-4">Car Telemetry - Speed</h2>
-                <div class="flex items-center justify-center h-4/5 border border-dashed border-white/20 rounded-lg">
-                    <p class="text-white/50">Car speed chart placeholder</p>
+            <!-- 6. Widget Car Telemetry -->
+            <div id="widget-car-speed" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 min-w-0">
+                <div class="flex items-center justify-center h-48 border border-dashed border-white/20 rounded-lg">
+                    <p class="text-white/50 text-sm">Select a meeting to load car telemetry.</p>
                 </div>
             </div>
             
@@ -168,6 +168,45 @@
             });
         }
 
+        const TELEMETRY_API_URL = "{% url 'car:api_grouped' %}";
+        const TELEMETRY_REFRESH_URL = "{% url 'car:api_refresh' %}";
+        const TELEMETRY_METRICS = {
+            speed: { label: 'Speed (km/h)', unit: 'km/h', color: '#ef4444', shortLabel: 'Speed' },
+            rpm: { label: 'RPM', unit: 'rpm', color: '#f97316', shortLabel: 'RPM' },
+            throttle: { label: 'Throttle (%)', unit: '%', color: '#22c55e', shortLabel: 'Throttle' },
+        };
+        const CAR_DATASET_DEFAULTS = { minSpeed: 310 };
+
+        let selectedMeetingKey = null;
+        let selectedSessionKey = null;
+        let selectedSessionName = "";
+        let selectedDriverNumber = null;
+        let selectedDriverName = "";
+        let telemetryMetric = "speed";
+        let telemetrySamples = [];
+        let telemetryLoading = false;
+        let telemetryError = "";
+        let carTelemetryChart = null;
+        let currentSessions = [];
+        let sessionNameLookup = {};
+        let driverListCache = [];
+        let lastTelemetryFetchKey = "";
+        let lastCarDatasetMeetingKey = null;
+        let carDatasetRefreshState = { loading: false, error: "", meetingKey: null, summary: null };
+        let carDatasetRequestId = 0;
+        let telemetryRequestId = 0;
+        let carTelemetryWidget = null;
+        let telemetryAvailability = new Map();
+
+        function getCSRFToken() {
+            const name = 'csrftoken=';
+            return document.cookie
+                .split(';')
+                .map(token => token.trim())
+                .find(token => token.startsWith(name))
+                ?.slice(name.length) || '';
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const recentMeetingsGrid = document.getElementById('recent-meetings-grid');
             const dataContainer = document.getElementById('dashboard-data-container');
@@ -177,6 +216,8 @@
             const meetingWidget = document.getElementById('widget-meeting');
             const sessionsWidget = document.getElementById('widget-sessions');
             const weatherWidget = document.getElementById('widget-weather');
+            carTelemetryWidget = document.getElementById('widget-car-speed');
+            renderCarTelemetryWidget();
             
             let weatherChartInstance = null;
             let weatherDataStore = []; 
@@ -225,7 +266,96 @@
                 fetchRecentMeetings(); 
             });
 
+            async function refreshCarDatasetForMeeting(meetingKey, { force = false } = {}) {
+                if (!meetingKey) return;
+                const numericMeetingKey = Number(meetingKey);
+                if (!Number.isFinite(numericMeetingKey)) return;
+                if (!force && lastCarDatasetMeetingKey === numericMeetingKey && !carDatasetRefreshState.error) {
+                    return;
+                }
+
+                const requestId = ++carDatasetRequestId;
+                carDatasetRefreshState = { loading: true, error: "", meetingKey: numericMeetingKey, summary: null };
+                renderCarTelemetryWidget();
+
+                try {
+                    const response = await fetch(TELEMETRY_REFRESH_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken(),
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            meeting_key: numericMeetingKey,
+                            min_speed: CAR_DATASET_DEFAULTS.minSpeed,
+                        }),
+                    });
+                    const payload = await response.json();
+                    if (!response.ok || !payload.ok) {
+                        throw new Error(payload.error || `Failed to refresh telemetry dataset (status ${response.status}).`);
+                    }
+
+                    if (requestId === carDatasetRequestId) {
+                        carDatasetRefreshState = {
+                            loading: false,
+                            error: "",
+                            meetingKey: numericMeetingKey,
+                            summary: {
+                                created: payload.created ?? 0,
+                                deleted: payload.deleted ?? 0,
+                                meetingKey: payload.meeting_key ?? numericMeetingKey,
+                            },
+                        };
+                        lastCarDatasetMeetingKey = numericMeetingKey;
+                    }
+                } catch (error) {
+                    console.error(error);
+                    if (requestId === carDatasetRequestId) {
+                        carDatasetRefreshState = {
+                            loading: false,
+                            error: error.message || 'Failed to refresh car telemetry dataset.',
+                            meetingKey: numericMeetingKey,
+                            summary: null,
+                        };
+                    }
+                } finally {
+                    if (requestId === carDatasetRequestId) {
+                        renderCarTelemetryWidget();
+                        if (!carDatasetRefreshState.error) {
+                            tryLoadCarTelemetry(true);
+                        }
+                    }
+                }
+            }
+
             async function loadDashboard(meetingKey) {
+                selectedMeetingKey = Number(meetingKey) || null;
+                selectedSessionKey = null;
+                selectedSessionName = "";
+                selectedDriverNumber = null;
+                selectedDriverName = "";
+                telemetryMetric = "speed";
+                telemetrySamples = [];
+                telemetryError = "";
+                telemetryLoading = false;
+                lastTelemetryFetchKey = "";
+                telemetryAvailability = new Map();
+                currentSessions = [];
+                sessionNameLookup = {};
+                if (carTelemetryChart) {
+                    carTelemetryChart.destroy();
+                    carTelemetryChart = null;
+                }
+                carDatasetRefreshState = { loading: false, error: "", meetingKey: selectedMeetingKey, summary: null };
+                renderCarTelemetryWidget();
+                if (Array.isArray(driverListCache) && driverListCache.length) {
+                    renderDriversWidget(driverListCache);
+                }
+                if (selectedMeetingKey !== null) {
+                    refreshCarDatasetForMeeting(selectedMeetingKey, { force: true });
+                }
+
                 dataContainer.classList.add('hidden');
                 meetingWidget.innerHTML = `<div class="h-24 rounded-lg bg-gray-700/50 animate-pulse"></div>`;
                 sessionsWidget.innerHTML = `<div class="h-48 rounded-lg bg-gray-700/50 animate-pulse"></div>`;
@@ -278,32 +408,78 @@
             }
 
             function renderSessionsWidget(sessions) {
+                const sessionsArray = Array.isArray(sessions) ? sessions.slice() : [];
+                currentSessions = sessionsArray;
+                sessionNameLookup = {};
+
                 const groups = { 'Practice': [], 'Qualifying': [], 'Race': [] };
-                sessions.forEach(session => {
-                    const name = session.session_name.toLowerCase();
-                    if (name.includes('practice')) groups['Practice'].push(session);
-                    else if (name.includes('qualifying') || name.includes('shootout')) groups['Qualifying'].push(session);
-                    else if (name.includes('race') || name.includes('sprint')) groups['Race'].push(session);
+
+                sessionsArray.forEach(session => {
+                    if (!session) return;
+                    if (session.session_key !== undefined && session.session_key !== null) {
+                        sessionNameLookup[session.session_key] = session.session_name || "";
+                    }
+                    const name = (session.session_name || '').toLowerCase();
+                    if (name.includes('practice')) {
+                        groups['Practice'].push(session);
+                    } else if (name.includes('qualifying') || name.includes('shootout')) {
+                        groups['Qualifying'].push(session);
+                    } else if (name.includes('race') || name.includes('sprint')) {
+                        groups['Race'].push(session);
+                    } else {
+                        groups['Practice'].push(session);
+                    }
                 });
 
+                if (!selectedSessionKey && sessionsArray.length > 0) {
+                    const preferred = sessionsArray.find(s => (s.session_name || '').toLowerCase().includes('race')) || sessionsArray[0];
+                    selectedSessionKey = preferred && preferred.session_key !== undefined ? Number(preferred.session_key) : null;
+                    selectedSessionName = preferred ? (preferred.session_name || "") : "";
+                } else if (selectedSessionKey) {
+                    selectedSessionName = sessionNameLookup[selectedSessionKey] || selectedSessionName;
+                }
+
                 let gridBoxesHtml = '';
-                for (const groupName in groups) {
+                Object.keys(groups).forEach(groupName => {
                     const sessionsInGroup = groups[groupName];
                     let sessionListHtml = '';
-                    
+
                     if (sessionsInGroup.length > 0) {
-                        sessionListHtml = '<div class="space-y-2">';
+                        sessionListHtml = '<div class="space-y-3">';
                         sessionsInGroup.sort((a, b) => (a.date_start || "") > (b.date_start || "") ? 1 : -1);
                         sessionsInGroup.forEach(s => {
-                            const start = new Date(s.date_start);
-                            const end = new Date(s.date_end);
-                            const dateStr = start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-                            const timeStr = `${start.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit', hour12: false})} - ${end.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit', hour12: false})}`;
-                            
+                            const start = s.date_start ? new Date(s.date_start) : null;
+                            const end = s.date_end ? new Date(s.date_end) : null;
+                            const dateStr = start ? start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBC';
+                            let timeStr = 'Time TBC';
+                            if (start && end) {
+                                const startStr = start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                                const endStr = end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                                timeStr = `${startStr} - ${endStr}`;
+                            } else if (start) {
+                                timeStr = start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                            }
+
+                            const isSelected = selectedSessionKey !== null && Number(selectedSessionKey) === Number(s.session_key);
+                            const cardClass = isSelected
+                                ? 'p-3 rounded-lg border border-red-500 bg-red-500/10 transition'
+                                : 'p-3 rounded-lg border border-gray-600/50 bg-gray-700/30 hover:bg-gray-700/40 transition';
+                            const buttonClass = isSelected
+                                ? 'session-select-btn mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-red-600 text-white'
+                                : 'session-select-btn mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-white/10 text-white/70 hover:bg-white/20 hover:text-white';
+
                             sessionListHtml += `
-                                <div class="p-3 rounded-lg bg-gray-700/30 border border-gray-600/50">
-                                    <h5 class="font-semibold text-white">${s.session_name}</h5>
-                                    <p class="text-xs text-white/70">${dateStr}, ${timeStr}</p>
+                                <div class="${cardClass}">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <h5 class="font-semibold text-white">${s.session_name}</h5>
+                                            <p class="text-xs text-white/70">${dateStr}, ${timeStr}</p>
+                                        </div>
+                                        <span class="text-[11px] text-white/50">#${s.session_key}</span>
+                                    </div>
+                                    <button type="button" class="${buttonClass}" data-session-key="${s.session_key}">
+                                        ${isSelected ? 'Selected' : 'Select'}
+                                    </button>
                                 </div>
                             `;
                         });
@@ -319,15 +495,342 @@
                             ${sessionListHtml}
                         </div>
                     `;
-                }
-                
+                });
+
                 sessionsWidget.innerHTML = `
                     <h2 class="text-2xl font-bold text-white mb-4">Sessions</h2>
                     <div class="grid gap-5 grid-cols-1 md:grid-cols-3">
                         ${gridBoxesHtml}
                     </div>
                 `;
+
+                sessionsWidget.querySelectorAll('.session-select-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const key = Number(button.dataset.sessionKey);
+                        if (Number.isNaN(key)) return;
+                        selectedSessionKey = key;
+                        selectedSessionName = sessionNameLookup[key] || "";
+                        telemetrySamples = [];
+                        telemetryError = "";
+                        telemetryLoading = false;
+                        lastTelemetryFetchKey = "";
+                        telemetryAvailability = new Map();
+                        renderSessionsWidget(currentSessions);
+                    });
+                });
+
+                renderCarTelemetryWidget();
+                if (selectedSessionKey && selectedDriverNumber) {
+                    tryLoadCarTelemetry();
+                }
             }
+
+            function formatTelemetryTime(isoString) {
+                if (!isoString) return 'N/A';
+                const date = new Date(isoString);
+                if (Number.isNaN(date.getTime())) return isoString;
+                return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+
+            function renderCarTelemetryWidget() {
+                if (!carTelemetryWidget) return;
+
+                const meetingLabel = selectedMeetingKey ? `Meeting ${selectedMeetingKey}` : 'Meeting not selected';
+                const sessionDescriptor = selectedSessionKey
+                    ? `${selectedSessionName || 'Session'} (Key ${selectedSessionKey})`
+                    : 'No session selected';
+                const driverDescriptor = selectedDriverNumber
+                    ? `Driver #${selectedDriverNumber}${selectedDriverName ? ' - ' + selectedDriverName : ''}`
+                    : 'No driver selected';
+
+                const metricButtons = Object.entries(TELEMETRY_METRICS).map(([metricKey, meta]) => {
+                    const isActive = telemetryMetric === metricKey;
+                    const baseClass = 'telemetry-metric-btn px-3 py-1.5 rounded-md text-xs font-semibold transition border border-white/10';
+                    const stateClass = isActive ? ' bg-red-600 text-white border-red-500' : ' bg-white/10 text-white/70 hover:text-white';
+                    return `<button type="button" class="${baseClass}${stateClass}" data-metric="${metricKey}">${meta.shortLabel}</button>`;
+                }).join('');
+
+                const datasetIsCurrent = carDatasetRefreshState.meetingKey === selectedMeetingKey;
+                const datasetLoading = datasetIsCurrent && carDatasetRefreshState.loading;
+                const datasetError = datasetIsCurrent && !!carDatasetRefreshState.error;
+
+                let bodyHtml = '';
+                let footerHtml = '';
+                let datasetStatusHtml = '';
+
+                if (datasetLoading) {
+                    datasetStatusHtml = `<div class="mt-2 inline-flex items-center gap-2 text-xs text-white/60"><span class="w-2 h-2 rounded-full bg-red-500/80 animate-pulse"></span><span>Refreshing car telemetry dataset...</span></div>`;
+                } else if (carDatasetRefreshState.summary) {
+                    const { created = 0, deleted = 0 } = carDatasetRefreshState.summary;
+                    const summaryText = created
+                        ? `${created} telemetry samples loaded${deleted ? `, ${deleted} old samples replaced` : ''}.`
+                        : 'OpenF1 returned no telemetry samples for this meeting.';
+                    datasetStatusHtml = `<div class="mt-2 inline-flex items-center gap-2 text-xs text-white/60"><span class="w-2 h-2 rounded-full bg-green-400/80"></span><span>${summaryText}</span></div>`;
+                }
+
+                if (!selectedMeetingKey) {
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">Select a meeting to load car telemetry.</p></div>`;
+                } else if (datasetLoading) {
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">Refreshing car telemetry dataset for meeting ${selectedMeetingKey}...</p></div>`;
+                } else if (datasetError) {
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-red-500/40 bg-red-500/10 rounded-lg px-4 text-center"><p class="text-red-300 text-sm">${carDatasetRefreshState.error || 'Unable to refresh telemetry dataset. Please reselect the meeting to try again.'}</p></div>`;
+                } else if (!selectedSessionKey) {
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">Select a session to load telemetry data.</p></div>`;
+                } else if (!selectedDriverNumber) {
+                    const sessionLabel = selectedSessionName || `Session ${selectedSessionKey}`;
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">Select a driver to load telemetry for ${sessionLabel}.</p></div>`;
+                } else if (telemetryLoading) {
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm animate-pulse">Loading telemetry...</p></div>`;
+                } else if (telemetryError) {
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-red-500/40 bg-red-500/10 rounded-lg px-4 text-center"><p class="text-red-300 text-sm">${telemetryError}</p></div>`;
+                } else if (!telemetrySamples.length) {
+                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">No telemetry samples available for this driver and session.</p></div>`;
+                } else {
+                    bodyHtml = `
+                        <div class="relative w-full">
+                            <div id="carTelemetryChartScroll" class="overflow-x-auto thin-scrollbar pb-4 w-full max-w-full" style="contain: inline-size; position: relative;">
+                                <div id="carTelemetryChartWrapper" class="block">
+                                    <canvas id="carTelemetryChart" class="h-64 block"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    const latestSample = telemetrySamples[telemetrySamples.length - 1] || {};
+                    const latestTime = latestSample.date ? formatTelemetryTime(latestSample.date) : 'N/A';
+                    footerHtml = `<p class="text-xs text-white/60 mt-4">Telemetry points: ${telemetrySamples.length}. Last sample at ${latestTime}.</p>`;
+                }
+
+                carTelemetryWidget.innerHTML = `
+                    <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Car Telemetry</h2>
+                            <p class="text-sm text-white/60">${meetingLabel}</p>
+                            <p class="text-xs text-white/50 mt-1">${sessionDescriptor}</p>
+                            <p class="text-xs text-white/50">${driverDescriptor}</p>
+                            ${datasetStatusHtml}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${metricButtons}
+                        </div>
+                    </div>
+                    ${bodyHtml}
+                    ${footerHtml}
+                `;
+
+                carTelemetryWidget.querySelectorAll('.telemetry-metric-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const metric = button.dataset.metric;
+                        if (!metric || telemetryMetric === metric) return;
+                        telemetryMetric = metric;
+                        renderCarTelemetryWidget();
+                    });
+                });
+
+                if (!telemetryLoading && !telemetryError && telemetrySamples.length) {
+                    buildCarTelemetryChart();
+                }
+            }
+
+            function buildCarTelemetryChart() {
+                const canvas = document.getElementById('carTelemetryChart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                if (carTelemetryChart) {
+                    carTelemetryChart.destroy();
+                    carTelemetryChart = null;
+                }
+
+                const meta = TELEMETRY_METRICS[telemetryMetric] || TELEMETRY_METRICS.speed;
+                const labels = telemetrySamples.map((sample, index) => {
+                    const timestamp = sample && sample.date ? formatTelemetryTime(sample.date) : `Point ${index + 1}`;
+                    return `${index + 1} | ${timestamp}`;
+                });
+                const values = telemetrySamples.map(sample =>
+                    sample && typeof sample[telemetryMetric] === 'number' ? sample[telemetryMetric] : null
+                );
+
+                const minSpacing = 28;
+                const scrollContainer = document.getElementById('carTelemetryChartScroll');
+                const wrapper = document.getElementById('carTelemetryChartWrapper');
+                const availableWidth = scrollContainer ? scrollContainer.clientWidth : (carTelemetryWidget?.clientWidth || 600);
+                const chartWidth = Math.max(labels.length * minSpacing, availableWidth || 600);
+
+                if (wrapper) {
+                    wrapper.style.width = `${chartWidth}px`;
+                    wrapper.style.minWidth = `${chartWidth}px`;
+                }
+                canvas.width = chartWidth;
+                canvas.height = 256;
+                canvas.style.width = '100%';
+                canvas.style.height = '256px';
+
+                carTelemetryChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: meta.label,
+                            data: values,
+                            borderColor: meta.color,
+                            backgroundColor: meta.color + '26',
+                            fill: false,
+                            tension: 0.25,
+                            pointRadius: 2,
+                            pointHoverRadius: 4,
+                            borderWidth: 2,
+                            spanGaps: true,
+                        }],
+                    },
+                    options: {
+                        responsive: false,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'category',
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: Math.max(4, Math.floor((availableWidth || 600) / minSpacing)),
+                                    callback: (_, index) => {
+                                        const label = labels[index];
+                                        if (!label) return '';
+                                        const parts = label.split(' | ');
+                                        return parts[0];
+                                    },
+                                },
+                            },
+                            y: {
+                                beginAtZero: false,
+                                grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                                ticks: { color: 'rgba(255, 255, 255, 0.7)' },
+                                title: { display: true, text: meta.unit, color: 'rgba(255, 255, 255, 0.7)' },
+                            },
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    title: (items) => {
+                                        if (!items.length) return '';
+                                        return labels[items[0].dataIndex];
+                                    },
+                                    label: context => `${meta.label}: ${context.parsed.y ?? 'N/A'}`,
+                                },
+                            },
+                        },
+                        interaction: { intersect: false, mode: 'index' },
+                    },
+                });
+            }
+
+            function tryLoadCarTelemetry(forceReload = false) {
+                if (!carTelemetryWidget) return;
+                if (carDatasetRefreshState.loading && carDatasetRefreshState.meetingKey === selectedMeetingKey) {
+                    renderCarTelemetryWidget();
+                    return;
+                }
+                if (carDatasetRefreshState.error && carDatasetRefreshState.meetingKey === selectedMeetingKey && !forceReload) {
+                    renderCarTelemetryWidget();
+                    return;
+                }
+                if (!selectedMeetingKey || !selectedSessionKey || !selectedDriverNumber) {
+                    if (!telemetryLoading) {
+                        renderCarTelemetryWidget();
+                    }
+                    return;
+                }
+                const fetchKey = `${selectedMeetingKey}-${selectedSessionKey}-${selectedDriverNumber}`;
+                if (!forceReload && fetchKey === lastTelemetryFetchKey && telemetrySamples.length && !telemetryError) {
+                    renderCarTelemetryWidget();
+                    return;
+                }
+                lastTelemetryFetchKey = fetchKey;
+                const requestId = ++telemetryRequestId;
+                loadCarTelemetry(fetchKey, requestId);
+            }
+
+            async function loadCarTelemetry(fetchKey, requestId) {
+                telemetryLoading = true;
+                telemetryError = "";
+                telemetrySamples = [];
+                renderCarTelemetryWidget();
+
+                const params = new URLSearchParams({
+                    meeting_key: selectedMeetingKey,
+                    session_key: selectedSessionKey,
+                    metric: telemetryMetric,
+                });
+
+                try {
+                    const response = await fetch(`${TELEMETRY_API_URL}?${params.toString()}`, { credentials: 'same-origin' });
+                    if (!response.ok) throw new Error(`Status ${response.status}`);
+                    const payload = await response.json();
+                    if (!payload.ok) throw new Error(payload.error || 'Failed to load telemetry data.');
+                    const groups = Array.isArray(payload.groups) ? payload.groups : [];
+                    const availability = new Map();
+                    groups.forEach(group => {
+                        if (group && group.session_key !== undefined && group.driver_number !== undefined) {
+                            const key = `${group.session_key}-${group.driver_number}`;
+                            availability.set(key, true);
+                        }
+                    });
+                    if (requestId === telemetryRequestId) {
+                        telemetryAvailability = availability;
+                        if (Array.isArray(driverListCache) && driverListCache.length) {
+                            renderDriversWidget(driverListCache);
+                        }
+                    }
+                    const matchingGroup = groups.find(group =>
+                        Number(group.meeting_key) === Number(selectedMeetingKey) &&
+                        Number(group.session_key) === Number(selectedSessionKey) &&
+                        Number(group.driver_number) === Number(selectedDriverNumber)
+                    );
+
+                    if (requestId === telemetryRequestId) {
+                        if (matchingGroup && Array.isArray(matchingGroup.telemetry) && matchingGroup.telemetry.length) {
+                            telemetrySamples = matchingGroup.telemetry;
+                            telemetryError = "";
+                        } else {
+                            telemetrySamples = [];
+                            telemetryError = `No telemetry data found for driver #${selectedDriverNumber} in session ${selectedSessionName || selectedSessionKey}.`;
+                        }
+                    }
+                } catch (error) {
+                    console.error(error);
+                    if (requestId === telemetryRequestId) {
+                        telemetrySamples = [];
+                        telemetryError = error.message || 'Unable to load telemetry right now.';
+                    }
+                } finally {
+                    if (requestId === telemetryRequestId) {
+                        telemetryLoading = false;
+                        renderCarTelemetryWidget();
+                    }
+                }
+            }
+
+            function handleDriverSelection(driverNumber) {
+                if (!Array.isArray(driverListCache)) return;
+                const driver = driverListCache.find(d => Number(d.driver_number) === Number(driverNumber));
+                if (!driver) return;
+
+                selectedDriverNumber = Number(driver.driver_number);
+                selectedDriverName = driver.broadcast_name || driver.full_name || '';
+                telemetrySamples = [];
+                telemetryError = "";
+                telemetryLoading = false;
+                lastTelemetryFetchKey = "";
+                renderDriversWidget(driverListCache);
+                tryLoadCarTelemetry(true);
+            }
+
+            window.handleDriverSelection = handleDriverSelection;
 
             function renderWeatherWidget(weatherData) {
                 if (weatherChartInstance) {
@@ -503,7 +1006,9 @@
             const driversWidget = document.getElementById('widget-drivers');
             if (!driversWidget) return;
 
-            if (!drivers || drivers.length === 0) {
+            driverListCache = Array.isArray(drivers) ? drivers : [];
+
+            if (!driverListCache.length) {
                 driversWidget.innerHTML = `
                     <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
                     <div class="relative">
@@ -517,20 +1022,39 @@
                 return;
             }
 
-            const cards = drivers.map(d => `
-                <a href="${d.detail_url}" class="group min-h-16 p-3 rounded-lg bg-gray-700/30 border border-gray-600/50 flex items-center gap-3 hover:bg-gray-700/50 transition">
-                    <img src="${d.headshot_url || ''}" alt="${d.full_name}" class="w-10 h-10 rounded-full object-cover bg-gray-800">
-                    <div class="flex-1">
-                        <div class="text-white font-semibold group-hover:text-white">
-                            ${d.broadcast_name || d.full_name || 'Unknown'}
+            const cards = driverListCache.map(d => {
+                const displayName = d.broadcast_name || d.full_name || 'Unknown';
+                const isSelected = selectedDriverNumber !== null && Number(selectedDriverNumber) === Number(d.driver_number);
+                const headshot = d.headshot_url || '';
+                const telemetryKey = selectedSessionKey ? `${selectedSessionKey}-${d.driver_number}` : null;
+                const hasTelemetry = telemetryKey ? telemetryAvailability.get(telemetryKey) : null;
+                const cardClass = isSelected
+                    ? 'driver-select-btn group min-h-16 p-3 rounded-lg border border-red-500 bg-red-500/10 flex items-center gap-3 transition'
+                    : 'driver-select-btn group min-h-16 p-3 rounded-lg border border-gray-600/50 bg-gray-700/30 flex items-center gap-3 hover:bg-gray-700/50 transition';
+                const badge = isSelected
+                    ? '<span class="ml-auto inline-flex items-center rounded-full bg-red-600/80 px-2 py-0.5 text-[11px] font-semibold text-white">Selected</span>'
+                    : '<span class="ml-auto inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/70 group-hover:bg-white/20 group-hover:text-white">Select</span>';
+                const availabilityNote = telemetryKey
+                    ? hasTelemetry
+                        ? '<span class="text-[11px] text-green-400/80 mt-1 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-400/80"></span>Telemetry available</span>'
+                        : '<span class="text-[11px] text-yellow-300/80 mt-1 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-300/80"></span>No telemetry for this session</span>'
+                    : '';
+
+                return `
+                    <button type="button" class="${cardClass}" data-driver-number="${d.driver_number}">
+                        <img src="${headshot}" alt="${displayName}" class="w-10 h-10 rounded-full object-cover bg-gray-800">
+                        <div class="flex-1 text-left">
+                            <div class="text-white font-semibold">${displayName}</div>
+                            <div class="text-white/60 text-xs">
+                                #${d.driver_number}${d.country_code ? ' &bull; ' + d.country_code : ''}
+                            </div>
+                            ${d.teams && d.teams.length ? `<div class="text-white/50 text-[11px] mt-1">${d.teams.join(', ')}</div>` : ''}
+                            ${availabilityNote}
                         </div>
-                        <div class="text-white/60 text-xs">
-                            #${d.driver_number}${d.country_code ? ' • ' + d.country_code : ''}
-                        </div>
-                        ${d.teams && d.teams.length ? `<div class="text-white/50 text-[11px] mt-1">${d.teams.join(', ')}</div>` : ''}
-                    </div>
-                </a>
-            `).join('');
+                        ${badge}
+                    </button>
+                `;
+            }).join('');
 
             driversWidget.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
@@ -542,6 +1066,14 @@
                     <div class="fade-bottom"></div>
                 </div>
             `;
+
+            driversWidget.querySelectorAll('.driver-select-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const driverNumber = Number(button.dataset.driverNumber);
+                    if (Number.isNaN(driverNumber)) return;
+                    handleDriverSelection(driverNumber);
+                });
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -563,3 +1095,5 @@
     {% endif %}
 
 {% endblock content %}
+
+

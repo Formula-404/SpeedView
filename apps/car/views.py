@@ -22,6 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from apps.car.forms import CarForm
 from apps.car.models import Car
+from apps.meeting.models import Meeting
 from apps.session.models import Session
 from apps.session.services import ensure_sessions_for_meetings
 
@@ -251,6 +252,7 @@ def api_grouped_car_data(request):
 
 OPENF1_MEETINGS_URL = "https://api.openf1.org/v1/meetings"
 OPENF1_CAR_DATA_URL = "https://api.openf1.org/v1/car_data"
+OPENF1_MIN_SPEED_FLOOR = 310
 
 
 def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tuple[int, str]]:
@@ -305,15 +307,19 @@ def _fetch_openf1_telemetry(
     meeting_key: int,
     min_speed: int,
 ) -> List[Dict]:
+    url = f"{OPENF1_CAR_DATA_URL}?meeting_key={meeting_key}&speed>={min_speed}"
     try:
-        with urlopen(f"{OPENF1_CAR_DATA_URL}?meeting_key={meeting_key}&speed>={min_speed}") as response:
+        with urlopen(url) as response:
             payload = response.read()
     except HTTPError as exc:
         if exc.code == 422:
             return []
         raise
 
-    data = json.loads(payload)
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return []
     if not isinstance(data, list):
         return []
     return data
@@ -328,22 +334,27 @@ def api_refresh_car_data(request):
         return JsonResponse({"ok": False, "error": "Invalid JSON payload."}, status=400)
 
     meeting_key = body.get("meeting_key")
-    min_speed = body.get("min_speed")
+    min_speed = body.get("min_speed", OPENF1_MIN_SPEED_FLOOR)
     max_speed = body.get("max_speed")
 
     try:
         meeting_key = int(meeting_key)
-        min_speed = int(min_speed)
-        max_speed = int(max_speed)
     except (TypeError, ValueError):
         return JsonResponse(
-            {"ok": False, "error": "meeting_key, min_speed, and max_speed must be integers."},
+            {"ok": False, "error": "meeting_key must be an integer."},
             status=400,
         )
 
-    if max_speed < min_speed:
+    try:
+        min_speed = int(min_speed)
+    except (TypeError, ValueError):
+        min_speed = OPENF1_MIN_SPEED_FLOOR
+
+    try:
+        max_speed_int = int(max_speed) if max_speed is not None else None
+    except (TypeError, ValueError):
         return JsonResponse(
-            {"ok": False, "error": "min_speed must be less than or equal to max_speed."},
+            {"ok": False, "error": "max_speed must be an integer when provided."},
             status=400,
         )
 
@@ -358,7 +369,8 @@ def api_refresh_car_data(request):
     dataset = [
         entry
         for entry in dataset
-        if entry.get("speed") is not None and entry["speed"] <= max_speed
+        if entry.get("speed") is not None
+        and (max_speed_int is None or entry["speed"] <= max_speed_int)
     ]
 
     meeting_cache: set[int] = set()
@@ -420,7 +432,7 @@ def api_refresh_car_data(request):
             "ok": True,
             "meeting_key": meeting_key,
             "min_speed": min_speed,
-            "max_speed": max_speed,
+            "max_speed": max_speed_int,
             "created": created,
             "deleted": deleted_count,
         }
