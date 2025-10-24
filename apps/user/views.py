@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
+from django.db import IntegrityError
 from .forms import RegisterForm, LoginForm, EditProfileForm, ChangePasswordForm, DeleteAccountForm
 from .models import UserProfile
 
@@ -16,10 +17,13 @@ def register_view(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            UserProfile.objects.create(id=user, role='user', theme_preference='dark')
-            messages.success(request, 'Registration successful! Please login.')
-            return redirect('user:login')
+            try:
+                user = form.save()
+                UserProfile.objects.create(id=user, role='user', theme_preference='dark')
+                messages.success(request, 'Registration successful! Please login.')
+                return redirect('user:login')
+            except IntegrityError:
+                messages.error(request, 'Username already exists. Please choose a different username.')
         else:
             for field, errors in form.errors.items():
                 for error in errors:
@@ -67,10 +71,13 @@ def register_admin_view(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            UserProfile.objects.create(id=user, role='admin', theme_preference='dark')
-            messages.success(request, 'Admin registration successful! Please login.')
-            return redirect('user:login')
+            try:
+                user = form.save()
+                UserProfile.objects.create(id=user, role='admin', theme_preference='dark')
+                messages.success(request, 'Admin registration successful! Please login.')
+                return redirect('user:login')
+            except IntegrityError:
+                messages.error(request, 'Username already exists. Please choose a different username.')
         else:
             for field, errors in form.errors.items():
                 for error in errors:
