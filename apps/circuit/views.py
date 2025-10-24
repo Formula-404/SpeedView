@@ -73,11 +73,7 @@ def edit_circuit_page(request, pk):
 def api_circuit_list(request):
     """Endpoint API untuk mendapatkan daftar sirkuit."""
     try:
-        user_is_admin = is_admin(request)
-        if user_is_admin:
-            circuits_qs = Circuit.objects.filter(is_admin_created=True).order_by('name')
-        else:
-            circuits_qs = Circuit.objects.all().order_by('name')
+        circuits_qs = Circuit.objects.all().order_by('name')
         data = [serialize_circuit(c, request) for c in circuits_qs]
         return JsonResponse({"ok": True, "data": data})
     except Exception as e:
