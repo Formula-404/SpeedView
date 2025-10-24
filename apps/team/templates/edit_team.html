@@ -15,8 +15,6 @@
 
 {% block content %}
 <div class="min-h-screen px-12 py-12">
-
-    <!-- Header -->
     <div class="mb-10">
         <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
             <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
@@ -31,7 +29,6 @@
         <p class="text-[#E6EDF3]/60 mt-1">Update team information, links, branding colors, and stats.</p>
     </div>
 
-    <!-- Form -->
     <form method="POST" class="space-y-10" id="team-form">
         {% csrf_token %}
 
@@ -42,7 +39,6 @@
         {% endif %}
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-            <!-- Left -->
             <div class="space-y-6">
                 <div>
                     <label for="{{ form.team_name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Team Name <span class="text-red-500">*</span></label>
@@ -116,24 +112,6 @@
                     <label for="{{ form.founded_year.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Founded Year</label>
                     {{ form.founded_year }}
                 </div>
-            </div>
-
-            <!-- Right -->
-            <div class="space-y-6">
-                <div>
-                    <label for="{{ form.website.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Website</label>
-                    {{ form.website }}
-                </div>
-
-                <div>
-                    <label for="{{ form.wiki_url.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Wikipedia URL</label>
-                    {{ form.wiki_url }}
-                </div>
-
-                <div class="flex items-center gap-2 mt-2">
-                    {{ form.is_active }}
-                    <label for="{{ form.is_active.id_for_label }}" class="text-sm text-[#E6EDF3]">Active Team</label>
-                </div>
 
                 <div class="grid grid-cols-3 gap-4">
                     <div>
@@ -159,6 +137,60 @@
                         <label for="{{ form.podiums.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Podiums</label>
                         {{ form.podiums }}
                     </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.races_entered.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Races Entered</label>
+                    {{ form.races_entered }}
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.avg_lap_time_ms.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Avg Lap (ms)</label>
+                        {{ form.avg_lap_time_ms }}
+                        {% for error in form.avg_lap_time_ms.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label for="{{ form.best_lap_time_ms.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Best Lap (ms)</label>
+                        {{ form.best_lap_time_ms }}
+                        {% for error in form.best_lap_time_ms.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.avg_pit_duration_ms.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Avg Pit (ms)</label>
+                        {{ form.avg_pit_duration_ms }}
+                        {% for error in form.avg_pit_duration_ms.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label for="{{ form.top_speed_kph.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Top Speed (kph)</label>
+                        {{ form.top_speed_kph }}
+                        {% for error in form.top_speed_kph.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.laps_completed.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Laps Completed</label>
+                    {{ form.laps_completed }}
+                    {% for error in form.laps_completed.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <label for="{{ form.website.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Website</label>
+                    {{ form.website }}
+                </div>
+
+                <div>
+                    <label for="{{ form.wiki_url.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Wikipedia URL</label>
+                    {{ form.wiki_url }}
+                </div>
+
+                <div class="flex items-center gap-2 mt-2">
+                    {{ form.is_active }}
+                    <label for="{{ form.is_active.id_for_label }}" class="text-sm text-[#E6EDF3]">Active Team</label>
                 </div>
 
                 <div>
@@ -239,6 +271,12 @@
         setPH("{{ form.website.id_for_label }}", "https://www.redbullracing.com");
         setPH("{{ form.wiki_url.id_for_label }}", "https://en.wikipedia.org/wiki/Red_Bull_Racing");
         setPH("{{ form.engines.id_for_label }}", "Honda, TAG Heuer, Renault, RBPT");
+        setPH("{{ form.avg_lap_time_ms.id_for_label }}", "91500.000");
+        setPH("{{ form.best_lap_time_ms.id_for_label }}", "90543");
+        setPH("{{ form.avg_pit_duration_ms.id_for_label }}", "2300.000");
+        setPH("{{ form.top_speed_kph.id_for_label }}", "342.5");
+        setPH("{{ form.laps_completed.id_for_label }}", "305");
+        setPH("{{ form.races_entered.id_for_label }}", "350");
     })();
 </script>
 {% endblock content %}
