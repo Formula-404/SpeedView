@@ -109,8 +109,6 @@ def serialize_car_for_compare(c: Car):
     }
 
 # ================== pages ==================
-
-@login_required
 def list_page(request):
     return render(request, "comparison_list.html")
 

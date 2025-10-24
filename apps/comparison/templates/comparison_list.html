@@ -32,9 +32,11 @@
         <button id="btn-all" class="tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700">
             All Comparisons
         </button>
+        {% if request.user.is_authenticated %}
         <button id="btn-mine" class="tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700">
             My Comparisons
         </button>
+        {% endif %}
     </div>
 
     <div id="meta-row" class="flex items-center justify-between mb-4">
