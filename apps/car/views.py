@@ -182,7 +182,6 @@ def show_json_by_id(request, car_id):
     car = get_object_or_404(Car, pk=car_id)
     return JsonResponse(serialize_car(car))
 
-@login_required(login_url="/login")
 def all_cars_dashboard(request):
     return render(request, "all_cars.html")
 
