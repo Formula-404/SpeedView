@@ -35,6 +35,8 @@
         {% include 'footer.html' %}
     </div>
 
+    <div id="toast-root" class="pointer-events-none fixed top-4 right-4 z-50 flex flex-col gap-3"></div>
+
     <script>
         (function() {
             const openBtn = document.getElementById("mobile-menu-btn");
@@ -64,6 +66,108 @@
             document.addEventListener("keydown", function(e) {
                 if (e.key === "Escape") closeDrawer();
             });
+        })();
+    </script>
+    <script>
+        (function() {
+            const rootId = "toast-root";
+            const baseClasses = "pointer-events-auto flex min-w-[240px] max-w-sm items-start gap-3 rounded-xl border px-4 py-3 shadow-lg shadow-black/40 backdrop-blur-sm";
+            const variantStyles = {
+                success: "border-green-400/60 bg-green-500/10 text-green-200",
+                error: "border-red-400/60 bg-red-500/10 text-red-200",
+                warning: "border-amber-400/60 bg-amber-500/10 text-amber-100",
+                info: "border-white/30 bg-white/10 text-white/90"
+            };
+
+            function ensureRoot() {
+                let root = document.getElementById(rootId);
+                if (!root) {
+                    root = document.createElement("div");
+                    root.id = rootId;
+                    root.className = "pointer-events-none fixed top-4 right-4 z-50 flex flex-col gap-3";
+                    document.body.appendChild(root);
+                }
+                return root;
+            }
+
+            function buildIcon(variant) {
+                const icon = document.createElement("span");
+                icon.className = "mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full border border-current bg-transparent text-xs font-semibold";
+                switch (variant) {
+                    case "success":
+                        icon.textContent = "OK";
+                        break;
+                    case "error":
+                        icon.textContent = "!";
+                        break;
+                    case "warning":
+                        icon.textContent = "!";
+                        break;
+                    default:
+                        icon.textContent = "i";
+                        break;
+                }
+                return icon;
+            }
+
+            function removeToast(toast) {
+                if (!toast) return;
+                toast.classList.add("opacity-0", "translate-y-1");
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.parentElement.removeChild(toast);
+                    }
+                }, 200);
+            }
+
+            window.showToast = function(title, message, variant = "info", timeout = 4000) {
+                const root = ensureRoot();
+                const normalizedVariant = variantStyles[variant] ? variant : "info";
+                const toast = document.createElement("div");
+                toast.className = baseClasses + " " + variantStyles[normalizedVariant];
+                toast.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+                toast.classList.add("opacity-0", "translate-y-2");
+
+                const icon = buildIcon(normalizedVariant);
+                const contentWrapper = document.createElement("div");
+                contentWrapper.className = "flex-1";
+
+                if (title) {
+                    const heading = document.createElement("p");
+                    heading.className = "text-sm font-semibold";
+                    heading.textContent = title;
+                    contentWrapper.appendChild(heading);
+                }
+
+                if (message) {
+                    const body = document.createElement("p");
+                    body.className = "text-xs opacity-80";
+                    body.textContent = message;
+                    contentWrapper.appendChild(body);
+                }
+
+                const closeButton = document.createElement("button");
+                closeButton.type = "button";
+                closeButton.className = "ml-3 text-xs font-semibold uppercase tracking-wide opacity-70 hover:opacity-100 focus:outline-none";
+                closeButton.textContent = "Close";
+                closeButton.addEventListener("click", () => removeToast(toast));
+
+                toast.appendChild(icon);
+                toast.appendChild(contentWrapper);
+                toast.appendChild(closeButton);
+                root.appendChild(toast);
+
+                // trigger transition
+                requestAnimationFrame(() => {
+                    toast.classList.remove("opacity-0", "translate-y-2");
+                    toast.classList.add("opacity-100", "translate-y-0");
+                });
+
+                const duration = typeof timeout === "number" ? timeout : 4000;
+                if (duration > 0) {
+                    setTimeout(() => removeToast(toast), duration);
+                }
+            };
         })();
     </script>
 </body>
