@@ -186,7 +186,6 @@ def all_cars_dashboard(request):
     return render(request, "all_cars.html")
 
 @require_GET
-@login_required(login_url="/login")
 def api_grouped_car_data(request):
     metric = request.GET.get("metric", "speed")
     allowed_metrics = {"speed", "rpm", "throttle"}
@@ -324,7 +323,6 @@ def _fetch_openf1_telemetry(
 
 
 @require_POST
-@login_required(login_url="/login")
 def api_refresh_car_data(request):
     try:
         body = json.loads(request.body.decode("utf-8") or "{}")
