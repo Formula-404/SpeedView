@@ -117,6 +117,8 @@
             
             <!-- 7. Widget Weather -->
             <div id="widget-weather" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
+
+
         </div>
 
     </div>
@@ -195,16 +197,16 @@
             const bodyText = await response.text();
             const looksJson = contentType.includes('application/json');
 
-            if (!looksJson) {
-                const snippet = bodyText.trim().replace(/\s+/g, ' ').slice(0, 120);
-                const message = snippet
-                    ? `Unexpected response format (status ${response.status}): ${snippet}`
-                    : `Unexpected empty response (status ${response.status}).`;
-                const error = new Error(message);
-                error.responseStatus = response.status;
-                error.responseText = bodyText;
-                throw error;
-            }
+            // if (!looksJson) {
+            //     const snippet = bodyText.trim().replace(/\s+/g, ' ').slice(0, 120);
+            //     const message = snippet
+            //         ? `Unexpected response format (status ${response.status}): ${snippet}`
+            //         : `Unexpected empty response (status ${response.status}).`;
+            //     const error = new Error(message);
+            //     error.responseStatus = response.status;
+            //     error.responseText = bodyText;
+            //     throw error;
+            // }
 
             try {
                 return JSON.parse(bodyText);
