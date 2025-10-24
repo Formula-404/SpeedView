@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block meta %}
+    <title>Comparisons – SpeedView</title>
+    <style>
+        .tab-btn { transition: all 0.3s ease; }
+        .tab-btn:hover { transform: translateY(-1px); }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+                <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+                <span>›</span>
+                <span class="text-white">Comparison</span>
+            </div>
+            <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">Comparisons</h1>
+        </div>
+        {% if request.user.is_authenticated %}
+        <a href="{% url 'comparison:create_page' %}"
+           class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16M4 12h16"/>
+            </svg>
+            Create Comparison
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="flex gap-4 mb-8">
+        <button id="btn-all" class="tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700">
+            All Comparisons
+        </button>
+        {% if request.user.is_authenticated %}
+        <button id="btn-mine" class="tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700">
+            My Comparisons
+        </button>
+        {% endif %}
+    </div>
+
+    <div id="meta-row" class="flex items-center justify-between mb-4">
+        <p id="results-info" class="text-sm text-white/60">Loading comparisons…</p>
+    </div>
+
+    <div id="comparison-list" class="space-y-4"></div>
+</div>
+
+<script>
+    const container = document.getElementById("comparison-list");
+    const resultsInfo = document.getElementById("results-info");
+
+    function renderEmpty() {
+        container.innerHTML = `
+            <div class="rounded-xl bg-white/5 border border-white/10 p-8 text-center">
+                <p class="text-[#E6EDF3]/70 mb-4">No comparisons listed.</p>
+            </div>`;
+        resultsInfo.textContent = "0 comparisons";
+    }
+
+    function renderError(msg) {
+        container.innerHTML = `
+            <div class="rounded-xl bg-red-500/10 border border-red-500/40 p-4">
+                <div class="text-red-400 text-sm">${msg}</div>
+            </div>`;
+        resultsInfo.textContent = "Error";
+    }
+
+    async function fetchComparisons(filter = "all") {
+        container.innerHTML = `<div class="text-[#E6EDF3]/60">Loading comparisons…</div>`;
+        resultsInfo.textContent = "Loading comparisons…";
+
+        const scope = filter === "mine" ? "my" : filter;
+        const url = `{% url 'comparison:api_list' %}?scope=${encodeURIComponent(scope)}`;
+
+        try {
+            const res = await fetch(url, {
+                headers: { "Accept": "application/json" },
+                credentials: "same-origin"
+            });
+
+            if (res.redirected) {
+                renderError("You need to sign in to view this content.");
+                return;
+            }
+
+            const ctype = (res.headers.get("content-type") || "").toLowerCase();
+            if (!ctype.includes("application/json")) {
+                const text = await res.text().catch(() => "");
+                renderError("Unexpected response from server.");
+                console.warn("Non-JSON response:", text);
+                return;
+            }
+
+            const json = await res.json();
+
+            if (!res.ok || json.ok === false) {
+                renderError(json.error || `Request failed with status ${res.status}`);
+                return;
+            }
+
+            const items = json.data || [];
+            if (!items.length) {
+                renderEmpty();
+                return;
+            }
+
+            const total = items.length;
+            resultsInfo.textContent = `${total} comparison${total === 1 ? "" : "s"}`;
+
+            container.innerHTML = items.map(c => {
+                const href = c.detail_url || `/comparison/${c.id}/`;
+                const isPublic = !!c.is_public;
+                const badgeText = isPublic ? "PUBLIC" : "PRIVATE";
+                const badgeClass = isPublic
+                    ? "border-green-500/40 text-green-400 bg-green-500/10"
+                    : "border-white/20 text-white/70 bg-white/5";
+
+                const moduleLabel = c.module_label || c.module || "—";
+                const ownerName = c.owner_name || "—";
+                const createdAt = c.created_at || "";
+                const subjectList = (c.items && c.items.length) ? c.items.join(", ") : "—";
+
+                return `
+                    <a href="${href}"
+                       class="block bg-[#0D1117] border border-gray-700 rounded-lg px-6 py-4 hover:border-red-500/50 transition-all">
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <h2 class="text-lg font-semibold text-[#E6EDF3] truncate">${c.title}</h2>
+                                <span class="px-2.5 py-0.5 text-[10px] rounded-full border ${badgeClass}">${badgeText}</span>
+                            </div>
+                            <span class="text-xs text-[#E6EDF3]/50">${createdAt}</span>
+                        </div>
+                        <p class="text-sm text-[#E6EDF3]/70 truncate">Module: ${moduleLabel} • ${subjectList}</p>
+                        <p class="text-sm text-[#E6EDF3]/60">By ${ownerName}</p>
+                    </a>
+                `;
+            }).join("");
+
+        } catch (e) {
+            console.error(e);
+            renderError("Network error while loading comparisons.");
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnAll = document.getElementById("btn-all");
+        const btnMine = document.getElementById("btn-mine");
+
+        const setActive = (mode) => {
+            if (btnMine) btnMine.className = mode === "mine"
+                ? "tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700"
+                : "tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700";
+            if (btnAll) btnAll.className = mode !== "mine"
+                ? "tab-btn px-6 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700"
+                : "tab-btn px-6 py-2 rounded-lg font-medium bg-gray-700/50 text-[#E6EDF3]/80 hover:text-white hover:bg-gray-700";
+        };
+
+        if (btnAll) btnAll.addEventListener("click", () => { setActive("all"); fetchComparisons("all"); });
+        if (btnMine) btnMine.addEventListener("click", () => { setActive("mine"); fetchComparisons("mine"); });
+
+        setActive("all");
+        fetchComparisons("all");
+    });
+</script>
+
+
+{% endblock %}

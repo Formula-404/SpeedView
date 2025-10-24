@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 import requests
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -16,6 +17,7 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import localtime
 from django.views.decorators.csrf import csrf_exempt
@@ -24,6 +26,7 @@ from apps.car.forms import CarForm
 from apps.car.models import Car
 from apps.session.models import Session
 from apps.session.services import ensure_sessions_for_meetings
+from apps.meeting.models import Meeting
 
 
 def admin_required(view_func):
@@ -78,7 +81,7 @@ def _build_session_catalog(meetings: Iterable[int]) -> dict[str, List[dict[str, 
             continue
         catalog.setdefault(str(session.meeting_key), []).append(
             {
-                "value": session.session_key,
+                "value": str(session.session_key),
                 "label": str(session),
             }
         )
@@ -494,7 +497,18 @@ def delete_car(request, id):
             {"success": False, "message": "Unsupported method."}, status=405
         )
 
-    return HttpResponseRedirect(reverse("car:manual_list"))
+    session_obj = None
+    if car.session_key is not None:
+        session_obj = Session.objects.filter(session_key=car.session_key).first()
+
+    return render(
+        request,
+        "car_confirm_delete.html",
+        {
+            "car": car,
+            "session": session_obj,
+        },
+    )
 
 
 @admin_required
@@ -502,13 +516,23 @@ def manual_list(request):
     manual_entries_qs = Car.objects.filter(is_manual=True).order_by("-date")
     manual_entries = list(manual_entries_qs)
 
-    session_keys = {car.session_key for car in manual_entries if car.session_key is not None}
+    session_keys = {
+        car.session_key for car in manual_entries if car.session_key is not None
+    }
     session_map = {
         session.session_key: session
         for session in Session.objects.filter(session_key__in=session_keys)
     }
     for car in manual_entries:
         car.session_obj = session_map.get(car.session_key)
+        display_date = car.date
+        if display_date:
+            if timezone.is_aware(display_date):
+                display_date = timezone.make_naive(
+                    display_date, datetime.timezone.utc
+                )
+            display_date = display_date + datetime.timedelta(hours=7)
+        car.display_date = display_date
 
     return render(
         request,

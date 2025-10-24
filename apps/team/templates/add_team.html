@@ -8,6 +8,8 @@
         .input-field:focus { transform: translateY(-1px); }
         .btn-primary { transition: all 0.3s ease; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
+        .swatch { width: 1.25rem; height: 1.25rem; border-radius: 0.375rem; border: 1px solid rgba(255,255,255,.15); }
+        .help { color: rgba(230,237,243,.6); font-size: 0.75rem; margin-top: 0.25rem; }
     </style>
 {% endblock meta %}
 
@@ -21,7 +23,7 @@
             <span>›</span>
             <span class="text-white">Add Team</span>
         </div>
-        <h1 class="text-4xl font-bold text-[#E6EDF3] tracking-tight">Add Team</h1>
+        <h1 class="text-4xl font-bold text-[#E6EDF3] tracking-tight" style="font-family: Alphacorsa, Inter, sans-serif;">Add Team</h1>
         <p class="text-[#E6EDF3]/60 mt-1">Create a new team entry with basic information, links, and details.</p>
     </div>
 
@@ -39,31 +41,33 @@
                 <div>
                     <label for="{{ form.team_name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Team Name <span class="text-red-500">*</span></label>
                     {{ form.team_name }}
-                    {% for error in form.team_name.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
                 </div>
 
                 <div>
                     <label for="{{ form.short_code.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Short Code</label>
                     {{ form.short_code }}
-                    {% for error in form.short_code.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
                 </div>
 
                 <div>
                     <label for="{{ form.team_logo_url.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Team Logo URL</label>
                     {{ form.team_logo_url }}
-                    {% for error in form.team_logo_url.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="{{ form.team_colour.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Primary Colour <span class="text-red-500">*</span></label>
-                        {{ form.team_colour }}
-                        {% for error in form.team_colour.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="swatch h-20" id="swatch_primary"></div>
+                        <div class="w-full">
+                            <label for="{{ form.team_colour.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Primary Colour <span class="text-red-500">*</span></label>
+                            {{ form.team_colour }}
+                        </div>
                     </div>
-                    <div>
-                        <label for="{{ form.team_colour_secondary.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Secondary Colour</label>
-                        {{ form.team_colour_secondary }}
-                        {% for error in form.team_colour_secondary.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
+                    <div class="text-center text-[#E6EDF3]/40 text-xs">vs</div>
+                    <div class="flex items-center gap-3">
+                        <div class="swatch h-20" id="swatch_secondary"></div>
+                        <div class="w-full">
+                            <label for="{{ form.team_colour_secondary.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Secondary Colour</label>
+                            {{ form.team_colour_secondary }}
+                        </div>
                     </div>
                 </div>
 
@@ -88,6 +92,40 @@
                     <label for="{{ form.is_active.id_for_label }}" class="text-sm text-[#E6EDF3]">Active Team</label>
                 </div>
 
+                <div>
+                    <label for="{{ form.races_entered.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Races Entered</label>
+                    {{ form.races_entered }}
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.avg_lap_time_ms.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Avg Lap (ms)</label>
+                        {{ form.avg_lap_time_ms }}
+                    </div>
+                    <div>
+                        <label for="{{ form.best_lap_time_ms.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Best Lap (ms)</label>
+                        {{ form.best_lap_time_ms }}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ form.avg_pit_duration_ms.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Avg Pit (ms)</label>
+                        {{ form.avg_pit_duration_ms }}
+                    </div>
+                    <div>
+                        <label for="{{ form.top_speed_kph.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Top Speed (kph)</label>
+                        {{ form.top_speed_kph }}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.laps_completed.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Laps Completed</label>
+                    {{ form.laps_completed }}
+                </div>
+            </div>
+
+            <div class="space-y-6">
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label for="{{ form.constructors_championships.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Constructors' Championships</label>
@@ -113,9 +151,7 @@
                         {{ form.podiums }}
                     </div>
                 </div>
-            </div>
 
-            <div class="space-y-6">
                 <div>
                     <label for="{{ form.website.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Website</label>
                     {{ form.website }}
@@ -156,19 +192,17 @@
 
         const baseInput = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
         const baseTextarea = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
-        const baseSelect = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
         const baseCheckbox = "h-4 w-4 rounded accent-red-600 focus:ring-red-500";
 
-        form.querySelectorAll('input[type="text"], input[type="url"], input[type="number"], input[type="email"], input[type="password"]').forEach(el => {
-            el.className = baseInput;
-        });
-        form.querySelectorAll('textarea').forEach(el => { el.className = baseTextarea; });
-        form.querySelectorAll('input[type="checkbox"]').forEach(el => { el.className = baseCheckbox; });
+        form.querySelectorAll('input[type="text"], input[type="url"], input[type="number"], input[type="email"], input[type="password"]').forEach(el => el.className = baseInput);
+        form.querySelectorAll('textarea').forEach(el => el.className = baseTextarea);
+        form.querySelectorAll('input[type="checkbox"]').forEach(el => el.className = baseCheckbox);
 
         const setPlaceholder = (id, ph) => {
             const el = document.getElementById(id);
             if (el && !el.placeholder) el.placeholder = ph;
         };
+
         setPlaceholder("id_team_name", "Red Bull Racing");
         setPlaceholder("id_short_code", "RBR");
         setPlaceholder("id_team_logo_url", "https://…/logo.png");
@@ -180,6 +214,29 @@
         setPlaceholder("id_website", "https://www.redbullracing.com");
         setPlaceholder("id_wiki_url", "https://en.wikipedia.org/wiki/Red_Bull_Racing");
         setPlaceholder("id_engines", "Honda, TAG Heuer, Renault, RBPT");
+        setPlaceholder("id_avg_lap_time_ms", "91500.000");
+        setPlaceholder("id_best_lap_time_ms", "90543");
+        setPlaceholder("id_avg_pit_duration_ms", "2300.000");
+        setPlaceholder("id_top_speed_kph", "342.5");
+        setPlaceholder("id_laps_completed", "305");
+        setPlaceholder("id_races_entered", "350");
+
+        const swatchPrimary = document.getElementById("swatch_primary");
+        const swatchSecondary = document.getElementById("swatch_secondary");
+        const primaryInput = document.getElementById("id_team_colour");
+        const secondaryInput = document.getElementById("id_team_colour_secondary");
+
+        function hexify(s){ return (s || "").trim().replace(/^#/, "").toUpperCase(); }
+        function paint() {
+            const a = hexify(primaryInput ? primaryInput.value : "");
+            const b = hexify(secondaryInput ? secondaryInput.value : "");
+            if (swatchPrimary) swatchPrimary.style.background = a ? `#${a}` : "transparent";
+            if (swatchSecondary) swatchSecondary.style.background = b ? `#${b}` : "transparent";
+        }
+
+        if (primaryInput) primaryInput.addEventListener("input", paint);
+        if (secondaryInput) secondaryInput.addEventListener("input", paint);
+        paint();
     })();
 </script>
 {% endblock content %}
