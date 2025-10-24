@@ -224,6 +224,39 @@ def show_json_by_id(request, car_id):
 
 def all_cars_dashboard(request):
     return render(request, "all_cars.html")
+# apps/car/views.py
+
+from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+
+OPENF1_CAR_DATA_URL = "https://api.openf1.org/v1/car_data"
+
+def _fetch_openf1_triplet(driver_number: int, session_key: int, min_speed: int | None = None) -> list[dict]:
+    # Bangun URL manual supaya '>' tidak di-encode (hindari params urlencode)
+    url = f"{OPENF1_CAR_DATA_URL}?driver_number={driver_number}&session_key={session_key}"
+    if min_speed is not None:
+        url += f"&speed>={int(min_speed)}"  # '>' tetap '>' (bukan %3E)
+
+    try:
+        with urlopen(url, timeout=15) as resp:
+            payload = resp.read()
+    except HTTPError as exc:
+        if exc.code == 422:
+            return []
+        raise
+    except URLError:
+        return []
+
+    # parsing "best effort" seperti util yang sudah ada
+    try:
+        data = json.loads(payload)
+        if not isinstance(data, list):
+            return []
+    except json.JSONDecodeError:
+        data = _loads_json_array_best_effort(payload)
+
+    return data if isinstance(data, list) else []
+
 
 @require_GET
 def api_grouped_car_data(request):
@@ -232,50 +265,94 @@ def api_grouped_car_data(request):
     if metric not in allowed_metrics:
         metric = "speed"
 
-    filters = {}
-    for key in ("driver_number", "meeting_key", "session_key"):
-        value = request.GET.get(key)
-        if not value:
-            continue
-        try:
-            filters[key] = int(value)
-        except ValueError:
-            continue
+    driver_number = request.GET.get("driver_number")
+    session_key = request.GET.get("session_key")
+    meeting_key = request.GET.get("meeting_key")
+    min_speed = request.GET.get("min_speed") 
+
+    try:
+        driver_number_int = int(driver_number) if driver_number is not None else None
+        session_key_int = int(session_key) if session_key is not None else None
+        meeting_key_int = int(meeting_key) if meeting_key is not None else None
+        min_speed_int = int(min_speed) if min_speed is not None else None
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "Invalid query params."}, status=400)
+
+    if driver_number_int is None or session_key_int is None:
+        return JsonResponse(
+            {"ok": False, "error": "driver_number and session_key are required."},
+            status=400,
+        )
+
+    filters = {"driver_number": driver_number_int, "session_key": session_key_int}
+    if meeting_key_int is not None:
+        filters["meeting_key"] = meeting_key_int
+
     queryset = (
         Car.objects.filter(**filters)
-        .order_by("session_key", "meeting_key", "driver_number", "date")
+        .order_by("date")
     )
 
-    grouped = defaultdict(list)
-    for car in queryset:
-        grouped[(car.session_key, car.meeting_key, car.driver_number)].append(car)
+    samples_db = list(queryset)
 
-    groups_payload = []
-    for (session_key, meeting_key, driver_number), samples in grouped.items():
-        telemetry = [
-            {
-                "id": str(sample.id),
-                "date": sample.date.isoformat() if sample.date else None,
-                "timestamp": localtime(sample.date).strftime("%Y-%m-%d %H:%M:%S %Z")
-                if sample.date
-                else None,
-                "speed": sample.speed,
-                "rpm": sample.rpm,
-                "throttle": sample.throttle,
-                "brake": sample.brake,
-                "gear": sample.n_gear,
-                "drs": sample.drs,
-            }
-            for sample in samples
-        ]
-        groups_payload.append(
-            {
-                "session_key": session_key,
-                "meeting_key": meeting_key,
-                "driver_number": driver_number,
-                "telemetry": telemetry,
-            }
+    telemetry_rows: list[dict]
+    if not samples_db:
+        raw = _fetch_openf1_triplet(
+            driver_number=driver_number_int,
+            session_key=session_key_int,
+            min_speed=min_speed_int,  
         )
+
+        telemetry_rows = [
+            {
+                "id": None,
+                "date": r.get("date"),
+                "timestamp": r.get("date"),  
+                "speed": r.get("speed"),
+                "rpm": r.get("rpm"),
+                "throttle": r.get("throttle"),
+                "brake": r.get("brake"),
+                "gear": r.get("n_gear"),
+                "drs": r.get("drs"),
+            }
+            for r in raw
+            if r.get("session_key") == session_key_int and r.get("driver_number") == driver_number_int
+        ]
+
+        mk = None
+        if raw:
+            try:
+                mk = int(raw[0].get("meeting_key"))
+            except (TypeError, ValueError):
+                mk = meeting_key_int
+        else:
+            mk = meeting_key_int
+        groups_payload = [{
+            "session_key": session_key_int,
+            "meeting_key": mk,
+            "driver_number": driver_number_int,
+            "telemetry": telemetry_rows,
+        }]
+    else:
+        groups_payload = [{
+            "session_key": samples_db[0].session_key,
+            "meeting_key": samples_db[0].meeting_key,
+            "driver_number": samples_db[0].driver_number,
+            "telemetry": [
+                {
+                    "id": str(s.id),
+                    "date": s.date.isoformat() if s.date else None,
+                    "timestamp": localtime(s.date).strftime("%Y-%m-%d %H:%M:%S %Z") if s.date else None,
+                    "speed": s.speed,
+                    "rpm": s.rpm,
+                    "throttle": s.throttle,
+                    "brake": s.brake,
+                    "gear": s.n_gear,
+                    "drs": s.drs,
+                }
+                for s in samples_db
+            ],
+        }]
 
     return JsonResponse(
         {
@@ -285,6 +362,7 @@ def api_grouped_car_data(request):
             "groups": groups_payload,
         }
     )
+
 
 
 OPENF1_MEETINGS_URL = "https://api.openf1.org/v1/meetings"
