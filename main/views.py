@@ -3,6 +3,57 @@ import requests
 from django.http import JsonResponse
 from datetime import datetime
 from apps.driver.models import Driver
+# views.py
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import FieldError
+from django.db.models import Prefetch
+from apps.driver.models import Driver, DriverEntry
+from apps.meeting.models import Meeting  # sesuaikan import path app 'meeting'
+
+def api_dashboard_drivers_by_meeting(request):
+    meeting_key = request.GET.get("meeting_key")
+    if not meeting_key:
+        return JsonResponse({"error": "meeting_key is required"}, status=400)
+
+    # meeting_key bisa berupa string angka; pastikan str tetap dipakai apa adanya
+    # Cari Meeting by 'meeting_key' (OpenF1). Kalau model Meeting tidak punya field itu,
+    # fallback ke PK.
+    try:
+        meeting = Meeting.objects.get(meeting_key=meeting_key)
+    except (Meeting.DoesNotExist, FieldError):
+        meeting = get_object_or_404(Meeting, pk=meeting_key)
+
+    # Ambil semua entry di meeting ini
+    entries_qs = (DriverEntry.objects
+                  .select_related("driver", "team")
+                  .filter(meeting=meeting)
+                  .order_by("driver__driver_number", "-date_start", "-id"))
+
+    # Dedup per driver_number (loop python; aman universal untuk semua DB)
+    seen = set()
+    drivers = []
+    for e in entries_qs:
+        dn = e.driver.driver_number
+        if dn in seen:
+            continue
+        seen.add(dn)
+        d = e.driver
+        # Pilih nama yang paling “siaran” buat UI
+        name = d.broadcast_name or d.full_name or f"{(d.first_name or '').strip()} {(d.last_name or '').strip()}".strip()
+        # Ambil warna tim dari entry kalau ada
+        team_name = e.team.name if e.team else ""
+        team_colour = e.team_colour or (getattr(e.team, "colour", "") if e.team else "")
+        drivers.append({
+            "driver_number": dn,
+            "name": name,
+            "acronym": d.name_acronym,
+            "headshot_url": d.headshot_url,
+            "team_name": team_name,
+            "team_colour": team_colour,
+        })
+
+    return JsonResponse({"drivers": drivers})
 
 def show_main(request):
     return render(request, "index.html")

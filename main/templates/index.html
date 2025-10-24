@@ -118,13 +118,7 @@
             <!-- 7. Widget Weather -->
             <div id="widget-weather" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
 
-            <!-- 8. Widget Laps -->
-            <div id="widget-laps" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 h-64">
-                <h2 class="text-2xl font-bold text-white mb-4">Laps</h2>
-                <div class="flex items-center justify-center h-4/5 border border-dashed border-white/20 rounded-lg">
-                    <p class="text-white/50">Laps data widget placeholder</p>
-                </div>
-            </div>
+
         </div>
 
     </div>
@@ -198,6 +192,33 @@
         let carTelemetryWidget = null;
         let telemetryAvailability = new Map();
 
+        async function parseJSONSafely(response) {
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            const bodyText = await response.text();
+            const looksJson = contentType.includes('application/json');
+
+            // if (!looksJson) {
+            //     const snippet = bodyText.trim().replace(/\s+/g, ' ').slice(0, 120);
+            //     const message = snippet
+            //         ? `Unexpected response format (status ${response.status}): ${snippet}`
+            //         : `Unexpected empty response (status ${response.status}).`;
+            //     const error = new Error(message);
+            //     error.responseStatus = response.status;
+            //     error.responseText = bodyText;
+            //     throw error;
+            // }
+
+            try {
+                return JSON.parse(bodyText);
+            } catch (err) {
+                const error = new Error(`Failed to parse JSON response (status ${response.status}).`);
+                error.responseStatus = response.status;
+                error.responseText = bodyText;
+                error.cause = err;
+                throw error;
+            }
+        }
+
         function getCSRFToken() {
             const name = 'csrftoken=';
             return document.cookie
@@ -225,9 +246,13 @@
             async function fetchRecentMeetings() {
                 try {
                     const response = await fetch("{% url 'main:api_recent_meetings' %}");
-                    const data = await response.json();
-                    
-                    if (data.ok && data.data.length > 0) {
+                    const data = await parseJSONSafely(response);
+
+                    if (!response.ok) {
+                        throw new Error((data && data.error) || `Failed to load recent meetings (status ${response.status}).`);
+                    }
+
+                    if (data.ok && Array.isArray(data.data) && data.data.length > 0) {
                         recentMeetingsGrid.innerHTML = ''; 
                         data.data.forEach((meeting, index) => {
                             const button = document.createElement('button');
@@ -242,7 +267,8 @@
                         });
                         recentMeetingsGrid.querySelector('button').click();
                     } else {
-                        recentMeetingsGrid.innerHTML = `<div class="text-white/50 text-sm col-span-4">${data.error || 'No recent meetings found.'}</div>`;
+                        const message = (data && data.error) || 'No recent meetings found.';
+                        recentMeetingsGrid.innerHTML = `<div class="text-white/50 text-sm col-span-4">${message}</div>`;
                     }
                 } catch (e) {
                     recentMeetingsGrid.innerHTML = `<div class="text-red-400 text-sm col-span-4">Error: ${e.message}</div>`;
@@ -291,7 +317,7 @@
                             min_speed: CAR_DATASET_DEFAULTS.minSpeed,
                         }),
                     });
-                    const payload = await response.json();
+                    const payload = await parseJSONSafely(response);
                     if (!response.ok || !payload.ok) {
                         throw new Error(payload.error || `Failed to refresh telemetry dataset (status ${response.status}).`);
                     }
@@ -364,8 +390,8 @@
 
                 try {
                     const response = await fetch(`{% url 'main:api_dashboard_data' %}?meeting_key=${meetingKey}`);
-                    const data = await response.json();
-                    if (!data.ok) throw new Error(data.error);
+                    const data = await parseJSONSafely(response);
+                    if (!response.ok || !data.ok) throw new Error(data.error || `Failed to load dashboard data (status ${response.status}).`);
                     renderMeetingWidget(data.data.meeting);
                     renderSessionsWidget(data.data.sessions);
                     renderWeatherWidget(data.data.weather); 
@@ -769,9 +795,8 @@
 
                 try {
                     const response = await fetch(`${TELEMETRY_API_URL}?${params.toString()}`, { credentials: 'same-origin' });
-                    if (!response.ok) throw new Error(`Status ${response.status}`);
-                    const payload = await response.json();
-                    if (!payload.ok) throw new Error(payload.error || 'Failed to load telemetry data.');
+                    const payload = await parseJSONSafely(response);
+                    if (!response.ok || !payload.ok) throw new Error(payload.error || `Failed to load telemetry data (status ${response.status}).`);
                     const groups = Array.isArray(payload.groups) ? payload.groups : [];
                     const availability = new Map();
                     groups.forEach(group => {
@@ -989,8 +1014,8 @@
 
             try {
                 const res = await fetch("{% url 'driver:api_list' %}");
-                const json = await res.json();
-                if (!json.ok) throw new Error(json.error || 'Failed to load drivers.');
+                const json = await parseJSONSafely(res);
+                if (!res.ok || !json.ok) throw new Error(json.error || `Failed to load drivers (status ${res.status}).`);
                 renderDriversWidget(json.data);
             } catch (err) {
                 driversWidget.innerHTML = `
