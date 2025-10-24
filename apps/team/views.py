@@ -35,6 +35,23 @@ def serialize_team(team: Team):
         "is_active": team.is_active,
 
         "team_description": team.team_description or "",
+        "engines": team.engines or "",
+
+        # career stats
+        "constructors_championships": team.constructors_championships,
+        "drivers_championships": team.drivers_championships,
+        "races_entered": team.races_entered,
+        "race_victories": team.race_victories,
+        "podiums": team.podiums,
+        "points": team.points,
+
+        # performance
+        "avg_lap_time_ms": team.avg_lap_time_ms,
+        "best_lap_time_ms": team.best_lap_time_ms,
+        "avg_pit_duration_ms": team.avg_pit_duration_ms,
+        "top_speed_kph": team.top_speed_kph,
+        "laps_completed": team.laps_completed,
+
         "created_at": team.created_at.isoformat() if team.created_at else None,
         "updated_at": team.updated_at.isoformat() if team.updated_at else None,
 

@@ -2,9 +2,13 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_protect
 from .forms import RegisterForm, LoginForm, EditProfileForm, ChangePasswordForm, DeleteAccountForm
 from .models import UserProfile
 
+@require_http_methods(["GET", "POST"])
+@csrf_protect
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('main:show_main')
@@ -25,6 +29,8 @@ def register_view(request):
 
     return render(request, 'register.html', {'form': form})
 
+@require_http_methods(["GET", "POST"])
+@csrf_protect
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('main:show_main')
@@ -47,10 +53,13 @@ def login_view(request):
     return render(request, 'login.html', {'form': form})
 
 @login_required(login_url='/login')
+@require_http_methods(["GET", "POST"])
 def logout_view(request):
     logout(request)
     return redirect('main:show_main')
 
+@require_http_methods(["GET", "POST"])
+@csrf_protect
 def register_admin_view(request):
     if request.user.is_authenticated:
         return redirect('main:show_main')
@@ -72,6 +81,8 @@ def register_admin_view(request):
     return render(request, 'register_admin.html', {'form': form})
 
 @login_required(login_url='/login')
+@require_http_methods(["GET", "POST"])
+@csrf_protect
 def profile_settings_view(request):
     user = request.user
 

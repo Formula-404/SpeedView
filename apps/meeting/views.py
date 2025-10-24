@@ -1,22 +1,16 @@
 import requests
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.shortcuts import render
-from datetime import datetime
-import json
-
-import requests
 from django.http import JsonResponse
 from django.shortcuts import render
 from datetime import datetime
-
-OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
+from django.db.models import Q
+from django.core.paginator import Paginator
+from .models import Meeting
 
 def meeting_list_page(request):
     """
     Hanya merender template HTML. Data akan diambil oleh JavaScript.
     """
     return render(request, 'meeting_list.html')
-
 
 def api_meeting_list(request):
     """
@@ -29,58 +23,41 @@ def api_meeting_list(request):
     except ValueError:
         page = 1
 
-    page_size = 10 # Tampilkan 10 meeting per halaman
+    page_size = 10
     meetings_to_process = []
     meeting_keys: list[int] = []
     try:
-        # Ambil semua meeting
-        meetings_response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
-        meetings_response.raise_for_status()
-        all_meetings = meetings_response.json()
-
-        # Tentukan meeting mana yang akan diproses
+        base_meetings = Meeting.objects.all()
         if query:
-            for meeting in all_meetings:
-                meeting_name = meeting.get('meeting_name', '').lower()
-                circuit_name = meeting.get('circuit_short_name', '').lower()
-                country_name = meeting.get('country_name', '').lower()
-                if query in meeting_name or query in circuit_name or query in country_name:
-                    meetings_to_process.append(meeting)
-        else:
-            meetings_to_process = all_meetings
+            base_meetings = base_meetings.filter(
+                Q(circuit_short_name__icontains=query) | 
+                Q(country_name__icontains=query) |
+                Q(meeting_name__icontains=query)
+            )
         
-        # Urutkan agar yang terbaru muncul di atas
-        meetings_to_process.sort(key=lambda m: m.get('date_start', ''), reverse=True)
-        # --- LOGIKA PAGINASI ---
-        total_meetings = len(meetings_to_process)
-        total_pages = (total_meetings + page_size - 1) // page_size
-        start_index = (page - 1) * page_size
-        end_index = page * page_size
-        meetings_for_this_page = meetings_to_process[start_index:end_index]
-
-        if not meetings_for_this_page:
-             return JsonResponse({'ok': True, 'data': [], 'pagination': {
-                 'current_page': page, 'total_pages': total_pages, 
-                 'has_previous': False, 'has_next': False, 'total_meetings': 0
-             }})
-
+        meetings_sorted = base_meetings.order_by('-date_start')
+        paginator = Paginator(meetings_sorted, page_size)
+        page_obj = paginator.get_page(page)
         results = []
-        for meeting in meetings_for_this_page:
-            meeting_key_value = meeting.get('meeting_key')
-            if meeting_key_value is not None:
-                try:
-                    meeting_keys.append(int(meeting_key_value))
-                except (TypeError, ValueError):
-                    pass
-            meeting['date_start_str'] = format_date(meeting.get('date_start'))
-            results.append(meeting)
+        for meeting in page_obj.object_list:
+            meeting_key_value = meeting.meeting_key
+            meeting_keys.append(int(meeting_key_value))
+            results.append({
+                'meeting_key': meeting.meeting_key,
+                'meeting_name': meeting.meeting_name,
+                'circuit_short_name': meeting.circuit_short_name,
+                'country_name': meeting.country_name,
+                'location': meeting.circuit_short_name,
+                'year': meeting.year,
+                'date_start_str': format_date(meeting.date_start),
+            })
         
         pagination_data = {
-            'current_page': page,
-            'total_pages': total_pages,
-            'has_previous': page > 1,
-            'has_next': page < total_pages,
-            'total_meetings': total_meetings
+            'current_page': page_obj.number,
+            'total_pages': paginator.num_pages,
+            'has_previous': page_obj.has_previous(),
+            'has_next': page_obj.has_next(),
+            'total_meetings': paginator.count
         }
 
         return JsonResponse({'ok': True, 'data': results, 'meeting_keys': meeting_keys, 'pagination': pagination_data})

@@ -2,9 +2,15 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.csrf import csrf_protect
+from django.db import transaction
 from django.views.decorators.http import require_GET, require_POST
-from .models import Comparison, ComparisonTeam
+from django.db.models import Q, Prefetch
+from .models import *
 from apps.team.models import Team
+from apps.circuit.models import Circuit
+from apps.driver.models import Driver
+from apps.car.models import Car
 
 # ================== helpers ==================
 def parse_json(request):
@@ -18,6 +24,37 @@ def json_error(message, status=400, field_errors=None):
     if field_errors:
         payload["field_errors"] = field_errors
     return JsonResponse(payload, status=status)
+
+# ================== helpers ==================
+def serialize_comparison(cmp: Comparison) -> dict:
+    if cmp.module == Comparison.MODULE_TEAM:
+        items = list(
+            ComparisonTeam.objects.select_related("team")
+            .filter(comparison=cmp).order_by("order_index")
+            .values_list("team__team_name", flat=True)
+        )
+    elif cmp.module == Comparison.MODULE_CIRCUIT:
+        items = list(
+            ComparisonCircuit.objects.select_related("circuit")
+            .filter(comparison=cmp).order_by("order_index")
+            .values_list("circuit__name", flat=True)
+        )
+    else:
+        items = []
+
+    owner_name = getattr(cmp.owner, "username", "") or (cmp.owner.get_username() if hasattr(cmp.owner, "get_username") else "")
+
+    return {
+        "id": str(cmp.pk),
+        "title": cmp.title,
+        "module": cmp.module,
+        "module_label": cmp.get_module_display(), # type: ignore
+        "is_public": cmp.is_public,
+        "owner_name": owner_name or "—",
+        "created_at": cmp.created_at.isoformat() if cmp.created_at else "",
+        "detail_url": cmp.get_absolute_url(),
+        "items": items,
+    }
 
 def serialize_team_for_compare(t: Team):
     return {
@@ -43,71 +80,190 @@ def serialize_team_for_compare(t: Team):
         "detail_url": t.get_absolute_url(),
     }
 
+def serialize_circuit_for_compare(c: Circuit) -> dict:
+    label = getattr(c, "name", None) or str(c)
+    return {
+        "label": label,
+        "country": getattr(c, "country", None),
+        "length_km": getattr(c, "length_km", None),
+        "detail_url": getattr(c, "get_absolute_url", lambda: "")(),
+    }
+
+def serialize_driver_for_compare(d: Driver):
+    label = getattr(d, "full_name", None) or getattr(d, "name", None) or str(d)
+    number = getattr(d, "number", None) or getattr(d, "driver_number", None)
+    return {
+        "label": label,
+        "number": number if number is not None else "",
+        "detail_url": getattr(d, "get_absolute_url", lambda: "")(),
+    }
+
+def serialize_car_for_compare(c: Car):
+    label = getattr(c, "name", None) or f"Car #{getattr(c, 'driver_number', '—')}"
+    return {
+        "label": label,
+        "driver_number": getattr(c, "driver_number", None),
+        "meeting_key": getattr(c, "meeting_key", None),
+        "session_key": getattr(c, "session_key", None),
+        "detail_url": getattr(c, "get_absolute_url", lambda: "")(),
+    }
+
 # ================== pages ==================
+def list_page(request):
+    return render(request, "comparison_list.html")
+
 @login_required
 def create_page(request):
     return render(request, "comparison_create.html")
 
 @login_required
 def detail_page(request, pk):
-    cmp = get_object_or_404(Comparison, pk=pk, owner=request.user)
-    if cmp.module != Comparison.MODULE_TEAM:
-        return render(request, "comparison_detail_generic.html", {"cmp": cmp})
+    cmp = get_object_or_404(Comparison, pk=pk)
+    if cmp.owner != request.user and not cmp.is_public:
+        return render(request, "403.html", status=403)
 
-    links = (ComparisonTeam.objects
-             .select_related("team")
-             .filter(comparison=cmp)
-             .order_by("order_index"))
-    teams = [l.team for l in links]
-    return render(request, "comparison_team_detail.html", {"cmp": cmp, "teams": teams})
 
+    if cmp.module == Comparison.MODULE_TEAM:
+        links = (ComparisonTeam.objects.select_related("team")
+            .filter(comparison=cmp).order_by("order_index"))
+        teams = [l.team for l in links]
+        return render(request, "comparison_team_detail.html", {"cmp": cmp, "teams": teams})
+
+
+    if cmp.module == Comparison.MODULE_CIRCUIT:
+        links = (ComparisonCircuit.objects.select_related("circuit")
+            .filter(comparison=cmp).order_by("order_index"))
+        circuits = [l.circuit for l in links]
+        return render(request, "comparison_circuit_detail.html", {"cmp": cmp, "circuits": circuits})
+
+
+    if cmp.module == Comparison.MODULE_DRIVER:
+        links = (ComparisonDriver.objects.select_related("driver")
+            .filter(comparison=cmp).order_by("order_index"))
+        drivers = [l.driver for l in links]
+        return render(request, "comparison_driver_detail.html", {"cmp": cmp, "drivers": drivers})
+
+
+    if cmp.module == Comparison.MODULE_CAR:
+        links = (ComparisonCar.objects.select_related("car")
+            .filter(comparison=cmp).order_by("order_index"))
+        cars = [l.car for l in links]
+        return render(request, "comparison_car_detail.html", {"cmp": cmp, "cars": cars})
+
+
+    return render(request, "comparison_detail_generic.html", {"cmp": cmp})
 
 
 # ================== api ==================
 @login_required
+@csrf_protect
 @require_POST
 def api_comparison_create(request):
-    data = parse_json(request) or request.POST.dict()
-    if data is None:
-        return HttpResponseBadRequest("Invalid JSON body.")
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON body."}, status=400)
 
-    module = data.get("module")
-    items = data.get("items") or []
-    if isinstance(items, str):
-        items = [x.strip() for x in items.split(",") if x.strip()]
+    title = (payload.get("title") or "").strip() or "My Comparison"
+    module = (payload.get("module") or "").strip()
+    items = payload.get("items") or []
+    is_public = bool(payload.get("is_public"))
 
-    if module not in dict(Comparison.MODULE_CHOICES):
-        return json_error("Invalid module", status=422)
+    if module not in {Comparison.MODULE_TEAM, Comparison.MODULE_CAR, Comparison.MODULE_DRIVER, Comparison.MODULE_CIRCUIT}:
+        return JsonResponse({"ok": False, "error": "Unknown module."}, status=400)
     if not (2 <= len(items) <= 4):
-        return json_error("Select between 2 and 4 items.", status=422)
+        return JsonResponse({"ok": False, "error": "Pick 2–4 items."}, status=400)
 
-    cmp = Comparison.objects.create(owner=request.user, module=module)
+    with transaction.atomic():
+        cmp = Comparison.objects.create(
+            owner=request.user,
+            module=module,
+            title=title,
+            is_public=is_public,
+        )
+
 
     if module == Comparison.MODULE_TEAM:
-        teams = Team.objects.filter(pk__in=items)
-        if teams.count() != len(items):
-            return json_error("One or more teams not found.", status=404)
-        name_to_team = {t.pk: t for t in teams}
-        for idx, pk in enumerate(items):
-            ComparisonTeam.objects.create(comparison=cmp, team=name_to_team[pk], order_index=idx)
-    else:
-        return json_error("This module is not implemented yet.", status=422)
+        for idx, team_pk in enumerate(items):
+            team = get_object_or_404(Team, pk=team_pk)
+            ComparisonTeam.objects.create(comparison=cmp, team=team, order_index=idx)
+    elif module == Comparison.MODULE_CIRCUIT:
+        for idx, raw_pk in enumerate(items):
+            pk = int(raw_pk)
+            circuit = get_object_or_404(Circuit, pk=pk)
+            ComparisonCircuit.objects.create(comparison=cmp, circuit=circuit, order_index=idx)
+    elif module == Comparison.MODULE_DRIVER:
+        for idx, raw_pk in enumerate(items):
+            pk = int(raw_pk)
+            driver = get_object_or_404(Driver, pk=pk)
+            ComparisonDriver.objects.create(comparison=cmp, driver=driver, order_index=idx)
+    elif module == Comparison.MODULE_CAR:
+        for idx, raw_pk in enumerate(items):
+            pk = int(raw_pk)
+            car = get_object_or_404(Car, pk=pk)
+            ComparisonCar.objects.create(comparison=cmp, car=car, order_index=idx)
 
     return JsonResponse({"ok": True, "redirect": cmp.get_absolute_url()})
+
+@require_GET
+def api_comparison_list(request):
+    scope = request.GET.get("scope", "all")
+    qs = Comparison.objects.select_related("owner").order_by("-created_at")
+
+    if scope == "my":
+        qs = qs.filter(owner=request.user) if request.user.is_authenticated else Comparison.objects.none()
+    else:
+        if request.user.is_authenticated:
+            qs = qs.filter(Q(is_public=True) | Q(owner=request.user))
+        else:
+            qs = qs.filter(is_public=True)
+
+    data = [serialize_comparison(c) for c in qs]
+    return JsonResponse({"ok": True, "count": len(data), "data": data})
+
 
 @login_required
 @require_GET
 def api_comparison_detail(request, pk):
     cmp = get_object_or_404(Comparison, pk=pk, owner=request.user)
-    payload = {"id": str(cmp.pk), "module": cmp.module}
-    if cmp.module == Comparison.MODULE_TEAM:
-        links = (ComparisonTeam.objects
-                 .select_related("team")
-                 .filter(comparison=cmp)
-                 .order_by("order_index"))
-        payload: dict[str, object] = {"id": str(cmp.pk), "module": cmp.module}
-        payload["items"] = [serialize_team_for_compare(l.team) for l in links]
+    payload: dict[str, object] = {"id": str(cmp.pk), "module": cmp.module}
 
+
+    if cmp.module == Comparison.MODULE_TEAM:
+        links = (ComparisonTeam.objects.select_related("team")
+            .filter(comparison=cmp).order_by("order_index"))
+        payload["items"] = [serialize_team_for_compare(l.team) for l in links]
         return JsonResponse({"ok": True, "data": payload})
+
+    if cmp.module == Comparison.MODULE_CIRCUIT:
+        links = (ComparisonCircuit.objects.select_related("circuit")
+                 .filter(comparison=cmp).order_by("order_index"))
+        payload["items"] = [serialize_circuit_for_compare(l.circuit) for l in links]
+        return JsonResponse({"ok": True, "data": payload})
+
+    if cmp.module == Comparison.MODULE_DRIVER:
+        links = (ComparisonDriver.objects.select_related("driver")
+            .filter(comparison=cmp).order_by("order_index"))
+        payload["items"] = [serialize_driver_for_compare(l.driver) for l in links]
+        return JsonResponse({"ok": True, "data": payload})
+
+
+    if cmp.module == Comparison.MODULE_CAR:
+        links = (ComparisonCar.objects.select_related("car")
+            .filter(comparison=cmp).order_by("order_index"))
+        payload["items"] = [serialize_car_for_compare(l.car) for l in links]
+        return JsonResponse({"ok": True, "data": payload})
+
+
     return json_error("Unsupported module.", status=422)
 
+@login_required
+@csrf_protect
+@require_POST
+def api_comparison_delete(request, pk):
+    cmp = get_object_or_404(Comparison, pk=pk)
+    is_admin = getattr(getattr(request.user, "profile", None), "role", None) == "admin"
+    if cmp.owner != request.user and not is_admin:
+        return HttpResponseForbidden("Not allowed")
+    cmp.delete()
+    return JsonResponse({"ok": True, "redirect": reverse("comparison:list_page")})
