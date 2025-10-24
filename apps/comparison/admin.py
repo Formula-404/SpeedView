@@ -1,106 +1,58 @@
 from django.contrib import admin
-from .models import (
-    Comparison,
-    ComparisonTeam,
-    ComparisonCircuit,
-    ComparisonDriver,
-    ComparisonCar,
-)
+from .models import Comparison, ComparisonTeam, ComparisonCircuit, ComparisonDriver, ComparisonCar
 
-class ComparisonTeamInline(admin.TabularInline):
-    model = ComparisonTeam
-    extra = 0
-    autocomplete_fields = ("team",)
-    ordering = ("order_index",)
-    fields = ("team", "order_index")
-    raw_id_fields = ()
-
-class ComparisonCircuitInline(admin.TabularInline):
-    model = ComparisonCircuit
-    extra = 0
-    autocomplete_fields = ("circuit",)
-    ordering = ("order_index",)
-    fields = ("circuit", "order_index")
-
-class ComparisonDriverInline(admin.TabularInline):
-    model = ComparisonDriver
-    extra = 0
-    autocomplete_fields = ("driver",)
-    ordering = ("order_index",)
-    fields = ("driver", "order_index")
-
-class ComparisonCarInline(admin.TabularInline):
-    model = ComparisonCar
-    extra = 0
-    autocomplete_fields = ("car",)
-    ordering = ("order_index",)
-    fields = ("car", "order_index")
+class ReadOnlyMixin:
+    actions = None
+    def has_add_permission(self, request):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        return False
+    def has_view_permission(self, request, obj=None):
+        return True
+    def get_readonly_fields(self, request, obj=None):
+        names = [f.name for f in self.model._meta.fields]
+        names += [m.name for m in self.model._meta.many_to_many]
+        return tuple(sorted(set(names + list(getattr(self, 'readonly_fields', [])))))
 
 @admin.register(Comparison)
-class ComparisonAdmin(admin.ModelAdmin):
-    list_display = (
-        "id",
-        "title",
-        "module",
-        "owner",
-        "is_public",
-        "created_at",
-        "linked_count",
-    )
-    list_filter = (
-        "module",
-        "is_public",
-        "created_at",
-    )
-    search_fields = (
-        "id",
-        "title",
-        "owner__username",
-        "owner__email",
-    )
-    readonly_fields = ("id", "created_at")
-    autocomplete_fields = ("owner",)
-    ordering = ("-created_at",)
-    list_per_page = 50
-    fieldsets = (
-        ("Comparison", {
-            "fields": (
-                "id",
-                "title",
-                "module",
-                "owner",
-                "is_public",
-                "created_at",
-            )
-        }),
-    )
+class ComparisonAdmin(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'owner', 'module', 'title', 'is_public', 'created_at')
+    list_filter = ('module', 'is_public', 'created_at')
+    search_fields = ('id', 'title', 'owner__username', 'owner__email')
+    readonly_fields = ('created_at',)
+    ordering = ('-created_at',)
+    list_display_links = None
 
-    def get_inlines_for_module(self, module):
-        if module == Comparison.MODULE_TEAM:
-            return [ComparisonTeamInline]
-        if module == Comparison.MODULE_CIRCUIT:
-            return [ComparisonCircuitInline]
-        if module == Comparison.MODULE_DRIVER:
-            return [ComparisonDriverInline]
-        if module == Comparison.MODULE_CAR:
-            return [ComparisonCarInline]
-        return []
+@admin.register(ComparisonTeam)
+class ComparisonTeamAdmin(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'comparison', 'team', 'order_index')
+    list_filter = ('comparison', 'team')
+    search_fields = ('comparison__id', 'team__team_name')
+    ordering = ('comparison', 'order_index')
+    list_display_links = None
 
-    def get_inline_instances(self, request, obj=None):
-        base = super().get_inline_instances(request, obj)
-        if obj is None:
-            return []
-        inlines = self.get_inlines_for_module(obj.module)
-        return [inline(self.model, self.admin_site) for inline in inlines]
+@admin.register(ComparisonCircuit)
+class ComparisonCircuitAdmin(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'comparison', 'circuit', 'order_index')
+    list_filter = ('comparison', 'circuit')
+    search_fields = ('comparison__id', 'circuit__name')
+    ordering = ('comparison', 'order_index')
+    list_display_links = None
 
-    def linked_count(self, obj):
-        if obj.module == Comparison.MODULE_TEAM:
-            return obj.team_links.count()
-        if obj.module == Comparison.MODULE_CIRCUIT:
-            return obj.circuit_links.count()
-        if obj.module == Comparison.MODULE_DRIVER:
-            return obj.driver_links.count()
-        if obj.module == Comparison.MODULE_CAR:
-            return obj.car_links.count()
-        return 0
-    linked_count.short_description = "Items"
+@admin.register(ComparisonDriver)
+class ComparisonDriverAdmin(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'comparison', 'driver', 'order_index')
+    list_filter = ('comparison', 'driver')
+    search_fields = ('comparison__id', 'driver__driver_number', 'driver__full_name')
+    ordering = ('comparison', 'order_index')
+    list_display_links = None
+
+@admin.register(ComparisonCar)
+class ComparisonCarAdmin(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'comparison', 'car', 'order_index')
+    list_filter = ('comparison',)
+    search_fields = ('comparison__id', 'car__driver_number')
+    ordering = ('comparison', 'order_index')
+    list_display_links = None

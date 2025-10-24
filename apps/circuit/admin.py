@@ -1,34 +1,25 @@
 from django.contrib import admin
 from .models import Circuit
-from django.utils.html import format_html
+
+class ReadOnlyMixin:
+    actions = None
+    def has_add_permission(self, request):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False
+    def has_delete_permission(self, request, obj=None):
+        return False
+    def has_view_permission(self, request, obj=None):
+        return True
+    def get_readonly_fields(self, request, obj=None):
+        names = [f.name for f in self.model._meta.fields]
+        names += [m.name for m in self.model._meta.many_to_many]
+        return tuple(sorted(set(names + list(getattr(self, 'readonly_fields', [])))))
 
 @admin.register(Circuit)
-class CircuitAdmin(admin.ModelAdmin):
-    list_display = ('name', 'country', 'location', 'circuit_type', 'length_km')
+class CircuitAdmin(ReadOnlyMixin, admin.ModelAdmin):
+    list_display = ('id', 'name', 'country', 'location', 'circuit_type', 'direction', 'length_km', 'turns', 'grands_prix_held')
     list_filter = ('circuit_type', 'direction', 'country')
-    search_fields = ('name', 'location', 'country')
+    search_fields = ('name', 'location', 'country', 'grands_prix')
     ordering = ('name',)
-
-    fieldsets = (
-        ('Informasi Utama', {
-            'fields': ('name', 'country', 'location')
-        }),
-        ('Input Gambar (via URL)', {
-            'description': "Tempel URL gambar peta sirkuit di sini.",
-            'fields': ('map_image_url', 'image_preview')
-        }),
-        ('Spesifikasi Trek', {
-            'fields': ('circuit_type', 'direction', 'length_km', 'turns')
-        }),
-        ('Histori Grand Prix', {
-            'fields': ('grands_prix', 'seasons', 'grands_prix_held', 'last_used')
-        }),
-    )
-
-    readonly_fields = ('image_preview',)
-
-    @admin.display(description='Preview Peta Sirkuit')
-    def image_preview(self, obj):
-        if obj.map_image_file:
-            return format_html('<a href="{0}" target="_blank"><img src="{0}" width="200" style="border-radius: 8px;" /></a>', obj.map_image_file.url)
-        return "(Tidak ada gambar)"
+    list_display_links = None
