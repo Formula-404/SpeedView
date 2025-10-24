@@ -167,3 +167,66 @@ def api_driver_delete(request, driver_number):
     driver = get_object_or_404(Driver, pk=driver_number)
     driver.delete()
     return JsonResponse({"ok": True, "deleted": driver_number})
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from apps.driver.models import DriverEntry
+# apps/driver/views.py
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from django.db.models import Q
+
+from apps.driver.models import DriverEntry  # sesuaikan import path kalau beda
+
+@require_GET
+def api_driver_entry_availability_by_session(request):
+    """
+    Return:
+    {
+      "ok": true,
+      "data": {
+        "session_key": 12345,
+        "driver_numbers": [1, 11, 14, 16, ...]
+      }
+    }
+    """
+    raw_session_key = request.GET.get("session_key", "").strip()
+    if not raw_session_key:
+        return JsonResponse({"ok": False, "error": "session_key is required."}, status=400)
+
+    # normalize ke int (izinkan string numerik)
+    try:
+        session_key = int(raw_session_key)
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "session_key must be an integer."}, status=400)
+
+    # (opsional) filter tambahan by meeting_id kalau dikirim
+    # catatan: di model DriverEntry ada FK 'meeting', bukan 'meeting_key' integer.
+    meeting_id = request.GET.get("meeting_id")
+    meeting_q = Q()
+    if meeting_id:
+        try:
+            meeting_q = Q(meeting_id=int(meeting_id))
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "meeting_id must be an integer if provided."}, status=400)
+
+    # Ambil distinct driver_number yang punya entry utk session ini
+    # Hindari entry yang session_key-nya null.
+    qs = (
+        DriverEntry.objects
+        .filter(meeting_q, session_key=session_key)
+        .exclude(session_key__isnull=True)
+        .values_list("driver__driver_number", flat=True)
+        .distinct()
+    )
+
+    driver_numbers = sorted(int(n) for n in qs if n is not None)
+
+    return JsonResponse({
+        "ok": True,
+        "data": {
+            "session_key": session_key,
+            "driver_numbers": driver_numbers,
+        }
+    })
+
