@@ -1,14 +1,17 @@
-# SpeedView
+# **SpeedView**
 
-Every Formula 1 race is more than just 20 cars circling a track.  
-It’s a blend of drivers pushing limits, teams playing strategy, and tiny details, like weather or pit timing that decide the outcome.  
+Setiap balapan **Formula 1** bukan hanya tentang *20 mobil yang berputar di suatu lintasan*.  
+Tapi ini tentang kombinasi **pembalap yang memacu batasan**, **tim pemenang adalah tim yang bermain strategi**, dan detail kecil seperti **cuaca** atau **timing pit stop** yang bisa menentukan hasil akhir.
 
-**SpeedView** was created to capture those details.  
-Its purpose is to turn raw, technical race data into an interactive hub where fans, students, and researchers can:  
+---
 
-- Explore races through **meetings, sessions, drivers, and circuits**  
-- Analyze performance with **lap times, weather effects, and pit strategies**  
-- Study the **technical side of the sport** (cars, teams, telemetry)  
+**SpeedView** hadir untuk melihat lebih dekat detail-detail itu.  
+Tujuannya adalah mengubah **data balapan yang tadinya monoton dan teknis** menjadi **hub interaktif** tempat penggemar, mahasiswa, dan peneliti bisa:
+
+- Menjelajahi balapan lewat ***meetings, sessions, drivers, dan circuits***
+- Menganalisis performa lewat **lap times, pengaruh cuaca, dan pit strategies**
+- Mempelajari sisi **teknis dari olahraga ini** (*cars, teams, telemetry*)
+
 
 ## Deployment
 <p align="center">
@@ -121,18 +124,20 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
   </tr>
 </table>
 
-## User Roles  
+## **User Roles**
 
-- **Guest** → Can only access read-only pages
-- **Login User** →  
-  - Create and save comparison sessions  
-  - Share sessions with others  
-  - Start forum content (articles, discussions, fan meetings)  
-  - Comment and interact with forum content  
-- **Admin** →  
-  - Edit certain wiki data
-  - Moderate forum discussions (delete posts/comments)  
-  - Additional management tools and permissions  
+### 🧭 **Guest**
+- Hanya bisa mengakses halaman dengan mode *read-only*
+
+### 👤 **Login User**
+- Bisa **membuat dan menyimpan sesi perbandingan (comparison sessions)**
+- Dapat **membagikan sesi** dengan pengguna lain
+
+### 🛠️ **Admin**
+- Dapat **mengedit data wiki tertentu**
+- Bisa **memoderasi forum** (menghapus postingan)
+- Memiliki **alat dan izin manajemen tambahan**
+
 
 
 ## Initial Dataset Source Credit

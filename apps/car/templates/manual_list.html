@@ -34,9 +34,26 @@
     {% if messages %}
     <div class="mb-6 space-y-2">
         {% for message in messages %}
-        <div class="rounded-xl border border-green-400/40 bg-green-500/10 px-4 py-3 text-sm text-green-300">{{ message }}</div>
+        <div class="rounded-xl border border-green-400/40 bg-green-500/10 px-4 py-3 text-sm text-green-300" data-message-tags="{{ message.tags|default:'' }}">{{ message }}</div>
         {% endfor %}
     </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            if (typeof showToast !== "function") return;
+            const messageNodes = document.querySelectorAll("[data-message-tags]");
+            messageNodes.forEach(function(node) {
+                const tags = node.dataset.messageTags || "";
+                let variant = "info";
+                if (tags.includes("success")) variant = "success";
+                else if (tags.includes("error")) variant = "error";
+                else if (tags.includes("warning")) variant = "warning";
+                const content = node.textContent ? node.textContent.trim() : "";
+                if (content.length) {
+                    showToast("Notification", content, variant);
+                }
+            });
+        });
+    </script>
     {% endif %}
     {% if manual_entries %}
     <div class="overflow-x-auto rounded-2xl border border-white/10 bg-[#0D1117]/80 shadow-lg shadow-black/30">

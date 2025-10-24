@@ -118,13 +118,7 @@
             <!-- 7. Widget Weather -->
             <div id="widget-weather" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
 
-            <!-- 8. Widget Laps -->
-            <div id="widget-laps" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 h-64">
-                <h2 class="text-2xl font-bold text-white mb-4">Laps</h2>
-                <div class="flex items-center justify-center h-4/5 border border-dashed border-white/20 rounded-lg">
-                    <p class="text-white/50">Laps data widget placeholder</p>
-                </div>
-            </div>
+
         </div>
 
     </div>
@@ -197,6 +191,66 @@
         let telemetryRequestId = 0;
         let carTelemetryWidget = null;
         let telemetryAvailability = new Map();
+        let driverEntryAvailability = new Map();
+
+
+        async function parseJSONSafely(response) {
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            const bodyText = await response.text();
+            const looksJson = contentType.includes('application/json');
+
+            // if (!looksJson) {
+            //     const snippet = bodyText.trim().replace(/\s+/g, ' ').slice(0, 120);
+            //     const message = snippet
+            //         ? `Unexpected response format (status ${response.status}): ${snippet}`
+            //         : `Unexpected empty response (status ${response.status}).`;
+            //     const error = new Error(message);
+            //     error.responseStatus = response.status;
+            //     error.responseText = bodyText;
+            //     throw error;
+            // }
+
+            try {
+                return JSON.parse(bodyText);
+            } catch (err) {
+                const error = new Error(`Failed to parse JSON response (status ${response.status}).`);
+                error.responseStatus = response.status;
+                error.responseText = bodyText;
+                error.cause = err;
+                throw error;
+            }
+        }
+        async function loadDriverEntryAvailability(sessionKey) {
+            driverEntryAvailability = new Map();
+            if (!sessionKey) return;
+
+            try {
+                // GANTI URL INI jika kamu sudah punya endpoint sendiri.
+                // Return yang diharapkan: { ok: true, data: { session_key: <int>, driver_numbers: [11,16,44,...] } }
+                const url = "{% url 'driver:api_driver_entry_availability_by_session' %}?session_key=" + encodeURIComponent(sessionKey);
+                const res = await fetch(url, { credentials: 'same-origin' });
+                const json = await parseJSONSafely(res);
+
+                if (!res.ok || !json.ok) {
+                    console.warn('Failed to load driver entry availability:', json && json.error);
+                    return;
+                }
+
+                const list = (json.data && Array.isArray(json.data.driver_numbers)) ? json.data.driver_numbers : [];
+                for (const num of list) {
+                    const key = `${sessionKey}-${Number(num)}`;
+                    driverEntryAvailability.set(key, true);
+                }
+
+                // Setelah availability keisi, re-render driver cards biar badge/labelnya update
+                if (Array.isArray(driverListCache) && driverListCache.length) {
+                    renderDriversWidget(driverListCache);
+                }
+            } catch (e) {
+                console.error('loadDriverEntryAvailability error:', e);
+            }
+        }
+
 
         function getCSRFToken() {
             const name = 'csrftoken=';
@@ -225,9 +279,13 @@
             async function fetchRecentMeetings() {
                 try {
                     const response = await fetch("{% url 'main:api_recent_meetings' %}");
-                    const data = await response.json();
-                    
-                    if (data.ok && data.data.length > 0) {
+                    const data = await parseJSONSafely(response);
+
+                    if (!response.ok) {
+                        throw new Error((data && data.error) || `Failed to load recent meetings (status ${response.status}).`);
+                    }
+
+                    if (data.ok && Array.isArray(data.data) && data.data.length > 0) {
                         recentMeetingsGrid.innerHTML = ''; 
                         data.data.forEach((meeting, index) => {
                             const button = document.createElement('button');
@@ -242,7 +300,8 @@
                         });
                         recentMeetingsGrid.querySelector('button').click();
                     } else {
-                        recentMeetingsGrid.innerHTML = `<div class="text-white/50 text-sm col-span-4">${data.error || 'No recent meetings found.'}</div>`;
+                        const message = (data && data.error) || 'No recent meetings found.';
+                        recentMeetingsGrid.innerHTML = `<div class="text-white/50 text-sm col-span-4">${message}</div>`;
                     }
                 } catch (e) {
                     recentMeetingsGrid.innerHTML = `<div class="text-red-400 text-sm col-span-4">Error: ${e.message}</div>`;
@@ -291,7 +350,7 @@
                             min_speed: CAR_DATASET_DEFAULTS.minSpeed,
                         }),
                     });
-                    const payload = await response.json();
+                    const payload = await parseJSONSafely(response);
                     if (!response.ok || !payload.ok) {
                         throw new Error(payload.error || `Failed to refresh telemetry dataset (status ${response.status}).`);
                     }
@@ -352,9 +411,6 @@
                 if (Array.isArray(driverListCache) && driverListCache.length) {
                     renderDriversWidget(driverListCache);
                 }
-                if (selectedMeetingKey !== null) {
-                    refreshCarDatasetForMeeting(selectedMeetingKey, { force: true });
-                }
 
                 dataContainer.classList.add('hidden');
                 meetingWidget.innerHTML = `<div class="h-24 rounded-lg bg-gray-700/50 animate-pulse"></div>`;
@@ -364,8 +420,8 @@
 
                 try {
                     const response = await fetch(`{% url 'main:api_dashboard_data' %}?meeting_key=${meetingKey}`);
-                    const data = await response.json();
-                    if (!data.ok) throw new Error(data.error);
+                    const data = await parseJSONSafely(response);
+                    if (!response.ok || !data.ok) throw new Error(data.error || `Failed to load dashboard data (status ${response.status}).`);
                     renderMeetingWidget(data.data.meeting);
                     renderSessionsWidget(data.data.sessions);
                     renderWeatherWidget(data.data.weather); 
@@ -438,6 +494,9 @@
                 } else if (selectedSessionKey) {
                     selectedSessionName = sessionNameLookup[selectedSessionKey] || selectedSessionName;
                 }
+
+                loadDriverEntryAvailability(selectedSessionKey);
+
 
                 let gridBoxesHtml = '';
                 Object.keys(groups).forEach(groupName => {
@@ -534,7 +593,8 @@
 
             function renderCarTelemetryWidget() {
                 if (!carTelemetryWidget) return;
-
+                let bodyHtml = '';
+                let footerHtml = '';
                 const meetingLabel = selectedMeetingKey ? `Meeting ${selectedMeetingKey}` : 'Meeting not selected';
                 const sessionDescriptor = selectedSessionKey
                     ? `${selectedSessionName || 'Session'} (Key ${selectedSessionKey})`
@@ -550,30 +610,12 @@
                     return `<button type="button" class="${baseClass}${stateClass}" data-metric="${metricKey}">${meta.shortLabel}</button>`;
                 }).join('');
 
-                const datasetIsCurrent = carDatasetRefreshState.meetingKey === selectedMeetingKey;
-                const datasetLoading = datasetIsCurrent && carDatasetRefreshState.loading;
-                const datasetError = datasetIsCurrent && !!carDatasetRefreshState.error;
-
-                let bodyHtml = '';
-                let footerHtml = '';
+                const datasetLoading = false;
+                const datasetError = false;
                 let datasetStatusHtml = '';
-
-                if (datasetLoading) {
-                    datasetStatusHtml = `<div class="mt-2 inline-flex items-center gap-2 text-xs text-white/60"><span class="w-2 h-2 rounded-full bg-red-500/80 animate-pulse"></span><span>Refreshing car telemetry dataset...</span></div>`;
-                } else if (carDatasetRefreshState.summary) {
-                    const { created = 0, deleted = 0 } = carDatasetRefreshState.summary;
-                    const summaryText = created
-                        ? `${created} telemetry samples loaded${deleted ? `, ${deleted} old samples replaced` : ''}.`
-                        : 'OpenF1 returned no telemetry samples for this meeting.';
-                    datasetStatusHtml = `<div class="mt-2 inline-flex items-center gap-2 text-xs text-white/60"><span class="w-2 h-2 rounded-full bg-green-400/80"></span><span>${summaryText}</span></div>`;
-                }
 
                 if (!selectedMeetingKey) {
                     bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">Select a meeting to load car telemetry.</p></div>`;
-                } else if (datasetLoading) {
-                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">Refreshing car telemetry dataset for meeting ${selectedMeetingKey}...</p></div>`;
-                } else if (datasetError) {
-                    bodyHtml = `<div class="flex items-center justify-center h-56 border border-red-500/40 bg-red-500/10 rounded-lg px-4 text-center"><p class="text-red-300 text-sm">${carDatasetRefreshState.error || 'Unable to refresh telemetry dataset. Please reselect the meeting to try again.'}</p></div>`;
                 } else if (!selectedSessionKey) {
                     bodyHtml = `<div class="flex items-center justify-center h-56 border border-dashed border-white/20 rounded-lg"><p class="text-white/60 text-sm text-center">Select a session to load telemetry data.</p></div>`;
                 } else if (!selectedDriverNumber) {
@@ -623,6 +665,9 @@
                         if (!metric || telemetryMetric === metric) return;
                         telemetryMetric = metric;
                         renderCarTelemetryWidget();
+                        if (selectedMeetingKey && selectedSessionKey && selectedDriverNumber) {
+                        tryLoadCarTelemetry(true);
+                        }
                     });
                 });
 
@@ -730,15 +775,7 @@
             }
 
             function tryLoadCarTelemetry(forceReload = false) {
-                if (!carTelemetryWidget) return;
-                if (carDatasetRefreshState.loading && carDatasetRefreshState.meetingKey === selectedMeetingKey) {
-                    renderCarTelemetryWidget();
-                    return;
-                }
-                if (carDatasetRefreshState.error && carDatasetRefreshState.meetingKey === selectedMeetingKey && !forceReload) {
-                    renderCarTelemetryWidget();
-                    return;
-                }
+
                 if (!selectedMeetingKey || !selectedSessionKey || !selectedDriverNumber) {
                     if (!telemetryLoading) {
                         renderCarTelemetryWidget();
@@ -764,37 +801,27 @@
                 const params = new URLSearchParams({
                     meeting_key: selectedMeetingKey,
                     session_key: selectedSessionKey,
+                    driver_number: selectedDriverNumber, 
                     metric: telemetryMetric,
                 });
 
                 try {
                     const response = await fetch(`${TELEMETRY_API_URL}?${params.toString()}`, { credentials: 'same-origin' });
-                    if (!response.ok) throw new Error(`Status ${response.status}`);
-                    const payload = await response.json();
-                    if (!payload.ok) throw new Error(payload.error || 'Failed to load telemetry data.');
+                    const payload = await parseJSONSafely(response);
+                    if (!response.ok || !payload.ok) throw new Error(payload.error || `Failed to load telemetry data (status ${response.status}).`);
                     const groups = Array.isArray(payload.groups) ? payload.groups : [];
-                    const availability = new Map();
-                    groups.forEach(group => {
-                        if (group && group.session_key !== undefined && group.driver_number !== undefined) {
-                            const key = `${group.session_key}-${group.driver_number}`;
-                            availability.set(key, true);
-                        }
-                    });
+                    // Karena kita sudah filter (meeting, session, driver), group yang balik mestinya 0 atau 1.
+                    const g = groups[0];
+
                     if (requestId === telemetryRequestId) {
-                        telemetryAvailability = availability;
+                        // Kita nggak perlu lagi isi telemetryAvailability untuk semua driver,
+                        // karena availability card sekarang pakai driverEntryAvailability.
                         if (Array.isArray(driverListCache) && driverListCache.length) {
                             renderDriversWidget(driverListCache);
                         }
-                    }
-                    const matchingGroup = groups.find(group =>
-                        Number(group.meeting_key) === Number(selectedMeetingKey) &&
-                        Number(group.session_key) === Number(selectedSessionKey) &&
-                        Number(group.driver_number) === Number(selectedDriverNumber)
-                    );
 
-                    if (requestId === telemetryRequestId) {
-                        if (matchingGroup && Array.isArray(matchingGroup.telemetry) && matchingGroup.telemetry.length) {
-                            telemetrySamples = matchingGroup.telemetry;
+                        if (g && Array.isArray(g.telemetry) && g.telemetry.length) {
+                            telemetrySamples = g.telemetry;
                             telemetryError = "";
                         } else {
                             telemetrySamples = [];
@@ -989,8 +1016,8 @@
 
             try {
                 const res = await fetch("{% url 'driver:api_list' %}");
-                const json = await res.json();
-                if (!json.ok) throw new Error(json.error || 'Failed to load drivers.');
+                const json = await parseJSONSafely(res);
+                if (!res.ok || !json.ok) throw new Error(json.error || `Failed to load drivers (status ${res.status}).`);
                 renderDriversWidget(json.data);
             } catch (err) {
                 driversWidget.innerHTML = `
@@ -1026,18 +1053,20 @@
                 const displayName = d.broadcast_name || d.full_name || 'Unknown';
                 const isSelected = selectedDriverNumber !== null && Number(selectedDriverNumber) === Number(d.driver_number);
                 const headshot = d.headshot_url || '';
-                const telemetryKey = selectedSessionKey ? `${selectedSessionKey}-${d.driver_number}` : null;
-                const hasTelemetry = telemetryKey ? telemetryAvailability.get(telemetryKey) : null;
+                const entryKey = selectedSessionKey ? `${selectedSessionKey}-${d.driver_number}` : null;
+                const hasEntry = entryKey ? driverEntryAvailability.get(entryKey) : null;
+
+
                 const cardClass = isSelected
                     ? 'driver-select-btn group min-h-16 p-3 rounded-lg border border-red-500 bg-red-500/10 flex items-center gap-3 transition'
                     : 'driver-select-btn group min-h-16 p-3 rounded-lg border border-gray-600/50 bg-gray-700/30 flex items-center gap-3 hover:bg-gray-700/50 transition';
                 const badge = isSelected
                     ? '<span class="ml-auto inline-flex items-center rounded-full bg-red-600/80 px-2 py-0.5 text-[11px] font-semibold text-white">Selected</span>'
                     : '<span class="ml-auto inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/70 group-hover:bg-white/20 group-hover:text-white">Select</span>';
-                const availabilityNote = telemetryKey
-                    ? hasTelemetry
-                        ? '<span class="text-[11px] text-green-400/80 mt-1 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-400/80"></span>Telemetry available</span>'
-                        : '<span class="text-[11px] text-yellow-300/80 mt-1 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-300/80"></span>No telemetry for this session</span>'
+                const availabilityNote = entryKey
+                    ? (hasEntry
+                        ? '<span class="text-[11px] text-green-400/80 mt-1 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-400/80"></span>Entry tersedia untuk sesi ini</span>'
+                        : '<span class="text-[11px] text-yellow-300/80 mt-1 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-300/80"></span>Tidak ada entry untuk sesi ini</span>')
                     : '';
 
                 return `

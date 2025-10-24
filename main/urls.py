@@ -8,4 +8,5 @@ urlpatterns = [
     path("", views.main_dashboard_page, name="show_main"),
     path("api/recent-meetings/", views.api_recent_meetings, name="api_recent_meetings"),    
     path("api/dashboard-data/", views.api_dashboard_data, name="api_dashboard_data"),
+    path("api/dashboard-drivers", views.api_dashboard_drivers_by_meeting, name="api_dashboard_drivers_by_meeting"),
 ]

@@ -6,7 +6,6 @@ from typing import Dict, Iterable, List, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 import requests
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -17,16 +16,55 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import localtime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from apps.car.forms import CarForm
 from apps.car.models import Car
+from apps.meeting.models import Meeting
 from apps.session.models import Session
 from apps.session.services import ensure_sessions_for_meetings
-from apps.meeting.models import Meeting
+
+
+import json
+from typing import List, Dict
+
+def _loads_json_array_best_effort(payload: bytes | str) -> List[Dict]:
+    if isinstance(payload, (bytes, bytearray)):
+        text = payload.decode("utf-8", errors="replace")
+    else:
+        text = payload
+
+    dec = json.JSONDecoder()
+    i = 0
+    n = len(text)
+
+    while i < n and text[i].isspace():
+        i += 1
+    if i >= n or text[i] != "[":
+        return []
+
+    i += 1  
+    out: List[Dict] = []
+
+    while i < n:
+        while i < n and text[i] in " \t\r\n,":
+            i += 1
+        if i >= n:
+            break
+        if text[i] == "]":
+            break  
+
+        try:
+            obj, j = dec.raw_decode(text, i)
+        except json.JSONDecodeError:
+            break
+
+        out.append(obj)
+        i = j
+
+    return out
 
 
 def admin_required(view_func):
@@ -81,7 +119,7 @@ def _build_session_catalog(meetings: Iterable[int]) -> dict[str, List[dict[str, 
             continue
         catalog.setdefault(str(session.meeting_key), []).append(
             {
-                "value": str(session.session_key),
+                "value": session.session_key,
                 "label": str(session),
             }
         )
@@ -129,7 +167,6 @@ def add_car(request):
     )
 
 
-@login_required(login_url="/login")
 def show_car(request, id):
     car = get_object_or_404(Car, pk=id)
     return render(request, "car_detail.html", {"car": car})
@@ -185,12 +222,10 @@ def show_json_by_id(request, car_id):
     car = get_object_or_404(Car, pk=car_id)
     return JsonResponse(serialize_car(car))
 
-@login_required(login_url="/login")
 def all_cars_dashboard(request):
     return render(request, "all_cars.html")
 
 @require_GET
-@login_required(login_url="/login")
 def api_grouped_car_data(request):
     metric = request.GET.get("metric", "speed")
     allowed_metrics = {"speed", "rpm", "throttle"}
@@ -305,58 +340,7 @@ def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tupl
     return choices
 
 
-def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tuple[int, str]]:
-    choices: list[tuple[int, str]] = []
-    seen: set[int] = set()
-
-    try:
-        response = requests.get(OPENF1_MEETINGS_URL, timeout=10.0)
-        response.raise_for_status()
-        payload = response.json()
-    except (requests.RequestException, ValueError):
-        payload = []
-
-    if isinstance(payload, list):
-        for entry in payload:
-            if not isinstance(entry, dict):
-                continue
-            key = entry.get("meeting_key")
-            try:
-                key_int = int(key)
-            except (TypeError, ValueError):
-                continue
-            if key_int in seen:
-                continue
-            label = (
-                entry.get("meeting_name")
-                or entry.get("circuit_short_name")
-                or entry.get("country_name")
-                or str(key_int)
-            )
-            choices.append((key_int, f"{key_int} - {label}"))
-            seen.add(key_int)
-
-    if extra_keys:
-        for key in extra_keys:
-            if key is None:
-                continue
-            try:
-                key_int = int(key)
-            except (TypeError, ValueError):
-                continue
-            if key_int in seen:
-                continue
-            choices.append((key_int, str(key_int)))
-            seen.add(key_int)
-
-    choices.sort(key=lambda item: item[0])
-    return choices
-
-
-def _fetch_openf1_telemetry(
-    meeting_key: int,
-    min_speed: int,
-) -> List[Dict]:
+def _fetch_openf1_telemetry(meeting_key: int, min_speed: int) -> List[Dict]:
     url = f"{OPENF1_CAR_DATA_URL}?meeting_key={meeting_key}&speed>={min_speed}"
     try:
         with urlopen(url) as response:
@@ -368,15 +352,17 @@ def _fetch_openf1_telemetry(
 
     try:
         data = json.loads(payload)
+        if not isinstance(data, list):
+            return []
     except json.JSONDecodeError:
-        return []
+        data = _loads_json_array_best_effort(payload)
+
     if not isinstance(data, list):
         return []
     return data
 
 
 @require_POST
-@login_required(login_url="/login")
 def api_refresh_car_data(request):
     try:
         body = json.loads(request.body.decode("utf-8") or "{}")
@@ -582,14 +568,7 @@ def manual_list(request):
     }
     for car in manual_entries:
         car.session_obj = session_map.get(car.session_key)
-        display_date = car.date
-        if display_date:
-            if timezone.is_aware(display_date):
-                display_date = timezone.make_naive(
-                    display_date, datetime.timezone.utc
-                )
-            display_date = display_date + datetime.timedelta(hours=7)
-        car.display_date = display_date
+        car.display_date = localtime(car.date)
 
     return render(
         request,
