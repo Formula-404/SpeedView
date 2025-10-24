@@ -29,7 +29,6 @@ urlpatterns = [
     path('weather/', include('apps.weather.urls')),
     path('team/', include('apps.team.urls')),
     path('car/', include('apps.car.urls')),
-    path('laps/', include('apps.laps.urls')),
     path('pit/', include('apps.pit.urls')),
     path('comparison/', include('apps.comparison.urls')),
 ]

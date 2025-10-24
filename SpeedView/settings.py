@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     'apps.weather',
     'apps.team',
     'apps.car',
-    'apps.laps',
     'apps.pit',
     'apps.comparison'
 ]

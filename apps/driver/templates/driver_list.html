@@ -41,33 +41,6 @@
     </div>
   </div>
 
-  <!-- ==================== CTA LAPS ==================== -->
-  <section class="relative rounded-2xl overflow-hidden border border-white/10 mb-6">
-    <img src="{% static 'driver/hero-laps.jpg' %}" alt="Laps background"
-         class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none">
-    <div class="relative bg-black/50">
-      <div class="p-6 md:p-8 flex flex-col md:flex-row md:items-end gap-4">
-        <div class="text-white">
-          <h2 class="text-2xl md:text-3xl font-extrabold" style="font-family: Alphacorsa, Inter, sans-serif;">LAPS</h2>
-          <p class="text-white/80 text-sm md:text-base">Masukkan filter lalu buka halaman Laps</p>
-        </div>
-        <form id="lapsForm" class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2 md:ml-6">
-          <input name="driver_number" placeholder="driver_number"
-                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
-          <input name="session_key" placeholder="session_key"
-                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
-          <input name="lap_number" placeholder="lap_number (opsional)"
-                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
-          <input name="meeting_key" placeholder="meeting_key (opsional)"
-                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
-          <button type="submit" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold">
-            Open Laps
-          </button>
-        </form>
-      </div>
-    </div>
-  </section>
-
   <!-- ==================== CTA PIT ==================== -->
   <section class="relative rounded-2xl overflow-hidden border border-white/10 mb-10">
     <img src="{% static 'driver/hero-pit.jpg' %}" alt="Pit background"
@@ -156,7 +129,6 @@
     const qs = toQS(form);
     window.location.href = qs ? `${base}?${qs}` : base;
   }
-  document.getElementById('lapsForm').addEventListener('submit', (e)=>{ e.preventDefault(); go('/laps/', e.currentTarget); });
   document.getElementById('pitForm').addEventListener('submit',  (e)=>{ e.preventDefault(); go('/pit/',  e.currentTarget); });
 
   let allDrivers = [], viewDrivers = [];

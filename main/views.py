@@ -77,7 +77,6 @@ def api_dashboard_data(request):
                     "country_code": d.country_code or "",
                 } for d in drivers
             ],
-            'laps': [],    # Placeholder - API akan ditambahkan nanti
             'car_data': [],# Placeholder - API akan ditambahkan nanti
         }
         

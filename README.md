@@ -7,7 +7,7 @@ It’s a blend of drivers pushing limits, teams playing strategy, and tiny detai
 Its purpose is to turn raw, technical race data into an interactive hub where fans, students, and researchers can:  
 
 - Explore races through **meetings, sessions, drivers, and circuits**  
-- Analyze performance with **lap times, weather effects, and pit strategies**  
+- Analyze performance with **weather effects and pit strategies**  
 - Study the **technical side of the sport** (cars, teams, telemetry)  
 
 ## Deployment
@@ -103,11 +103,6 @@ Its purpose is to turn raw, technical race data into an interactive hub where fa
     <td><b>Car</b></td>
     <td>Technical specifications of cars (engine, chassis, season entries)</td>
     <td>Naila</td>
-  </tr>
-  <tr>
-    <td><b>Laps</b></td>
-    <td>Lap-by-lap performance data, including timing, sectors, and telemetry</td>
-    <td>Gilang</td>
   </tr>
   <tr>
     <td><b>Pit</b></td>

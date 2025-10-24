@@ -7,7 +7,7 @@ class Driver(models.Model):
     Catatan:
     - Relasi ke Session TIDAK lagi pakai FK/M2M. Kita simpan session_key (int) di DriverEntry.
     - Relasi ke Team: M2M via DriverTeam (kontrak/riwayat tim).
-    - Model lain (car, laps, pit) cukup FK ke Driver (driver_number).
+    - Model lain (car, pit) cukup FK ke Driver (driver_number).
     """
     driver_number = models.PositiveSmallIntegerField(primary_key=True)
 
