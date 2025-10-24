@@ -22,7 +22,6 @@ class Circuit(models.Model):
 
     name = models.CharField("Circuit", max_length=255, unique=True)
     map_image_url = models.URLField("Map Image URL", max_length=1024, null=True, blank=True, help_text="Salin dan tempel URL gambar peta sirkuit di sini.")
-    map_image_file = models.ImageField("Downloaded Map", upload_to='circuit_maps/', editable=False, null=True, blank=True)
     circuit_type = models.CharField("Type", max_length=10, choices=CIRCUIT_TYPES, default='RACE')
     direction = models.CharField("Direction", max_length=3, choices=DIRECTIONS, default='CW')
     location = models.CharField("Location", max_length=255)
@@ -36,21 +35,6 @@ class Circuit(models.Model):
 
     def __str__(self):
         return self.name
-
-    def save(self, *args, **kwargs):
-        """
-        Override metode save untuk mengunduh gambar secara otomatis.
-        """
-        if self.map_image_url and not self.map_image_file:
-            try:
-                response = requests.get(self.map_image_url, stream=True)
-                response.raise_for_status()
-                file_name = self.map_image_url.split("/")[-1]                
-                django_file = ContentFile(response.content)
-                self.map_image_file.save(file_name, django_file, save=False)
-            except requests.exceptions.RequestException as e:
-                print(f"Error downloading image for {self.name}: {e}")
-        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['name']

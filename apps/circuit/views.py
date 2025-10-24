@@ -1,6 +1,6 @@
 import json
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseRedirect
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import redirect, render, get_object_or_404
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.db import IntegrityError, transaction
@@ -23,7 +23,7 @@ def serialize_circuit(circuit: Circuit):
         "name": circuit.name,
         "country": circuit.country,
         "location": circuit.location,
-        "map_image_url": circuit.map_image_file.url if circuit.map_image_file else None,
+        "map_image_url": circuit.map_image_url,
         "detail_url": reverse('circuit:detail_page', kwargs={'pk': circuit.pk}),
     }
 
@@ -45,15 +45,12 @@ def add_circuit_page(request):
         return redirect('circuit:list_page')
     return render(request, "add_circuit.html", {"form": CircuitForm()})
 
-# DITAMBAHKAN: View untuk halaman edit
 def edit_circuit_page(request, pk):
     """Merender halaman dengan form untuk mengedit sirkuit yang ada."""
     if not is_admin(request):
         return redirect('circuit:list_page')
-
     circuit = get_object_or_404(Circuit, pk=pk)
     form = CircuitForm(instance=circuit) # Isi form dengan data yang ada
-    
     return render(request, "edit_circuit.html", {"form": form, "circuit": circuit})
 
 
@@ -71,15 +68,13 @@ def api_circuit_create(request):
     """Endpoint API untuk membuat sirkuit baru."""
     if not is_admin(request):
         return JsonResponse({"ok": False, "error": "Admin role required."}, status=403)
-
+    
     form = CircuitForm(request.POST)
     if form.is_valid():
         form.save()
         return HttpResponseRedirect(reverse("circuit:list_page"))
-    
     return render(request, "add_circuit.html", {"form": form})
 
-# DITAMBAHKAN: API untuk memproses update
 @csrf_protect
 @require_POST
 def api_circuit_update(request, pk):
@@ -91,9 +86,7 @@ def api_circuit_update(request, pk):
     form = CircuitForm(request.POST, instance=circuit)
     if form.is_valid():
         form.save()
-        return HttpResponseRedirect(reverse("circuit:list_page"))
-    
-    # Jika form tidak valid, render kembali halaman edit dengan error
+        return HttpResponseRedirect(reverse("circuit:list_page"))    
     return render(request, "edit_circuit.html", {"form": form, "circuit": circuit})
 
 @csrf_protect
@@ -101,9 +94,7 @@ def api_circuit_update(request, pk):
 def api_circuit_delete(request, pk):
     """Endpoint API untuk menghapus sirkuit."""
     if not is_admin(request):
-        return JsonResponse({"ok": False, "error": "Admin role required."}, status=403)
-        
+        return JsonResponse({"ok": False, "error": "Admin role required."}, status=403)  
     circuit = get_object_or_404(Circuit, pk=pk)
-    circuit.delete()
-        
+    circuit.delete()      
     return HttpResponseRedirect(reverse("circuit:list_page"))

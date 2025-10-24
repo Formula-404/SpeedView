@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+  <title>Driver #{{ driver.driver_number }} – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto max-w-5xl">
+  <!-- Breadcrumb -->
+  <div class="text-sm text-white/60 tracking-wide mb-4 space-x-2">
+    <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a><span>›</span>
+    <a class="hover:text-red-400" href="{% url 'driver:driver_list' %}">Drivers</a><span>›</span>
+    <span class="text-white">{{ driver.full_name }}</span>
+  </div>
+
+  <!-- Header card -->
+  <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 overflow-hidden">
+    <div class="grid md:grid-cols-3 gap-0">
+      <!-- Headshot -->
+      <div class="md:col-span-1 h-64 md:h-full bg-white/5">
+        <img
+          src="{{ driver.headshot_url|default:'https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png' }}"
+          onerror="this.src='https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png'"
+          class="w-full h-full object-cover"
+          alt="Headshot">
+      </div>
+
+      <!-- Info -->
+      <div class="md:col-span-2 p-6">
+        <div class="flex items-start gap-3">
+          <div class="flex-1">
+            <h1 class="text-2xl font-bold text-white">
+              {{ driver.full_name|default:driver.broadcast_name|default:driver.name_acronym|default:'#'|add:driver.driver_number }}
+            </h1>
+
+            <!-- Country -->
+            <p class="text-white/60 text-sm mt-1">
+              Country: {{ driver.country_code|default:"—" }}
+            </p>
+
+            <!-- Teams -->
+            <div class="mt-2 text-white/80 text-base">
+              <span class="font-semibold">Teams:</span>
+              {% with team_list=driver.teams.all %}
+                {% if team_list %}
+                  {% for t in team_list %}
+                    <span
+                      class="inline-flex items-center gap-2 px-2 py-0.5 rounded-md border text-sm mr-2 mt-1"
+                      data-team-color="{{ t.team_colour|default:'' }}">
+                      {{ t.team_name }}
+                    </span>
+                  {% endfor %}
+                {% else %} — {% endif %}
+              {% endwith %}
+            </div>
+          </div>
+
+          {% if user.is_authenticated and user.profile.role == "admin" %}
+          <!-- Admin buttons -->
+          <div class="flex items-center gap-2">
+            <a href="{% url 'driver:edit_page' driver.driver_number %}"
+               class="inline-flex w-9 h-9 items-center justify-center rounded-md border
+                      bg-yellow-500/10 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/20"
+               title="Edit" aria-label="Edit">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M16.862 3.487a1.5 1.5 0 012.121 2.121L8.25 16.343 5 17l.657-3.25L16.862 3.487z"/>
+              </svg>
+            </a>
+            <button type="button"
+               class="inline-flex w-9 h-9 items-center justify-center rounded-md border
+                      bg-red-500/10 border-red-500/40 text-red-300 hover:bg-red-500/20"
+               data-delete-button
+               data-delete-number="{{ driver.driver_number }}"
+               data-delete-label="{{ driver.full_name|default:driver.broadcast_name|default:'#'|add:driver.driver_number|escape }}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m-3 0h14"/>
+              </svg>
+            </button>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if driver.biography %}
+        <div class="mt-6">
+          <h2 class="text-white font-semibold mb-2">Biography</h2>
+          <p class="text-white/70 leading-relaxed whitespace-pre-line">{{ driver.biography }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-8 grid md:grid-cols-3 gap-4">
+    <!-- Quick Stats -->
+    <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-5">
+      <h3 class="text-white font-semibold mb-3">Quick Stats</h3>
+      <div class="space-y-2 text-white/80">
+        <div class="flex justify-between"><span># Number</span><span class="font-semibold text-white">{{ driver.driver_number }}</span></div>
+        <div class="flex justify-between"><span>Acronym</span><span class="font-semibold text-white">{{ driver.name_acronym|default:"—" }}</span></div>
+        <div class="flex justify-between"><span>Debut</span><span class="font-semibold text-white">
+          {% if driver.debut_meeting %}{{ driver.debut_meeting.meeting_name }}{% else %}—{% endif %}
+        </span></div>
+        <div class="flex justify-between"><span>Total Teams</span><span class="font-semibold text-white">{{ driver.teams.count }}</span></div>
+      </div>
+    </div>
+
+    <!-- Team History -->
+    <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-5 md:col-span-2">
+      <h3 class="text-white font-semibold mb-3">Team History</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="text-white/60 border-b border-white/10">
+            <tr><th class="py-2 pr-4">Team</th><th class="py-2 pr-4">Start</th><th class="py-2">End</th></tr>
+          </thead>
+          <tbody class="text-white/80">
+            {% for link in driver.team_links.all %}
+            <tr class="border-b border-white/5">
+              <td class="py-2 pr-4">{{ link.team.team_name }}</td>
+              <td class="py-2 pr-4">{% if link.start_meeting %}{{ link.start_meeting.meeting_name }}{% else %}—{% endif %}</td>
+              <td class="py-2">{% if link.end_meeting %}{{ link.end_meeting.meeting_name }}{% else %}—{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="py-3 text-white/50">No history recorded.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-5 md:col-span-3">
+      <h3 class="text-white font-semibold mb-3">Recent Sessions</h3>
+      <div class="grid md:grid-cols-3 gap-3">
+        {% for e in driver.entries.all|slice:":9" %}
+        <div class="rounded-lg border border-white/10 p-3">
+          <div class="text-white/80 text-sm">
+            <div class="font-semibold text-white/90">Session {{ e.session_key|default:"—" }}</div>
+            <div class="mt-1">Meeting: {% if e.meeting %}{{ e.meeting.meeting_name }}{% else %}—{% endif %}</div>
+            <div class="mt-1">Team: {% if e.team %}{{ e.team.team_name }}{% else %}—{% endif %}</div>
+            <div class="mt-1">Date: {% if e.date_start %}{{ e.date_start|date:"d M Y H:i" }}{% else %}—{% endif %}</div>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-white/60">No session entries.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal Delete (popup) ===== -->
+<div id="delete-modal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/60"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-2xl bg-[#0D1117] border border-white/10 p-6">
+      <h3 class="text-lg font-semibold text-white" data-del-title>Delete?</h3>
+      <p class="text-white/60 mt-2">This action cannot be undone.</p>
+      <div class="mt-6 flex justify-end gap-3">
+        <button data-del-no class="px-6 py-2 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3] rounded-lg">Cancel</button>
+        <button data-del-yes class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function getCSRFCookie(name) {
+    var m = document.cookie.match(new RegExp('(^|; )' + (name || 'csrftoken') + '=([^;]*)'));
+    return m ? decodeURIComponent(m[2]) : '';
+  }
+
+  function hexToRGBA(hex, alpha) {
+    if (!hex) return '';
+    hex = hex.replace('#','');
+    if (hex.length === 3) { hex = hex.split('').map(function(c){return c+c;}).join(''); }
+    var r = parseInt(hex.substr(0,2),16);
+    var g = parseInt(hex.substr(2,2),16);
+    var b = parseInt(hex.substr(4,2),16);
+    return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+  }
+
+  (function applyTeamColors(){
+    var chips = document.querySelectorAll('[data-team-color]');
+    for (var i=0; i<chips.length; i++){
+      var hex = chips[i].getAttribute('data-team-color') || '';
+      if (!hex) continue;
+      chips[i].style.color = '#' + hex;
+      chips[i].style.borderColor = hexToRGBA(hex, 0.25);
+      chips[i].style.backgroundColor = hexToRGBA(hex, 0.125);
+    }
+  })();
+
+  (function initDeleteModal(){
+    var modal = document.getElementById('delete-modal');
+    var title = modal.querySelector('[data-del-title]');
+    var btnYes = modal.querySelector('[data-del-yes]');
+    var btnNo = modal.querySelector('[data-del-no]');
+    var delBtn = document.querySelector('[data-delete-button]');
+    var currentNumber = null;
+
+    if (delBtn) {
+      delBtn.addEventListener('click', function(){
+        currentNumber = delBtn.getAttribute('data-delete-number');
+        var label = delBtn.getAttribute('data-delete-label') || ('#' + currentNumber);
+        title.textContent = 'Delete ' + label + '?';
+        modal.classList.remove('hidden');
+      });
+    }
+
+    btnNo.addEventListener('click', function(){
+      modal.classList.add('hidden');
+      currentNumber = null;
+    });
+
+    btnYes.addEventListener('click', function(){
+      if (!currentNumber) return;
+      btnYes.disabled = true;
+      fetch('/driver/api/' + currentNumber + '/delete/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCSRFCookie('csrftoken') }
+      })
+      .then(function(res){ if(!res.ok) throw new Error(); return res.json(); })
+      .then(function(){ window.location.href = "{% url 'driver:driver_list' %}"; })
+      .catch(function(){ alert('Failed to delete driver.'); })
+      .finally(function(){ btnYes.disabled = false; });
+    });
+  })();
+</script>
+{% endblock content %}

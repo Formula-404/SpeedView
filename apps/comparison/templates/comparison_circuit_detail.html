@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+    <title>{{ cmp.title }} – Circuit Comparison</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .icon-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); transition:transform .15s ease, background .15s ease, border-color .15s ease; }
+        .icon-btn:hover { transform:translateY(-1px); background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.2); }
+        .icon-btn img { width:18px; height:18px; display:block; }
+        .gap-x-1_5 { column-gap:.375rem; }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto">
+    <!-- breadcrumb -->
+    <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+        <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+        <span>›</span>
+        <a class="hover:text-red-400" href="{% url 'comparison:list_page' %}">Comparison</a>
+        <span>›</span>
+        <span class="text-white">{{ cmp.title|default:"Circuit Comparison" }}</span>
+    </div>
+
+
+    <!-- header -->
+    <div class="flex items-start gap-4 mb-2">
+        <div class="min-w-0">
+            <h1 class="text-4xl font-bold text-white truncate">{{ cmp.title }}</h1>
+            <p class="text-white/60 mt-1">Side-by-side overview and a simple radar.</p>
+        </div>
+        <div class="ml-auto flex items-center gap-x-1_5">
+            {% if request.user.is_authenticated %}
+                    {% if request.user == cmp.owner or request.user.profile.role == "admin" %}
+                        {% comment %} <a id="cmp-edit-link"
+                        href="{% url 'comparison:create_page' %}?edit={{ cmp.id }}&module={{ cmp.module }}"
+                        class="icon-btn" title="Edit">
+                            <img alt="Edit" src="https://img.icons8.com/?size=100&id=kCViyr9hZtLX&format=png&color=FFFFFF" />
+                        </a> {% endcomment %}
+                        <button id="cmp-delete-btn" type="button" class="icon-btn" title="Delete">
+                            <img alt="Delete" src="https://img.icons8.com/?size=100&id=85194&format=png&color=FFFFFF" />
+                        </button>
+                    {% endif %}
+                {% endif %}
+        </div>
+    </div>
+
+    <!-- selection summary -->
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {% for c in circuits %}
+        <a href="{% url 'circuit:detail_page' c.id %}" class="rounded-xl bg-white/5 border border-white/10 p-4 flex items-center gap-3 hover:border-red-500/40">
+            <img src="{{ c.map_image_url }}" alt="{{ c.name }}" class="h-9 w-9 rounded bg-white/10 object-contain" onerror="this.src='https://via.placeholder.com/72x72.png?text=Track'">
+            <div class="min-w-0">
+                <div class="text-white font-semibold truncate">{{ c.name }}</div>
+                <div class="text-xs text-white/60 truncate">{{ c.location }} • {{ c.country }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- overview -->
+    <div class="mt-8 rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <h2 class="text-white text-lg font-semibold mb-4">Overview</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="text-white/60">
+                    <tr>
+                        <th class="text-left py-2 pr-4">Attribute</th>
+                        {% for c in circuits %}<th class="text-left py-2 px-4">{{ c.name }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="text-white/90">
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Type</td>
+                        {% for c in circuits %}<td class="py-2 px-4">{{ c.get_circuit_type_display }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Direction</td>
+                        {% for c in circuits %}<td class="py-2 px-4">{{ c.get_direction_display }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Length (km)</td>
+                        {% for c in circuits %}<td class="py-2 px-4">{{ c.length_km }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Turns</td>
+                        {% for c in circuits %}<td class="py-2 px-4">{{ c.turns }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">GP held</td>
+                        {% for c in circuits %}<td class="py-2 px-4">{{ c.grands_prix_held }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Last used</td>
+                        {% for c in circuits %}<td class="py-2 px-4">{{ c.last_used|default:"—" }}</td>{% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- radar -->
+    <div class="mt-8 rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <h2 class="text-white text-lg font-semibold mb-4">Stats Diagram</h2>
+        <canvas id="radar" height="140"></canvas>
+        <div class="mt-3 text-xs text-white/50">Length/turns inverted; higher GP held is better.</div>
+    </div>
+</div>
+
+<!-- delete modal -->
+<div id="cmp-delete-modal" class="fixed inset-0 z-50 hidden">
+    <div id="cmp-modal-backdrop" class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-2xl bg-[#0B0F14] border border-white/10 shadow-xl">
+            <div class="p-5 border-b border-white/10">
+                <h3 class="text-white text-lg font-semibold">Delete Comparison</h3>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-white/80">Are you sure you want to delete <span class="font-semibold text-white">{{ cmp.title }}</span>?</p>
+                <p class="text-white/60 text-sm">This action cannot be undone.</p>
+                <div id="cmp-modal-error" class="hidden text-red-400 text-sm"></div>
+            </div>
+            <div class="px-5 pb-5 pt-2 flex items-center justify-end gap-2">
+                <button id="cmp-modal-cancel" type="button" class="px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-white/90 hover:bg-white/15 transition">Cancel</button>
+                <button id="cmp-modal-confirm" type="button" class="px-3 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+     (function() {
+        const circuits = [
+            {% for c in circuits %}
+            {
+                name: "{{ c.name|escapejs }}",
+                length_km: {{ c.length_km|default:"null" }},
+                turns: {{ c.turns|default:"null" }},
+                grands_prix_held: {{ c.grands_prix_held|default:"null" }},
+            },
+            {% endfor %}
+        ];
+
+        const COLOR_PALETTE = ["#EF4444", "#3B82F6", "#10B981", "#EAB308"];
+
+        const METRICS = [
+            { key: "length_km", label: "Length (km)", invert: true },
+            { key: "turns", label: "Turns", invert: true },
+            { key: "grands_prix_held", label: "Grands Prix held", invert: false },
+        ];
+
+        const DEFAULT_DOMAIN = {
+            length_km: [2.0, 8.0],
+            turns: [5, 30],
+            grands_prix_held: [0, 110],
+        };
+
+        function toNum(v) {
+            if (v === null || v === undefined) return null;
+            const n = Number(v);
+            return Number.isFinite(n) ? n : null;
+        }
+
+        function computeEffectiveDomains(rows) {
+            const out = {};
+            METRICS.forEach((m, i) => {
+                const values = rows.map(r => toNum(r.raw[i])).filter(v => v !== null);
+                let [lo, hi] = DEFAULT_DOMAIN[m.key] || [0, 1];
+                if (values.length) {
+                    const minV = Math.min(...values);
+                    const maxV = Math.max(...values);
+                    lo = Math.min(lo, minV);
+                    hi = Math.max(hi, maxV);
+                    const pad = (hi - lo) * 0.05 || 1;
+                    lo -= pad;
+                    hi += pad;
+                }
+                out[m.key] = [lo, hi];
+            });
+            return out;
+        }
+
+        function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+        function normalize(value, domain, invert) {
+            const v = toNum(value);
+            if (v === null) return null;
+            const [lo, hi] = domain;
+            if (hi === lo) return 50;
+            const t = clamp01((v - lo) / (hi - lo));
+            return Math.round((invert ? 1 - t : t) * 100);
+        }
+
+        const labels = METRICS.map(m => m.label);
+
+        const rows = circuits.map((c, idx) => ({
+            name: c.name,
+            color: COLOR_PALETTE[idx % COLOR_PALETTE.length],
+            raw: METRICS.map(m => c[m.key])
+        }));
+
+        const EDOMAIN = computeEffectiveDomains(rows);
+
+        const datasets = rows.map(r => ({
+            label: r.name,
+            data: METRICS.map((m, i) => normalize(r.raw[i], EDOMAIN[m.key], m.invert)),
+            borderColor: r.color,
+            backgroundColor: r.color + "33",
+            pointBackgroundColor: r.color,
+            pointBorderColor: "#fff",
+        }));
+
+        new Chart(document.getElementById("radar").getContext("2d"), {
+            type: "radar",
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                elements: { line: { spanGaps: true } },
+                plugins: {
+                    legend: { labels: { color: "#fff" } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const r = rows[ctx.datasetIndex];
+                                const raw = toNum(r.raw[ctx.dataIndex]);
+                                if (raw === null) return `${r.name}: no data`;
+                                return `${r.name}: ${raw} (score ${ctx.formattedValue})`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    r: {
+                        angleLines: { color: "rgba(255,255,255,0.15)" },
+                        grid: { color: "rgba(255,255,255,0.15)" },
+                        pointLabels: { color: "#fff" },
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { display: false }
+                    }
+                }
+            }
+        });
+    })();
+    (function() {
+        function getCSRF() {
+            const name = "csrftoken=";
+            return document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith(name))?.slice(name.length) || "";
+        }
+
+        const delBtn = document.getElementById("cmp-delete-btn");
+        const modal = document.getElementById("cmp-delete-modal");
+        const backdrop = document.getElementById("cmp-modal-backdrop");
+        const cancelBtn = document.getElementById("cmp-modal-cancel");
+        const confirmBtn = document.getElementById("cmp-modal-confirm");
+        const errorBox = document.getElementById("cmp-modal-error");
+        const API_DELETE = "{% url 'comparison:api_delete' pk=cmp.pk %}";
+
+        function openModal() {
+            modal.classList.remove("hidden");
+            errorBox.classList.add("hidden");
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Delete";
+        }
+        function closeModal() {
+            modal.classList.add("hidden");
+        }
+
+        if (delBtn) delBtn.addEventListener("click", openModal);
+        if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+        if (backdrop) backdrop.addEventListener("click", closeModal);
+        document.addEventListener("keydown", (e) => {
+            if (!modal.classList.contains("hidden") && e.key === "Escape") closeModal();
+        });
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener("click", async () => {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = "Deleting…";
+                errorBox.classList.add("hidden");
+                try {
+                    const res = await fetch(API_DELETE, {
+                        method: "POST",
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                            "X-CSRFToken": getCSRF(),
+                            "Accept": "application/json"
+                        },
+                        credentials: "same-origin"
+                    });
+                    const json = await res.json().catch(() => ({}));
+                    if (!res.ok || json.ok === false) {
+                        errorBox.textContent = json.error || `Failed to delete (status ${res.status}).`;
+                        errorBox.classList.remove("hidden");
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = "Delete";
+                        return;
+                    }
+                    window.location.href = json.redirect || "{% url 'comparison:list_page' %}";
+                } catch (e) {
+                    errorBox.textContent = "Network error while deleting. Please try again.";
+                    errorBox.classList.remove("hidden");
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = "Delete";
+                }
+            });
+        }
+    })();
+</script>
+{% endblock content %}

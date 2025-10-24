@@ -1,58 +1,164 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block meta %}
-    <title>SpeedView</title>
+    <title>Dashboard – SpeedView</title>
+    {% if user.is_authenticated %}
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    {% endif %}
+
+    <style>
+        /* scrollbar tipis biar matching tema gelap */
+        .thin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .thin-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(255,255,255,0.15);
+            border-radius: 9999px;
+        }
+        .thin-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: rgba(255,255,255,0.30);
+        }
+        /* gradient fade atas/bawah saat area scroll */
+        .fade-top { pointer-events:none; position:absolute; left:0; right:0; top:0; height:16px;
+            background: linear-gradient(to bottom, rgba(13,17,23,0.8), rgba(13,17,23,0)); }
+        .fade-bottom { pointer-events:none; position:absolute; left:0; right:0; bottom:0; height:16px;
+            background: linear-gradient(to top, rgba(13,17,23,0.8), rgba(13,17,23,0)); }
+    </style>
 {% endblock meta %}
 
 {% block content %}
+
     {% if user.is_authenticated %}
-    <div id="welcomeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-500">
-        <div class="bg-[#161B22] rounded-lg p-8 max-w-md w-full mx-4 border border-gray-700 transform transition-all">
+    
+    <div id="welcomeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-500 pointer-events-none">
+        <div class="bg-[#161B22] rounded-lg p-8 max-w-md w-full mx-4 border border-gray-700 transform transition-all scale-95 opacity-0" style="transition-duration: 300ms;">
             <div class="text-center">
                 <div class="mb-4">
                     <img src="{% static 'image/icon/speedview-white.png' %}" alt="SpeedView" class="h-16 mx-auto">
                 </div>
                 <h3 class="text-2xl font-bold text-[#E6EDF3] mb-2">Welcome Back!</h3>
                 <p class="text-[#E6EDF3]/70 mb-6">Hello, <span class="text-[#E6EDF3] font-semibold">{{ user.username }}</span>! You have successfully logged in.</p>
-                <button onclick="closeWelcomeModal()" class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold">
+                <button onclick="closeWelcomeModal()" class="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold">
                     Get Started
                 </button>
             </div>
         </div>
     </div>
-    {% endif %}
 
-    <div class='flex h-screen w-full items-center justify-center'>
-        Ceritanya ini dashboard
+    <!-- Layout Dashboard -->
+    <div class="px-12 py-12 mx-auto space-y-8">
+        <!-- 1. Header (Judul + Search Bar) -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+                    <a class="text-white" href="{% url 'main:show_main' %}">Home</a>
+                </div>
+                <h1 class="text-5xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+                    DASHBOARD
+                </h1>
+                <p class="text-white/60 mt-1">Welcome to your SpeedView dashboard.</p>
+            </div>
+
+            <form id="search-form" class="relative">
+                <input
+                    id="dashboard-search"
+                    type="text"
+                    name="q"
+                    placeholder="Search Grand Prix..."
+                    class="w-96 px-5 py-3 rounded-lg bg-[#0D1117]/80 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    autocomplete="off"
+                />
+                <button type="submit" class="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- 2. Select Meeting -->
+        <div class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10">
+            <h2 class="text-2xl font-bold text-white mb-1">Select meeting</h2>
+            <p class="text-white/60 mb-6">Choose a Grand Prix to load its sessions, drivers, laps, and weather.</p>
+            <div id="recent-meetings-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="p-3 text-sm rounded-full bg-gray-700/50 text-white/50 font-semibold text-center h-10 animate-pulse"></div>
+                <div class="p-3 text-sm rounded-full bg-gray-700/50 text-white/50 font-semibold text-center h-10 animate-pulse"></div>
+                <div class="p-3 text-sm rounded-full bg-gray-700/50 text-white/50 font-semibold text-center h-10 animate-pulse"></div>
+                <div class="p-3 text-sm rounded-full bg-gray-700/50 text-white/50 font-semibold text-center h-10 animate-pulse"></div>
+            </div>
+        </div>
+
+        <div id="dashboard-data-container" class="space-y-8 hidden">
+            <!-- 3. Widget Meeting -->
+            <div id="widget-meeting" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
+
+            <!-- 4. Widget Sessions -->
+            <div id="widget-sessions" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
+            
+            <!-- 5. Widget Drivers (hapus h-64) -->
+            <div id="widget-drivers" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10">
+                <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                <!-- scroll area default (diganti oleh JS saat load) -->
+                <div class="relative">
+                    <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar border border-dashed border-white/20 rounded-lg">
+                        <div class="p-4 text-white/50">Driver data widget placeholder</div>
+                    </div>
+                    <div class="fade-top"></div>
+                    <div class="fade-bottom"></div>
+                </div>
+            </div>
+
+            <!-- 6. Widget Car Speed -->
+            <div id="widget-car-speed" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 h-96">
+                <h2 class="text-2xl font-bold text-white mb-4">Car Telemetry - Speed</h2>
+                <div class="flex items-center justify-center h-4/5 border border-dashed border-white/20 rounded-lg">
+                    <p class="text-white/50">Car speed chart placeholder</p>
+                </div>
+            </div>
+            
+            <!-- 7. Widget Weather -->
+            <div id="widget-weather" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
+
+            <!-- 8. Widget Laps -->
+            <div id="widget-laps" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 h-64">
+                <h2 class="text-2xl font-bold text-white mb-4">Laps</h2>
+                <div class="flex items-center justify-center h-4/5 border border-dashed border-white/20 rounded-lg">
+                    <p class="text-white/50">Laps data widget placeholder</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
         function closeWelcomeModal() {
             const modal = document.getElementById('welcomeModal');
             if (modal) {
+                const modalBox = modal.querySelector('.transform');
                 modal.classList.add('opacity-0');
+                modalBox.classList.add('scale-95', 'opacity-0');
                 setTimeout(() => {
                     modal.style.display = 'none';
-                }, 500);
+                    modal.classList.add('pointer-events-none');
+                }, 300);
             }
         }
-
         window.addEventListener('load', function() {
             const modal = document.getElementById('welcomeModal');
             if (modal) {
                 const hasSeenWelcome = sessionStorage.getItem('hasSeenWelcome');
                 if (hasSeenWelcome) {
                     modal.style.display = 'none';
+                    modal.classList.add('pointer-events-none');
                 } else {
                     sessionStorage.setItem('hasSeenWelcome', 'true');
+                    const modalBox = modal.querySelector('.transform');
                     setTimeout(() => {
-                        modal.classList.remove('opacity-0');
+                        modal.classList.remove('opacity-0', 'pointer-events-none');
+                        modalBox.classList.remove('scale-95', 'opacity-0');
                     }, 100);
                 }
             }
         });
-
         const welcomeModal = document.getElementById('welcomeModal');
         if (welcomeModal) {
             welcomeModal.addEventListener('click', function(e) {
@@ -61,5 +167,399 @@
                 }
             });
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const recentMeetingsGrid = document.getElementById('recent-meetings-grid');
+            const dataContainer = document.getElementById('dashboard-data-container');
+            const searchForm = document.getElementById('search-form');
+            const searchInput = document.getElementById('dashboard-search');
+            
+            const meetingWidget = document.getElementById('widget-meeting');
+            const sessionsWidget = document.getElementById('widget-sessions');
+            const weatherWidget = document.getElementById('widget-weather');
+            
+            let weatherChartInstance = null;
+            let weatherDataStore = []; 
+
+            async function fetchRecentMeetings() {
+                try {
+                    const response = await fetch("{% url 'main:api_recent_meetings' %}");
+                    const data = await response.json();
+                    
+                    if (data.ok && data.data.length > 0) {
+                        recentMeetingsGrid.innerHTML = ''; 
+                        data.data.forEach((meeting, index) => {
+                            const button = document.createElement('button');
+                            if (index === 0) {
+                                button.className = "recent-meeting-btn p-3 text-sm rounded-full bg-red-600 text-white font-semibold text-center transition-all";
+                            } else {
+                                button.className = "recent-meeting-btn p-3 text-sm rounded-full bg-gray-700/50 text-white font-semibold hover:bg-gray-700 transition-all text-center opacity-70 hover:opacity-100";
+                            }
+                            button.innerHTML = `${meeting.meeting_name} ${meeting.year}`;
+                            button.dataset.meetingKey = meeting.meeting_key;
+                            recentMeetingsGrid.appendChild(button);
+                        });
+                        recentMeetingsGrid.querySelector('button').click();
+                    } else {
+                        recentMeetingsGrid.innerHTML = `<div class="text-white/50 text-sm col-span-4">${data.error || 'No recent meetings found.'}</div>`;
+                    }
+                } catch (e) {
+                    recentMeetingsGrid.innerHTML = `<div class="text-red-400 text-sm col-span-4">Error: ${e.message}</div>`;
+                }
+            }
+
+            recentMeetingsGrid.addEventListener('click', e => {
+                const button = e.target.closest('.recent-meeting-btn');
+                if (button) {
+                    const meetingKey = button.dataset.meetingKey;                    
+                    document.querySelectorAll('.recent-meeting-btn').forEach(btn => {
+                        btn.className = "recent-meeting-btn p-3 text-sm rounded-full bg-gray-700/50 text-white font-semibold hover:bg-gray-700 transition-all text-center opacity-70 hover:opacity-100";
+                    });
+                    button.className = "recent-meeting-btn p-3 text-sm rounded-full bg-red-600 text-white font-semibold text-center transition-all";
+                    loadDashboard(meetingKey);
+                }
+            });
+            
+            searchForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                fetchRecentMeetings(); 
+            });
+
+            async function loadDashboard(meetingKey) {
+                dataContainer.classList.add('hidden');
+                meetingWidget.innerHTML = `<div class="h-24 rounded-lg bg-gray-700/50 animate-pulse"></div>`;
+                sessionsWidget.innerHTML = `<div class="h-48 rounded-lg bg-gray-700/50 animate-pulse"></div>`;
+                weatherWidget.innerHTML = `<div class="h-96 rounded-lg bg-gray-700/50 animate-pulse"></div>`;
+                dataContainer.classList.remove('hidden');
+
+                try {
+                    const response = await fetch(`{% url 'main:api_dashboard_data' %}?meeting_key=${meetingKey}`);
+                    const data = await response.json();
+                    if (!data.ok) throw new Error(data.error);
+                    renderMeetingWidget(data.data.meeting);
+                    renderSessionsWidget(data.data.sessions);
+                    renderWeatherWidget(data.data.weather); 
+                    weatherDataStore = data.data.weather;
+                    
+                    setTimeout(() => { updateWeatherChart('temperature'); }, 100);
+
+                    loadDrivers();
+                } catch (e) {
+                    dataContainer.innerHTML = `<div class="p-6 rounded-xl bg-red-500/10 border border-red-500/50"><h3 class="text-red-400 font-semibold">Error loading dashboard</h3><p class="text-white/70">${e.message}</p></div>`;
+                }
+            }
+
+            function renderMeetingWidget(meeting) {
+                const dateStr = new Date(meeting.date_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+                meetingWidget.innerHTML = `
+                    <h2 class="text-4xl font-bold text-white mb-4" style="font-family: Alphacorsa, Inter, sans-serif;">
+                        ${meeting.meeting_name.toUpperCase()}
+                    </h2>
+                    <hr class="border-white/10"/>
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 text-white/70">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h10a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.636 17.636l.707.707M16.364 17.636l-.707.707M12 20.07V21m-4-8.07V3M16 11.93V3m0 0l-4 4M16 3l4 4"></path></svg>
+                            Country: <strong class="text-white">${meeting.country_name}</strong>
+                        </span>
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            Location: <strong class="text-white">${meeting.location}</strong>
+                        </span>
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Date: <strong class="text-white">${dateStr}</strong>
+                        </span>
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21V3M3 21V3M1 12h22"></path></svg>
+                            Year: <strong class="text-white">${meeting.year}</strong>
+                        </span>
+                    </div>
+                `;
+            }
+
+            function renderSessionsWidget(sessions) {
+                const groups = { 'Practice': [], 'Qualifying': [], 'Race': [] };
+                sessions.forEach(session => {
+                    const name = session.session_name.toLowerCase();
+                    if (name.includes('practice')) groups['Practice'].push(session);
+                    else if (name.includes('qualifying') || name.includes('shootout')) groups['Qualifying'].push(session);
+                    else if (name.includes('race') || name.includes('sprint')) groups['Race'].push(session);
+                });
+
+                let gridBoxesHtml = '';
+                for (const groupName in groups) {
+                    const sessionsInGroup = groups[groupName];
+                    let sessionListHtml = '';
+                    
+                    if (sessionsInGroup.length > 0) {
+                        sessionListHtml = '<div class="space-y-2">';
+                        sessionsInGroup.sort((a, b) => (a.date_start || "") > (b.date_start || "") ? 1 : -1);
+                        sessionsInGroup.forEach(s => {
+                            const start = new Date(s.date_start);
+                            const end = new Date(s.date_end);
+                            const dateStr = start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                            const timeStr = `${start.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit', hour12: false})} - ${end.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit', hour12: false})}`;
+                            
+                            sessionListHtml += `
+                                <div class="p-3 rounded-lg bg-gray-700/30 border border-gray-600/50">
+                                    <h5 class="font-semibold text-white">${s.session_name}</h5>
+                                    <p class="text-xs text-white/70">${dateStr}, ${timeStr}</p>
+                                </div>
+                            `;
+                        });
+                        sessionListHtml += '</div>';
+                    } else {
+                        sessionListHtml = `<div class="border border-dashed border-white/20 rounded-lg h-24 flex items-center justify-center"><p class="text-sm text-white/50">No ${groupName} data.</p></div>`;
+                    }
+
+                    gridBoxesHtml += `
+                        <div class="group block rounded-xl bg-[#0D1117]/50 border border-white/10 p-5">
+                            <p class="text-sm text-white/60">Session</p>
+                            <h3 class="text-2xl font-bold text-white mb-4">${groupName}</h3>
+                            ${sessionListHtml}
+                        </div>
+                    `;
+                }
+                
+                sessionsWidget.innerHTML = `
+                    <h2 class="text-2xl font-bold text-white mb-4">Sessions</h2>
+                    <div class="grid gap-5 grid-cols-1 md:grid-cols-3">
+                        ${gridBoxesHtml}
+                    </div>
+                `;
+            }
+
+            function renderWeatherWidget(weatherData) {
+                if (weatherChartInstance) {
+                    weatherChartInstance.destroy();
+                }
+
+                weatherWidget.innerHTML = `
+                    <h2 class="text-2xl font-bold text-white">Weather</h2>
+                    
+                    <div id="weather-tabs" class="flex items-center gap-3 my-4">
+                        <button data-type="temperature" class="weather-tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gray-900 text-white transition-all">Temperature</button>
+                        <button data-type="pressure" class="weather-tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gray-700/50 text-white/60 hover:text-white transition-all">Pressure</button>
+                        <button data-type="wind" class="weather-tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gray-700/50 text-white/60 hover:text-white transition-all">Wind</button>
+                    </div>
+                    
+                    <div class="w-full h-64 mb-6">
+                        <canvas id="weatherChart"></canvas>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div id="weather-sub-widget-1" class="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50"></div>
+                        <div id="weather-sub-widget-2" class="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50"></div>
+                    </div>
+                `;
+                
+                document.getElementById('weather-tabs').addEventListener('click', (e) => {
+                    const btn = e.target.closest('.weather-tab-btn');
+                    if (btn) {
+                        document.querySelectorAll('.weather-tab-btn').forEach(b => {
+                            b.className = "weather-tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gray-700/50 text-white/60 hover:text-white transition-all";
+                        });
+                        btn.className = "weather-tab-btn px-5 py-2 rounded-full text-sm font-semibold bg-gray-900 text-white transition-all";
+                        updateWeatherChart(btn.dataset.type);
+                    }
+                });
+            }
+
+            function updateWeatherChart(type) {
+                const ctx = document.getElementById('weatherChart');
+                if (!ctx || !weatherDataStore || weatherDataStore.length === 0) return;
+
+                if (weatherChartInstance) {
+                    weatherChartInstance.destroy();
+                }
+                
+                const latestData = weatherDataStore[weatherDataStore.length - 1] || {};
+                const subWidget1 = document.getElementById('weather-sub-widget-1');
+                const subWidget2 = document.getElementById('weather-sub-widget-2');
+
+                let datasets = [];
+                let yLabel = "Value";
+
+                if (type === 'temperature') {
+                    yLabel = "°C";
+                    datasets = [
+                        { label: 'Track Temp', data: weatherDataStore.map(d => ({ x: new Date(d.date), y: d.track_temperature })), borderColor: '#34D399', backgroundColor: 'rgba(52, 211, 153, 0.2)', fill: true, tension: 0.3 },
+                        { label: 'Air Temp', data: weatherDataStore.map(d => ({ x: new Date(d.date), y: d.air_temperature })), borderColor: '#38BDF8', backgroundColor: 'rgba(56, 189, 248, 0.2)', fill: true, tension: 0.3 }
+                    ];
+                    
+                    subWidget1.className = "p-4 rounded-lg bg-gray-700/30 border border-gray-600/50";
+                    subWidget2.className = "p-4 rounded-lg bg-gray-700/30 border border-gray-600/50";
+
+                    subWidget1.innerHTML = `
+                        <h4 class="text-sm text-white/60 mb-2">Rainfall</h4>
+                        <div class="text-2xl font-semibold text-white">${latestData.rainfall ? "Yes" : "No"}</div>
+                    `;
+                    subWidget2.innerHTML = `
+                        <h4 class="text-sm text-white/60 mb-2">Humidity</h4>
+                        <div class="text-2xl font-semibold text-white">${latestData.humidity || '--'}%</div>
+                    `;
+
+                } else if (type === 'pressure') {
+                    yLabel = "hPa";
+                    datasets = [
+                        { label: 'Pressure', data: weatherDataStore.map(d => ({ x: new Date(d.date), y: d.pressure })), borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.2)', fill: true, tension: 0.3 }
+                    ];
+                    
+                    subWidget1.className = "p-4 rounded-lg bg-gray-700/30 border border-gray-600/50";
+                    subWidget1.innerHTML = `
+                        <h4 class="text-sm text-white/60 mb-2">Average Pressure</h4>
+                        <div class="text-2xl font-semibold text-white">${latestData.pressure || '--'} hPa</div>
+                    `;
+                    
+                    subWidget2.className = "hidden"; 
+                    subWidget2.innerHTML = "";
+
+                } else if (type === 'wind') {
+                    yLabel = "km/h";
+                    datasets = [
+                        { label: 'Wind Speed', data: weatherDataStore.map(d => ({ x: new Date(d.date), y: d.wind_speed })), borderColor: '#FCD34D', backgroundColor: 'rgba(252, 211, 77, 0.2)', fill: true, tension: 0.3 }
+                    ];
+                    
+                    subWidget1.className = "p-4 rounded-lg bg-gray-700/30 border border-gray-600/50";
+                    subWidget2.className = "p-4 rounded-lg bg-gray-700/30 border border-gray-600/50";
+
+                    subWidget1.innerHTML = `
+                        <h4 class="text-sm text-white/60 mb-2">Wind Speed</h4>
+                        <div class="text-2xl font-semibold text-white">${latestData.wind_speed || '--'} km/h</div>
+                    `;
+                    subWidget2.innerHTML = `
+                        <h4 class="text-sm text-white/60 mb-2">Wind Direction</h4>
+                        <div class="text-2xl font-semibold text-white">${latestData.wind_direction || '--'}°</div>
+                    `;
+                }
+                
+                weatherChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: { datasets: datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'minute' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+                            },
+                            y: {
+                                beginAtZero: false,
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: 'rgba(255, 255, 255, 0.7)' },
+                                title: { display: true, text: yLabel, color: 'rgba(255, 255, 255, 0.7)' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: 'rgba(255, 255, 255, 0.7)' }
+                            }
+                        }
+                    }
+                });
+            }
+            fetchRecentMeetings();
+        });
+
+        /* ===== Drivers widget ===== */
+        async function loadDrivers() {
+            const driversWidget = document.getElementById('widget-drivers');
+            if (!driversWidget) return;
+
+            // skeleton saat loading (tetap di dalam area scroll)
+            driversWidget.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                <div class="relative">
+                    <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 border border-gray-600/30 rounded-lg p-3 bg-gray-700/10">
+                        <div class="h-16 rounded-lg bg-gray-700/50 animate-pulse"></div>
+                        <div class="h-16 rounded-lg bg-gray-700/50 animate-pulse"></div>
+                        <div class="h-16 rounded-lg bg-gray-700/50 animate-pulse"></div>
+                    </div>
+                    <div class="fade-top"></div>
+                    <div class="fade-bottom"></div>
+                </div>
+            `;
+
+            try {
+                const res = await fetch("{% url 'driver:api_list' %}");
+                const json = await res.json();
+                if (!json.ok) throw new Error(json.error || 'Failed to load drivers.');
+                renderDriversWidget(json.data);
+            } catch (err) {
+                driversWidget.innerHTML = `
+                    <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                    <div class="p-4 rounded-lg bg-red-500/10 border border-red-500/50 text-red-300">
+                        Error: ${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        function renderDriversWidget(drivers) {
+            const driversWidget = document.getElementById('widget-drivers');
+            if (!driversWidget) return;
+
+            if (!drivers || drivers.length === 0) {
+                driversWidget.innerHTML = `
+                    <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                    <div class="relative">
+                        <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar border border-dashed border-white/20 rounded-lg">
+                            <div class="p-6 text-white/50">No driver data.</div>
+                        </div>
+                        <div class="fade-top"></div>
+                        <div class="fade-bottom"></div>
+                    </div>
+                `;
+                return;
+            }
+
+            const cards = drivers.map(d => `
+                <a href="${d.detail_url}" class="group min-h-16 p-3 rounded-lg bg-gray-700/30 border border-gray-600/50 flex items-center gap-3 hover:bg-gray-700/50 transition">
+                    <img src="${d.headshot_url || ''}" alt="${d.full_name}" class="w-10 h-10 rounded-full object-cover bg-gray-800">
+                    <div class="flex-1">
+                        <div class="text-white font-semibold group-hover:text-white">
+                            ${d.broadcast_name || d.full_name || 'Unknown'}
+                        </div>
+                        <div class="text-white/60 text-xs">
+                            #${d.driver_number}${d.country_code ? ' • ' + d.country_code : ''}
+                        </div>
+                        ${d.teams && d.teams.length ? `<div class="text-white/50 text-[11px] mt-1">${d.teams.join(', ')}</div>` : ''}
+                    </div>
+                </a>
+            `).join('');
+
+            driversWidget.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                <div class="relative">
+                    <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 border border-gray-600/30 rounded-lg p-3 bg-gray-700/10">
+                        ${cards}
+                    </div>
+                    <div class="fade-top"></div>
+                    <div class="fade-bottom"></div>
+                </div>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDrivers();
+        });
     </script>
+
+    {% else %}
+    <!-- Non login -->
+    <div class="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] text-center px-6">
+        <img src="{% static 'image/icon/speedview-white.png' %}" alt="SpeedView Logo" class="h-24 mb-6">
+        <h1 class="text-5xl font-bold text-white mb-4" style="font-family: Alphacorsa, Inter, sans-serif;">
+            Welcome to SpeedView
+        </h1>
+        <p class="text-xl text-white/70 max-w-2xl mb-8">
+            Your ultimate dashboard for Formula 1 data. Analyze meetings, sessions, weather, and driver telemetry all in one place.
+        </p>
+    </div>
+    {% endif %}
+
 {% endblock content %}

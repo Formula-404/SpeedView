@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+  <title>Drivers – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto">
+  <!-- FLAG -->
+  <div id="page-flags" data-is-admin="{% if is_admin %}1{% else %}0{% endif %}" class="hidden"></div>
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+        <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+        <span>›</span><span class="text-white">Drivers</span>
+      </div>
+      <h1 class="mt-1 text-4xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">
+        DRIVERS PROFILE
+      </h1>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div class="relative">
+        <input id="driver-search" type="text" placeholder="Search driver..."
+               class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+               autocomplete="off" />
+        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
+        </svg>
+      </div>
+      {% if is_admin %}
+      <a href="{% url 'driver:add_page' %}">
+        <button class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+          + Add Driver
+        </button>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ==================== CTA LAPS ==================== -->
+  <section class="relative rounded-2xl overflow-hidden border border-white/10 mb-6">
+    <img src="{% static 'driver/hero-laps.jpg' %}" alt="Laps background"
+         class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none">
+    <div class="relative bg-black/50">
+      <div class="p-6 md:p-8 flex flex-col md:flex-row md:items-end gap-4">
+        <div class="text-white">
+          <h2 class="text-2xl md:text-3xl font-extrabold" style="font-family: Alphacorsa, Inter, sans-serif;">LAPS</h2>
+          <p class="text-white/80 text-sm md:text-base">Masukkan filter lalu buka halaman Laps</p>
+        </div>
+        <form id="lapsForm" class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2 md:ml-6">
+          <input name="driver_number" placeholder="driver_number"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <input name="session_key" placeholder="session_key"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <input name="lap_number" placeholder="lap_number (opsional)"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <input name="meeting_key" placeholder="meeting_key (opsional)"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <button type="submit" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold">
+            Open Laps
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CTA PIT ==================== -->
+  <section class="relative rounded-2xl overflow-hidden border border-white/10 mb-10">
+    <img src="{% static 'driver/hero-pit.jpg' %}" alt="Pit background"
+         class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none">
+    <div class="relative bg-black/50">
+      <div class="p-6 md:p-8 flex flex-col md:flex-row md:items-end gap-4">
+        <div class="text-white">
+          <h2 class="text-2xl md:text-3xl font-extrabold" style="font-family: Alphacorsa, Inter, sans-serif;">PIT STOPS</h2>
+          <p class="text-white/80 text-sm md:text-base">Filter cepat dan buka halaman Pit </p>
+        </div>
+        <form id="pitForm" class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-2 md:ml-6">
+          <input name="driver_number" placeholder="driver_number"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <input name="session_key" placeholder="session_key"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <input name="lap_number" placeholder="lap_number (opsional)"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <input name="meeting_key" placeholder="meeting_key (opsional)"
+                 class="px-3 py-2 rounded bg-black/40 border border-white/20 text-white placeholder-white/60">
+          <button type="submit" class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-semibold">
+            Open Pit
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Meta & Grid -->
+  <div id="meta-row" class="flex items-center justify-between mb-4">
+    <p id="results-info" class="text-sm text-white/60">Loading drivers…</p>
+  </div>
+
+  <div id="grid" class="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"></div>
+
+  <!-- Card template -->
+  <template id="card-template">
+    <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 hover:border-red-500/50 transition overflow-hidden">
+      <a class="block group" data-link>
+        <div class="w-full h-56 md:h-64 bg-white/5 overflow-hidden">
+          <img class="w-full h-full object-cover" alt="Driver headshot" />
+        </div>
+        <div class="p-4">
+          <h3 class="text-lg font-semibold text-white group-hover:text-red-400 transition truncate"></h3>
+          <p class="text-xs text-white/60 mt-1 truncate" data-country></p>
+          <p class="text-xs text-white/60 mt-1 truncate" data-teams></p>
+        </div>
+      </a>
+      <div class="px-4 pb-4 pt-1 flex items-center gap-2"><!-- admin-only --></div>
+    </div>
+  </template>
+
+  <!-- ===== Delet ===== -->
+  <div id="delete-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-md rounded-2xl bg-[#0D1117] border border-white/10 p-6">
+        <h3 class="text-lg font-semibold text-white" data-del-title>Delete?</h3>
+        <p class="text-white/60 mt-2">This action cannot be undone.</p>
+        <div class="mt-6 flex justify-end gap-3">
+          <button data-del-no class="px-6 py-2 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3] rounded-lg">Cancel</button>
+          <button data-del-yes class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ===== flags =====
+  const IS_ADMIN = document.getElementById("page-flags").dataset.isAdmin === "1";
+
+  // ===== API & elems =====
+  const API_LIST = "{% url 'driver:api_list' %}";
+  const grid = document.getElementById("grid");
+  const searchInput = document.getElementById("driver-search");
+  const resultsInfo = document.getElementById("results-info");
+  const cardTpl = document.getElementById("card-template");
+
+  function toQS(form){
+    const data = Object.fromEntries(new FormData(form).entries());
+    Object.keys(data).forEach(k => { if(!data[k]) delete data[k]; });
+    return new URLSearchParams(data).toString();
+  }
+  function go(base, form){
+    const qs = toQS(form);
+    window.location.href = qs ? `${base}?${qs}` : base;
+  }
+  document.getElementById('lapsForm').addEventListener('submit', (e)=>{ e.preventDefault(); go('/laps/', e.currentTarget); });
+  document.getElementById('pitForm').addEventListener('submit',  (e)=>{ e.preventDefault(); go('/pit/',  e.currentTarget); });
+
+  let allDrivers = [], viewDrivers = [];
+
+  function setResultsInfo(total, filtered) {
+    if (!total && total !== 0) { resultsInfo.textContent = "Loading drivers…"; return; }
+    resultsInfo.textContent = (filtered === total) ? `${total} driver${total === 1 ? "" : "s"}`
+                                                   : `${filtered} / ${total} drivers`;
+  }
+  function renderCards(items) {
+    grid.innerHTML = "";
+    if (!items.length) {
+      grid.innerHTML = `
+        <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-white/60">
+          No drivers match your search.
+        </div>`;
+      return;
+    }
+    for (const d of items) {
+      const node = cardTpl.content.firstElementChild.cloneNode(true);
+
+      node.querySelector("[data-link]").href = d.detail_url;
+
+      const img = node.querySelector("img");
+      img.src = d.headshot_url || "{% static 'image/icon/speedview.png' %}";
+      img.onerror = () => { img.src = "{% static 'image/icon/speedview.png' %}"; };
+
+      node.querySelector("h3").textContent =
+        d.full_name || d.broadcast_name || d.name_acronym || `#${d.driver_number}`;
+
+      node.querySelector("[data-country]").textContent = `Country: ${d.country_code || "—"}`;
+      const teamsTxt = (d.teams && d.teams.length) ? d.teams.join(", ") : "—";
+      node.querySelector("[data-teams]").textContent = `Teams: ${teamsTxt}`;
+
+      if (IS_ADMIN) {
+        const bar = node.querySelector(".px-4.pb-4.pt-1");
+        bar.classList.add("gap-2", "justify-end", "items-center");
+
+        const base = "inline-flex w-9 h-9 items-center justify-center rounded-md border transition";
+
+        const edit = document.createElement('a');
+        edit.href = `/driver/${d.driver_number}/edit/`;
+        edit.className = `${base} bg-yellow-500/10 border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/20`;
+        edit.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M16.862 3.487a1.5 1.5 0 0 1 2.121 2.121L8.25 16.343 5 17l.657-3.25L16.862 3.487z"/>
+          </svg>`;
+
+        const del = document.createElement('button');
+        del.type = "button";
+        del.className = `${base} bg-red-500/10 border-red-500/40 text-red-300 hover:bg-red-500/20`;
+        del.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2m-3 0h14"/>
+          </svg>`;
+        del.addEventListener("click", () => openDeleteModal(d.driver_number, d.full_name || d.broadcast_name || `#${d.driver_number}`));
+
+        bar.appendChild(edit);
+        bar.appendChild(del);
+      }
+
+      grid.appendChild(node);
+    }
+  }
+
+  // ======  delete  ======
+  function getCSRFCookie(name = 'csrftoken'){
+    const m = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]*)'));
+    return m ? decodeURIComponent(m[2]) : '';
+  }
+
+  const modal = (() => {
+    const el = document.getElementById('delete-modal');
+    if (!el) return { open(){ /* noop */ } };
+
+    const title = el.querySelector('[data-del-title]');
+    const btnYes = el.querySelector('[data-del-yes]');
+    const btnNo  = el.querySelector('[data-del-no]');
+    let currentNumber = null;
+
+    btnNo.addEventListener('click', () => { el.classList.add('hidden'); currentNumber=null; });
+
+    async function confirm(){
+      if(!currentNumber) return;
+      btnYes.disabled = true;
+      try {
+        const res = await fetch(`/driver/api/${currentNumber}/delete/`, {
+          method: 'POST',
+          headers: {'X-CSRFToken': getCSRFCookie()}
+        });
+        if(!res.ok) throw new Error('Failed');
+        window.location.reload();
+      } catch(e){
+        alert('Failed to delete driver.');
+      } finally {
+        btnYes.disabled = false;
+      }
+    }
+    btnYes.addEventListener('click', confirm);
+
+    return {
+      open(number, name){
+        currentNumber = number;
+        title.textContent = `Delete ${name}?`;
+        el.classList.remove('hidden');
+      }
+    }
+  })();
+
+  function openDeleteModal(number, name){ modal.open(number, name); }
+
+  function applyFilter() {
+    const q = (searchInput.value || "").trim().toLowerCase();
+    viewDrivers = !q ? allDrivers.slice() : allDrivers.filter(d =>
+      (d.full_name || "").toLowerCase().includes(q) ||
+      (d.broadcast_name || "").toLowerCase().includes(q) ||
+      (d.name_acronym || "").toLowerCase().includes(q) ||
+      String(d.driver_number || "").includes(q)
+    );
+    setResultsInfo(allDrivers.length, viewDrivers.length);
+    renderCards(viewDrivers);
+  }
+
+  async function boot() {
+    try {
+      const res = await fetch(API_LIST);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Failed to load");
+      allDrivers = json.data || [];
+      viewDrivers = allDrivers.slice();
+      setResultsInfo(allDrivers.length, viewDrivers.length);
+      renderCards(viewDrivers);
+    } catch (e) {
+      grid.innerHTML = `
+        <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-red-400">
+          Failed to load drivers. Please try again later.
+        </div>`;
+      setResultsInfo(0, 0);
+    }
+  }
+
+  searchInput.addEventListener("input", applyFilter);
+  boot();
+</script>
+{% endblock content %}

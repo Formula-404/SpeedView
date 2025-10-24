@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta %}
+  <title>Delete Driver – SpeedView</title>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-4 py-16 mx-auto max-w-4xl relative">
+  <div class="fixed inset-0 bg-black/60"></div>
+
+  <div class="relative mx-auto max-w-md rounded-2xl bg-[#0D1117]/90 border border-white/10 p-6">
+    <h1 class="text-lg font-semibold text-white">Delete this driver?</h1>
+    <p class="text-white/70 mt-2">
+      {{ driver.full_name|default:driver.broadcast_name|default:driver.name_acronym|default:'#'|add:driver.driver_number }}
+      (#{{ driver.driver_number }})
+    </p>
+
+    <form method="POST" class="mt-6">
+      {% csrf_token %}
+      <div class="flex justify-end gap-3">
+        <a href="{% url 'driver:driver_detail' driver.driver_number %}"
+           class="px-6 py-2 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3] rounded-lg">
+          Cancel
+        </a>
+        <button type="submit"
+                class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+          Delete
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
