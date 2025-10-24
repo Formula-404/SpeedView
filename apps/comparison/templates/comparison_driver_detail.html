@@ -111,19 +111,25 @@
                 <tbody class="text-white/90">
                     <tr class="border-t border-white/10">
                         <td class="py-2 pr-4">Code</td>
-                        {% for d in drivers %}<td class="py-2 px-4">{{ d.code|default:"—" }}</td>{% endfor %}
+                        {% for d in drivers %}<td class="py-2 px-4">{{ d.broadcast_name|default:"—" }}</td>{% endfor %}
                     </tr>
                     <tr class="border-t border-white/10">
                         <td class="py-2 pr-4">Nationality</td>
-                        {% for d in drivers %}<td class="py-2 px-4">{{ d.nationality|default:"—" }}</td>{% endfor %}
+                        {% for d in drivers %}<td class="py-2 px-4">{{ d.country_code|default:"—" }}</td>{% endfor %}
                     </tr>
                     <tr class="border-t border-white/10">
                         <td class="py-2 pr-4">Date of birth</td>
-                        {% for d in drivers %}<td class="py-2 px-4">{{ d.date_of_birth|date:"Y-m-d"|default:"—" }}</td>{% endfor %}
+                        {% for d in drivers %}<td class="py-2 px-4">—</td>{% endfor %}
                     </tr>
                     <tr class="border-t border-white/10">
                         <td class="py-2 pr-4">Team</td>
-                        {% for d in drivers %}<td class="py-2 px-4">{{ d.team_name|default:"—" }}</td>{% endfor %}
+                        {% for d in drivers %}
+                        <td class="py-2 px-4">
+                            {% with team_list=d.teams.all %}
+                            {% if team_list %}{{ team_list|join:", " }}{% else %}—{% endif %}
+                            {% endwith %}
+                        </td>
+                        {% endfor %}
                     </tr>
                 </tbody>
             </table>
@@ -152,167 +158,113 @@
 </div>
 
 <script>
-    (function() {
-        const drivers = [
-            {% for d in drivers %}
-            { number: {{ d.number|default:"null" }}, label: "{% if d.full_name %}{{ d.full_name|escapejs }}{% elif d.name %}{{ d.name|escapejs }}{% else %}Driver{% endif %}" },
-            {% endfor %}
-        ].filter(x => x.number !== null);
+  (function() {
+    const drivers = [
+      {% for d in drivers %}
+      { number: {{ d.driver_number|default:"null" }}, label: "{% if d.full_name %}{{ d.full_name|escapejs }}{% elif d.broadcast_name %}{{ d.broadcast_name|escapejs }}{% elif d.name %}{{ d.name|escapejs }}{% else %}Driver{% endif %}" },
+      {% endfor %}
+    ].filter(x => x.number !== null);
 
-        const palette = ["#ef4444","#3b82f6","#22c55e","#a855f7","#f59e0b","#14b8a6","#eab308","#10b981"];
-        const metricSel = document.getElementById("metric");
-        const meetingInput = document.getElementById("meeting");
-        const sessionInput = document.getElementById("session");
-        const loadBtn = document.getElementById("load");
-        const hint = document.getElementById("hint");
-        const ctx = document.getElementById("driverLine").getContext("2d");
-        let chart;
+    const palette = ["#ef4444","#3b82f6","#22c55e","#a855f7","#f59e0b","#14b8a6","#eab308","#10b981"];
+    const metricSel = document.getElementById("metric");
+    const meetingInput = document.getElementById("meeting");
+    const sessionInput = document.getElementById("session");
+    const loadBtn = document.getElementById("load");
+    const hint = document.getElementById("hint");
+    const ctx = document.getElementById("driverLine").getContext("2d");
+    let chart;
 
-        function readParam(name) {
-            const u = new URL(window.location.href);
-            return u.searchParams.get(name);
-        }
+    function readParam(name) {
+      const u = new URL(window.location.href);
+      return u.searchParams.get(name);
+    }
 
-        function applyURLDefaults() {
-            const m = readParam("meeting_key");
-            const s = readParam("session_key");
-            if (m) meetingInput.value = m;
-            if (s) sessionInput.value = s;
-        }
+    function applyURLDefaults() {
+      const m = readParam("meeting_key");
+      const s = readParam("session_key");
+      if (m) meetingInput.value = m;
+      if (s) sessionInput.value = s;
+    }
 
-        async function fetchSeries(driverNumber, meetingKey, sessionKey, metric) {
-            const params = new URLSearchParams({
-                metric: metric,
-                driver_number: String(driverNumber),
-                meeting_key: String(meetingKey),
-                session_key: String(sessionKey)
-            });
-            const res = await fetch("{% url 'car:api_grouped' %}?" + params.toString(), { credentials: "same-origin" });
-            const json = await res.json().catch(() => null);
-            if (!json || !json.ok) return null;
-            const grp = (json.groups || [])[0];
-            if (!grp || !Array.isArray(grp.telemetry)) return null;
-            const xs = grp.telemetry.map((t, i) => i);
-            const ys = grp.telemetry.map(t => t[metric] ?? null);
-            return { xs, ys };
-        }
+    async function fetchSeries(driverNumber, meetingKey, sessionKey, metric) {
+      const params = new URLSearchParams({
+        metric: metric,
+        driver_number: String(driverNumber),
+        meeting_key: String(meetingKey),
+        session_key: String(sessionKey)
+      });
+      const res = await fetch("{% url 'car:api_grouped' %}?" + params.toString(), { credentials: "same-origin" });
+      const json = await res.json().catch(() => null);
+      if (!json || !json.ok) return null;
+      const grp = (json.groups || []).find(g => Number(g.driver_number) === Number(driverNumber));
+      if (!grp || !Array.isArray(grp.telemetry) || !grp.telemetry.length) return null;
+      const xs = grp.telemetry.map((t, i) => i);
+      const ys = grp.telemetry.map(t => {
+        const v = t[metric];
+        return Number.isFinite(v) ? v : null;
+      });
+      return { xs, ys };
+    }
 
-        async function render() {
-            const metric = metricSel.value;
-            const meetingKey = meetingInput.value.trim();
-            const sessionKey = sessionInput.value.trim();
-            if (!meetingKey || !sessionKey) {
-                hint.textContent = "Enter a meeting and session to load telemetry.";
-                return;
-            }
-            hint.textContent = "";
+    async function render() {
+      const metric = metricSel.value;
+      const meetingKey = meetingInput.value.trim();
+      const sessionKey = sessionInput.value.trim();
+      if (!meetingKey || !sessionKey) {
+        hint.textContent = "Enter a meeting and session to load telemetry.";
+        return;
+      }
+      hint.textContent = "";
 
-            const results = await Promise.all(
-                drivers.map(d => fetchSeries(d.number, meetingKey, sessionKey, metric))
-            );
+      const results = await Promise.all(
+        drivers.map(d => fetchSeries(d.number, meetingKey, sessionKey, metric))
+      );
 
-            const datasets = [];
-            let longest = 0;
-            results.forEach((r, i) => {
-                if (!r) return;
-                if (r.xs.length > longest) longest = r.xs.length;
-                const color = palette[i % palette.length];
-                datasets.push({
-                    label: drivers[i].label + " (#" + drivers[i].number + ")",
-                    data: r.ys,
-                    borderColor: color,
-                    backgroundColor: color + "22",
-                    pointRadius: 0,
-                    borderWidth: 2,
-                    tension: 0.15
-                });
-            });
-
-            const labels = Array.from({ length: longest }, (_, i) => i);
-            if (chart) chart.destroy();
-            chart = new Chart(ctx, {
-                type: "line",
-                data: { labels, datasets },
-                options: {
-                    responsive: true,
-                    animation: false,
-                    scales: {
-                        x: { grid: { color: "rgba(255,255,255,0.15)" }, ticks: { color: "#fff" } },
-                        y: { grid: { color: "rgba(255,255,255,0.15)" }, ticks: { color: "#fff" } }
-                    },
-                    plugins: { legend: { labels: { color: "#fff" } }, tooltip: { intersect: false, mode: "index" } }
-                }
-            });
-        }
-
-        applyURLDefaults();
-        loadBtn.addEventListener("click", render);
-        metricSel.addEventListener("change", render);
-    })();
-
-    (function() {
-        function getCSRF() {
-            const name = "csrftoken=";
-            return document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith(name))?.slice(name.length) || "";
-        }
-
-        const delBtn = document.getElementById("cmp-delete-btn");
-        const modal = document.getElementById("cmp-delete-modal");
-        const backdrop = document.getElementById("cmp-modal-backdrop");
-        const cancelBtn = document.getElementById("cmp-modal-cancel");
-        const confirmBtn = document.getElementById("cmp-modal-confirm");
-        const errorBox = document.getElementById("cmp-modal-error");
-        const API_DELETE = "{% url 'comparison:api_delete' pk=cmp.pk %}";
-
-        function openModal() {
-            modal.classList.remove("hidden");
-            errorBox.classList.add("hidden");
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = "Delete";
-        }
-        function closeModal() {
-            modal.classList.add("hidden");
-        }
-
-        if (delBtn) delBtn.addEventListener("click", openModal);
-        if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
-        if (backdrop) backdrop.addEventListener("click", closeModal);
-        document.addEventListener("keydown", (e) => {
-            if (!modal.classList.contains("hidden") && e.key === "Escape") closeModal();
+      const datasets = [];
+      let longest = 0;
+      results.forEach((r, i) => {
+        if (!r) return;
+        if (r.xs.length > longest) longest = r.xs.length;
+        const color = palette[i % palette.length];
+        datasets.push({
+          label: drivers[i].label + " (#" + drivers[i].number + ")",
+          data: r.ys,
+          borderColor: color,
+          backgroundColor: color + "22",
+          pointRadius: 0,
+          borderWidth: 2,
+          tension: 0.15,
+          spanGaps: true
         });
+      });
 
-        if (confirmBtn) {
-            confirmBtn.addEventListener("click", async () => {
-                confirmBtn.disabled = true;
-                confirmBtn.textContent = "Deleting…";
-                errorBox.classList.add("hidden");
-                try {
-                    const res = await fetch(API_DELETE, {
-                        method: "POST",
-                        headers: {
-                            "X-Requested-With": "XMLHttpRequest",
-                            "X-CSRFToken": getCSRF(),
-                            "Accept": "application/json"
-                        },
-                        credentials: "same-origin"
-                    });
-                    const json = await res.json().catch(() => ({}));
-                    if (!res.ok || json.ok === false) {
-                        errorBox.textContent = json.error || `Failed to delete (status ${res.status}).`;
-                        errorBox.classList.remove("hidden");
-                        confirmBtn.disabled = false;
-                        confirmBtn.textContent = "Delete";
-                        return;
-                    }
-                    window.location.href = json.redirect || "{% url 'comparison:list_page' %}";
-                } catch (e) {
-                    errorBox.textContent = "Network error while deleting. Please try again.";
-                    errorBox.classList.remove("hidden");
-                    confirmBtn.disabled = false;
-                    confirmBtn.textContent = "Delete";
-                }
-            });
+      if (!datasets.length) {
+        hint.textContent = "No telemetry returned for the chosen meeting/session and drivers.";
+        if (chart) chart.destroy();
+        return;
+      }
+
+      const labels = Array.from({ length: longest }, (_, i) => i);
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          animation: false,
+          scales: {
+            x: { grid: { color: "rgba(255,255,255,0.15)" }, ticks: { color: "#fff" } },
+            y: { grid: { color: "rgba(255,255,255,0.15)" }, ticks: { color: "#fff" } }
+          },
+          plugins: { legend: { labels: { color: "#fff" } }, tooltip: { intersect: false, mode: "index" } }
         }
-    })();
+      });
+    }
+
+    applyURLDefaults();
+    loadBtn.addEventListener("click", render);
+    metricSel.addEventListener("change", render);
+  })();
 </script>
+
 {% endblock content %}
