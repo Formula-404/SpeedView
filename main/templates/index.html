@@ -9,7 +9,6 @@
     {% endif %}
 
     <style>
-        /* scrollbar tipis biar matching tema gelap */
         .thin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
         .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .thin-scrollbar::-webkit-scrollbar-thumb {
@@ -20,7 +19,6 @@
             background-color: rgba(255,255,255,0.30);
         }
         html, body { overflow-x: hidden; }
-        /* gradient fade atas/bawah saat area scroll */
         .fade-top { pointer-events:none; position:absolute; left:0; right:0; top:0; height:16px;
             background: linear-gradient(to bottom, rgba(13,17,23,0.8), rgba(13,17,23,0)); }
         .fade-bottom { pointer-events:none; position:absolute; left:0; right:0; bottom:0; height:16px;
@@ -225,8 +223,6 @@
             if (!sessionKey) return;
 
             try {
-                // GANTI URL INI jika kamu sudah punya endpoint sendiri.
-                // Return yang diharapkan: { ok: true, data: { session_key: <int>, driver_numbers: [11,16,44,...] } }
                 const url = "{% url 'driver:api_driver_entry_availability_by_session' %}?session_key=" + encodeURIComponent(sessionKey);
                 const res = await fetch(url, { credentials: 'same-origin' });
                 const json = await parseJSONSafely(res);
@@ -241,8 +237,6 @@
                     const key = `${sessionKey}-${Number(num)}`;
                     driverEntryAvailability.set(key, true);
                 }
-
-                // Setelah availability keisi, re-render driver cards biar badge/labelnya update
                 if (Array.isArray(driverListCache) && driverListCache.length) {
                     renderDriversWidget(driverListCache);
                 }
@@ -688,19 +682,31 @@
                 }
 
                 const meta = TELEMETRY_METRICS[telemetryMetric] || TELEMETRY_METRICS.speed;
-                const labels = telemetrySamples.map((sample, index) => {
+
+                const TARGET_POINTS = 2000;     
+                const total = telemetrySamples.length;
+                let sampled = telemetrySamples;
+                if (total > TARGET_POINTS) {
+                    const step = Math.ceil(total / TARGET_POINTS);
+                    const tmp = [];
+                    for (let i = 0; i < total; i += step) tmp.push(telemetrySamples[i]);
+                    sampled = tmp;
+                }
+
+                const labels = sampled.map((sample, index) => {
                     const timestamp = sample && sample.date ? formatTelemetryTime(sample.date) : `Point ${index + 1}`;
                     return `${index + 1} | ${timestamp}`;
                 });
-                const values = telemetrySamples.map(sample =>
+                const values = sampled.map(sample =>
                     sample && typeof sample[telemetryMetric] === 'number' ? sample[telemetryMetric] : null
                 );
-
-                const minSpacing = 28;
+                const minSpacing = 10;
+                const MAX_CANVAS_WIDTH = 16000;
                 const scrollContainer = document.getElementById('carTelemetryChartScroll');
                 const wrapper = document.getElementById('carTelemetryChartWrapper');
                 const availableWidth = scrollContainer ? scrollContainer.clientWidth : (carTelemetryWidget?.clientWidth || 600);
-                const chartWidth = Math.max(labels.length * minSpacing, availableWidth || 600);
+                const desired = Math.max(labels.length * minSpacing, availableWidth || 600);
+                const chartWidth = Math.min(desired, MAX_CANVAS_WIDTH);
 
                 if (wrapper) {
                     wrapper.style.width = `${chartWidth}px`;
@@ -757,6 +763,12 @@
                         },
                         plugins: {
                             legend: { display: false },
+                          
+                            decimation: {
+                            enabled: true,
+                            algorithm: 'lttb',
+                            samples: 1500, 
+                            },
                             tooltip: {
                                 mode: 'index',
                                 intersect: false,
@@ -810,12 +822,10 @@
                     const payload = await parseJSONSafely(response);
                     if (!response.ok || !payload.ok) throw new Error(payload.error || `Failed to load telemetry data (status ${response.status}).`);
                     const groups = Array.isArray(payload.groups) ? payload.groups : [];
-                    // Karena kita sudah filter (meeting, session, driver), group yang balik mestinya 0 atau 1.
                     const g = groups[0];
 
                     if (requestId === telemetryRequestId) {
-                        // Kita nggak perlu lagi isi telemetryAvailability untuk semua driver,
-                        // karena availability card sekarang pakai driverEntryAvailability.
+
                         if (Array.isArray(driverListCache) && driverListCache.length) {
                             renderDriversWidget(driverListCache);
                         }
@@ -1000,7 +1010,7 @@
             const driversWidget = document.getElementById('widget-drivers');
             if (!driversWidget) return;
 
-            // skeleton saat loading (tetap di dalam area scroll)
+
             driversWidget.innerHTML = `
                 <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
                 <div class="relative">
