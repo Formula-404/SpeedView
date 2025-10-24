@@ -3,7 +3,6 @@ from django.core.exceptions import ValidationError
 from .models import Team
 
 class TeamForm(forms.ModelForm):
-    # ============ Custom Fields ============
     team_colour = forms.CharField(
         required=True,
         max_length=7,
@@ -32,7 +31,6 @@ class TeamForm(forms.ModelForm):
         },
     )
 
-    # ============ Meta ============
     class Meta:
         model = Team
         fields = [
@@ -42,7 +40,9 @@ class TeamForm(forms.ModelForm):
             "website", "wiki_url",
             "team_description", "engines",
             "constructors_championships", "drivers_championships",
-            "race_victories", "podiums", "points",
+            "races_entered", "race_victories", "podiums", "points",
+            "avg_lap_time_ms", "best_lap_time_ms", "avg_pit_duration_ms",
+            "top_speed_kph", "laps_completed",
         ]
         error_messages = {
             "team_name": {
@@ -61,9 +61,13 @@ class TeamForm(forms.ModelForm):
             "team_logo_url": forms.Textarea(attrs={"rows": 2}),
             "team_description": forms.Textarea(attrs={"rows": 20}),
             "engines": forms.Textarea(attrs={"rows": 2}),
+            "avg_lap_time_ms": forms.NumberInput(attrs={"min": "0", "step": "0.001", "placeholder": "e.g., 91500.000"}),
+            "best_lap_time_ms": forms.NumberInput(attrs={"min": "0", "step": "1", "placeholder": "e.g., 90543"}),
+            "avg_pit_duration_ms": forms.NumberInput(attrs={"min": "0", "step": "0.001", "placeholder": "e.g., 2300.000"}),
+            "top_speed_kph": forms.NumberInput(attrs={"min": "0", "step": "0.1", "placeholder": "e.g., 342.5"}),
+            "laps_completed": forms.NumberInput(attrs={"min": "0", "step": "1", "placeholder": "e.g., 305"}),
         }
 
-    # ============ Clean Methods ============
     def clean_team_name(self):
         name = (self.cleaned_data.get("team_name") or "").strip()
         if not name:
@@ -108,18 +112,51 @@ class TeamForm(forms.ModelForm):
             raise ValidationError("Short code must not exceed 8 characters.")
         return code
 
+    def clean_avg_lap_time_ms(self):
+        v = self.cleaned_data.get("avg_lap_time_ms")
+        if v is None:
+            return v
+        if v < 0:
+            raise ValidationError("Average lap time must be non-negative.")
+        return float(v)
+
+    def clean_best_lap_time_ms(self):
+        v = self.cleaned_data.get("best_lap_time_ms")
+        if v is None:
+            return v
+        if v < 0:
+            raise ValidationError("Best lap time must be non-negative.")
+        return int(v)
+
+    def clean_avg_pit_duration_ms(self):
+        v = self.cleaned_data.get("avg_pit_duration_ms")
+        if v is None:
+            return v
+        if v < 0:
+            raise ValidationError("Average pit duration must be non-negative.")
+        return float(v)
+
+    def clean_top_speed_kph(self):
+        v = self.cleaned_data.get("top_speed_kph")
+        if v is None:
+            return v
+        if v < 0:
+            raise ValidationError("Top speed must be non-negative.")
+        return float(v)
+
+    def clean_laps_completed(self):
+        v = self.cleaned_data.get("laps_completed")
+        if v is None:
+            return v
+        if v < 0:
+            raise ValidationError("Laps completed must be non-negative.")
+        return int(v)
+
     def clean(self):
         cleaned = super().clean()
         logo = cleaned.get("team_logo_url")
-        website = cleaned.get("website")
-        wiki = cleaned.get("wiki_url")
-
-        if logo and not (logo.startswith("http://") or logo.startswith("https://")):
-            self.add_error("team_logo_url", "Logo URL must start with http:// or https://")
-
-        for field in ("website", "wiki_url"):
+        for field in ("team_logo_url", "website", "wiki_url"):
             value = cleaned.get(field)
             if value and not (value.startswith("http://") or value.startswith("https://")):
                 self.add_error(field, "URL must start with http:// or https://")
-
         return cleaned

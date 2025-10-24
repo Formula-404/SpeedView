@@ -84,7 +84,7 @@ class Command(BaseCommand):
         total_created = 0
         total_updated = 0
         total_rows = 0
-        self._meeting_cache: Dict[int, Meeting] = {}
+        self._meeting_cache: set[int] = set()
         self._session_cache: Dict[int, Session] = {}
 
         for meeting_key in meeting_keys:
@@ -145,7 +145,7 @@ class Command(BaseCommand):
             except Exception:
                 continue
 
-            meeting_obj, session_obj = self._ensure_related_objects(meeting_key, session_key)
+            session_obj = self._ensure_related_records(meeting_key, session_key)
             name = row.get("session_name") or row.get("name") or ""
             start_time = row.get("session_start") or row.get("date_start") or row.get("date")
             update_fields: List[str] = []
@@ -174,7 +174,7 @@ class Command(BaseCommand):
         min_speed: Optional[float],
     ) -> Tuple[int, int, int]:
         rows = created = updated = 0
-        self._ensure_related_objects(meeting_key, None)
+        self._ensure_related_records(meeting_key, None)
 
         if session_keys:
             session_list = list(session_keys)
@@ -250,13 +250,12 @@ class Command(BaseCommand):
 
         return rows, created, updated
 
-    def _ensure_related_objects(
+    def _ensure_related_records(
         self, meeting_key: int, session_key: Optional[int]
-    ) -> Tuple[Meeting, Optional[Session]]:
-        meeting = self._meeting_cache.get(meeting_key)
-        if meeting is None:
-            meeting, _ = Meeting.objects.get_or_create(meeting_key=meeting_key)
-            self._meeting_cache[meeting_key] = meeting
+    ) -> Optional[Session]:
+        if meeting_key not in self._meeting_cache:
+            Meeting.objects.get_or_create(meeting_key=meeting_key)
+            self._meeting_cache.add(meeting_key)
 
         session = None
         if session_key is not None:
@@ -264,14 +263,14 @@ class Command(BaseCommand):
             if session is None:
                 session, _ = Session.objects.get_or_create(
                     session_key=session_key,
-                    defaults={'meeting': meeting},
+                    defaults={"meeting_key": meeting_key},
                 )
-                if meeting and session.meeting_id is None:
-                    session.meeting = meeting
-                    session.save(update_fields=['meeting'])
-                self._session_cache[session_key] = session
+            elif session.meeting_key != meeting_key:
+                session.meeting_key = meeting_key
+                session.save(update_fields=["meeting_key"])
+            self._session_cache[session_key] = session
 
-        return meeting, session
+        return session
 
     def _build_url(self, base: str, params: Dict[str, Union[int, float, str]]) -> str:
         return f"{base}?{urlencode(params)}"
@@ -306,13 +305,32 @@ class Command(BaseCommand):
             if dry_run:
                 continue
 
-            meeting_obj, session_obj = self._ensure_related_objects(
-                entry["meeting_key"], entry["session_key"]
-            )
+            try:
+                meeting_key = int(entry["meeting_key"])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            raw_session_key = entry.get("session_key")
+            try:
+                session_key = int(raw_session_key) if raw_session_key is not None else None
+            except (TypeError, ValueError):
+                session_key = None
+
+            session_obj = self._ensure_related_records(meeting_key, session_key)
+            session_key_value = session_obj.session_key if session_obj else session_key
+
+            driver_number = entry.get("driver_number")
+            try:
+                driver_number = int(driver_number) if driver_number is not None else None
+            except (TypeError, ValueError):
+                driver_number = None
+
+            if driver_number is None:
+                continue
 
             defaults = {
-                "meeting_key": meeting_obj,
-                "session_key": session_obj,
+                "meeting_key": meeting_key,
+                "session_key": session_key_value,
                 "brake": entry.get("brake", 0),
                 "drs": entry.get("drs", 0),
                 "n_gear": entry.get("n_gear", 0),
@@ -323,9 +341,9 @@ class Command(BaseCommand):
 
             if create_only:
                 Car.objects.create(
-                    driver_number=entry["driver_number"],
-                    session_key=session_obj,
-                    meeting_key=meeting_obj,
+                    driver_number=driver_number,
+                    session_key=session_key_value,
+                    meeting_key=meeting_key,
                     date=parse_datetime(entry["date"]),
                     brake=defaults["brake"],
                     drs=defaults["drs"],
@@ -339,8 +357,8 @@ class Command(BaseCommand):
                 continue
 
             obj, was_created = Car.objects.update_or_create(
-                driver_number=entry["driver_number"],
-                session_key=session_obj,
+                driver_number=driver_number,
+                session_key=session_key_value,
                 date=parse_datetime(entry["date"]),
                 defaults=defaults,
             )

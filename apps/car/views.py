@@ -2,10 +2,11 @@ import datetime
 import json
 from collections import defaultdict
 from functools import wraps
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
-
+import requests
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -16,15 +17,16 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import localtime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
-
 from apps.car.forms import CarForm
 from apps.car.models import Car
-from apps.meeting.models import Meeting
 from apps.session.models import Session
+from apps.session.services import ensure_sessions_for_meetings
+from apps.meeting.models import Meeting
 
 
 def admin_required(view_func):
@@ -46,9 +48,53 @@ def show_main(request):
     return redirect("car:list_page")
 
 
+def _extract_meeting_key(value) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        key = getattr(value, "meeting_key", None)
+        return int(key) if key is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_session_catalog(meetings: Iterable[int]) -> dict[str, List[dict[str, str]]]:
+    meeting_keys = []
+    for item in meetings:
+        key = _extract_meeting_key(item)
+        if key is not None:
+            meeting_keys.append(key)
+    meeting_keys = sorted(set(meeting_keys))
+    catalog: dict[str, List[dict[str, str]]] = {str(key): [] for key in meeting_keys}
+
+    if not meeting_keys:
+        return catalog
+
+    sessions = Session.objects.filter(meeting_key__in=meeting_keys).order_by(
+        "meeting_key", "session_key"
+    )
+
+    for session in sessions:
+        if session.meeting_key is None:
+            continue
+        catalog.setdefault(str(session.meeting_key), []).append(
+            {
+                "value": str(session.session_key),
+                "label": str(session),
+            }
+        )
+
+    return catalog
+
+
 @admin_required
 def add_car(request):
-    form = CarForm(request.POST or None)
+    meeting_choices = _fetch_meeting_choices()
+    meeting_keys = [choice[0] for choice in meeting_choices]
+    ensure_sessions_for_meetings(meeting_keys)
+    form = CarForm(request.POST or None, meeting_choices=meeting_choices)
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     if request.method == "POST":
@@ -71,7 +117,16 @@ def add_car(request):
 
         messages.error(request, "Please correct the errors below.")
 
-    return render(request, "add_car.html", {"form": form})
+    session_catalog = _build_session_catalog(meeting_keys)
+
+    return render(
+        request,
+        "add_car.html",
+        {
+            "form": form,
+            "session_catalog": session_catalog,
+        },
+    )
 
 
 @login_required(login_url="/login")
@@ -84,7 +139,8 @@ def show_car(request, id):
 @require_POST
 @csrf_exempt
 def add_car_entry_ajax(request):
-    form = CarForm(request.POST)
+    meeting_choices = _fetch_meeting_choices()
+    form = CarForm(request.POST, meeting_choices=meeting_choices)
     if not form.is_valid():
         return JsonResponse({"success": False, "errors": form.errors}, status=400)
 
@@ -142,21 +198,14 @@ def api_grouped_car_data(request):
         metric = "speed"
 
     filters = {}
-    lookup_map = {
-        "meeting_key": "meeting_key_id",
-        "session_key": "session_key_id",
-    }
     for key in ("driver_number", "meeting_key", "session_key"):
         value = request.GET.get(key)
         if not value:
             continue
-        lookup = lookup_map.get(key, key)
-        if lookup.endswith("_id"):
-            try:
-                value = int(value)
-            except ValueError:
-                continue
-        filters[lookup] = value
+        try:
+            filters[key] = int(value)
+        except ValueError:
+            continue
     queryset = (
         Car.objects.filter(**filters)
         .order_by("session_key", "meeting_key", "driver_number", "date")
@@ -164,7 +213,7 @@ def api_grouped_car_data(request):
 
     grouped = defaultdict(list)
     for car in queryset:
-        grouped[(car.session_key_id, car.meeting_key_id, car.driver_number)].append(car)
+        grouped[(car.session_key, car.meeting_key, car.driver_number)].append(car)
 
     groups_payload = []
     for (session_key, meeting_key, driver_number), samples in grouped.items():
@@ -203,7 +252,56 @@ def api_grouped_car_data(request):
     )
 
 
+OPENF1_MEETINGS_URL = "https://api.openf1.org/v1/meetings"
 OPENF1_CAR_DATA_URL = "https://api.openf1.org/v1/car_data"
+
+
+def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tuple[int, str]]:
+    choices: list[tuple[int, str]] = []
+    seen: set[int] = set()
+
+    try:
+        response = requests.get(OPENF1_MEETINGS_URL, timeout=10.0)
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError):
+        payload = []
+
+    if isinstance(payload, list):
+        for entry in payload:
+            if not isinstance(entry, dict):
+                continue
+            key = entry.get("meeting_key")
+            try:
+                key_int = int(key)
+            except (TypeError, ValueError):
+                continue
+            if key_int in seen:
+                continue
+            label = (
+                entry.get("meeting_name")
+                or entry.get("circuit_short_name")
+                or entry.get("country_name")
+                or str(key_int)
+            )
+            choices.append((key_int, f"{key_int} - {label}"))
+            seen.add(key_int)
+
+    if extra_keys:
+        for key in extra_keys:
+            if key is None:
+                continue
+            try:
+                key_int = int(key)
+            except (TypeError, ValueError):
+                continue
+            if key_int in seen:
+                continue
+            choices.append((key_int, str(key_int)))
+            seen.add(key_int)
+
+    choices.sort(key=lambda item: item[0])
+    return choices
 
 
 def _fetch_openf1_telemetry(
@@ -266,39 +364,50 @@ def api_refresh_car_data(request):
         if entry.get("speed") is not None and entry["speed"] <= max_speed
     ]
 
-    meeting_cache: dict[int, Meeting] = {}
+    meeting_cache: set[int] = set()
     session_cache: dict[int, Session] = {}
 
     with transaction.atomic():
         deleted_count, _ = Car.objects.filter(
-            is_manual=False, meeting_key_id=meeting_key
+            is_manual=False, meeting_key=meeting_key
         ).delete()
         created = 0
         for entry in dataset:
-            mk = entry["meeting_key"]
-            sk = entry["session_key"]
+            try:
+                mk = int(entry["meeting_key"])
+                sk = int(entry["session_key"])
+            except (KeyError, TypeError, ValueError):
+                continue
 
-            meeting_obj = meeting_cache.get(mk)
-            if meeting_obj is None:
-                meeting_obj, _ = Meeting.objects.get_or_create(meeting_key=mk)
-                meeting_cache[mk] = meeting_obj
+            if mk not in meeting_cache:
+                Meeting.objects.get_or_create(meeting_key=mk)
+                meeting_cache.add(mk)
 
             session_obj = session_cache.get(sk)
             if session_obj is None:
                 session_obj, _ = Session.objects.get_or_create(
                     session_key=sk,
-                    defaults={"meeting": meeting_obj},
+                    defaults={"meeting_key": mk},
                 )
-                if meeting_obj and session_obj.meeting_id is None:
-                    session_obj.meeting = meeting_obj
-                    session_obj.save(update_fields=["meeting"])
-                session_cache[sk] = session_obj
+            elif session_obj.meeting_key != mk:
+                session_obj.meeting_key = mk
+                session_obj.save(update_fields=["meeting_key"])
+            session_cache[sk] = session_obj
+
+            driver_number = entry.get("driver_number")
+            try:
+                driver_number = int(driver_number) if driver_number is not None else None
+            except (TypeError, ValueError):
+                driver_number = None
+
+            if driver_number is None:
+                continue
 
             Car.objects.create(
-                driver_number=entry["driver_number"],
-                session_key=session_obj,
-                meeting_key=meeting_obj,
-                date=parse_datetime(entry["date"]),
+                driver_number=driver_number,
+                session_key=sk,
+                meeting_key=mk,
+                date=parse_datetime(entry.get("date")),
                 brake=entry.get("brake", 0),
                 drs=entry.get("drs", 0),
                 n_gear=entry.get("n_gear", 0),
@@ -324,7 +433,17 @@ def api_refresh_car_data(request):
 def edit_car(request, id):
     car = get_object_or_404(Car, pk=id)
 
-    form = CarForm(request.POST or None, instance=car)
+    extra_keys: list[int] = []
+    if car.meeting_key is not None:
+        extra_keys.append(car.meeting_key)
+    if car.session_key is not None:
+        session_obj = Session.objects.filter(session_key=car.session_key).first()
+        if session_obj and session_obj.meeting_key is not None:
+            extra_keys.append(session_obj.meeting_key)
+    meeting_choices = _fetch_meeting_choices(extra_keys=extra_keys)
+    meeting_keys = [choice[0] for choice in meeting_choices]
+    ensure_sessions_for_meetings(meeting_keys)
+    form = CarForm(request.POST or None, instance=car, meeting_choices=meeting_choices)
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     if request.method == "POST":
@@ -346,7 +465,17 @@ def edit_car(request, id):
 
         messages.error(request, "Please correct the errors below.")
 
-    return render(request, "edit_car.html", {"form": form, "car": car})
+    session_catalog = _build_session_catalog(meeting_keys)
+
+    return render(
+        request,
+        "edit_car.html",
+        {
+            "form": form,
+            "car": car,
+            "session_catalog": session_catalog,
+        },
+    )
 
 
 @admin_required
@@ -368,15 +497,43 @@ def delete_car(request, id):
             {"success": False, "message": "Unsupported method."}, status=405
         )
 
-    return HttpResponseRedirect(reverse("car:manual_list"))
+    session_obj = None
+    if car.session_key is not None:
+        session_obj = Session.objects.filter(session_key=car.session_key).first()
+
+    return render(
+        request,
+        "car_confirm_delete.html",
+        {
+            "car": car,
+            "session": session_obj,
+        },
+    )
 
 
 @admin_required
 def manual_list(request):
-    manual_entries = (
-        Car.objects.filter(is_manual=True).select_related("meeting_key", "session_key")
-        .order_by("-date")
-    )
+    manual_entries_qs = Car.objects.filter(is_manual=True).order_by("-date")
+    manual_entries = list(manual_entries_qs)
+
+    session_keys = {
+        car.session_key for car in manual_entries if car.session_key is not None
+    }
+    session_map = {
+        session.session_key: session
+        for session in Session.objects.filter(session_key__in=session_keys)
+    }
+    for car in manual_entries:
+        car.session_obj = session_map.get(car.session_key)
+        display_date = car.date
+        if display_date:
+            if timezone.is_aware(display_date):
+                display_date = timezone.make_naive(
+                    display_date, datetime.timezone.utc
+                )
+            display_date = display_date + datetime.timedelta(hours=7)
+        car.display_date = display_date
+
     return render(
         request,
         "manual_list.html",
@@ -387,6 +544,10 @@ def manual_list(request):
 
 
 def serialize_car(car: Car) -> dict:
+    session_obj = getattr(car, "session_obj", None)
+    if session_obj is None and car.session_key is not None:
+        session_obj = Session.objects.filter(session_key=car.session_key).first()
+
     return {
         "id": str(car.id),
         "brake": car.brake,
@@ -394,11 +555,11 @@ def serialize_car(car: Car) -> dict:
         "driver_number": car.driver_number,
         "drs": car.drs,
         "drs_state": car.drs_state,
-        "meeting_key": car.meeting_key_id,
+        "meeting_key": car.meeting_key,
         "n_gear": car.n_gear,
         "rpm": car.rpm,
-        "session_key": car.session_key_id,
-        "session_name": car.session_key.name if car.session_key else None,
+        "session_key": car.session_key,
+        "session_name": session_obj.name if session_obj else None,
         "speed": car.speed,
         "throttle": car.throttle,
         "created_at": car.created_at.isoformat() if car.created_at else None,

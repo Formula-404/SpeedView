@@ -13,8 +13,8 @@ class ReadOnlyModelAdmin(admin.ModelAdmin):
 
 @admin.register(Session)
 class SessionAdmin(ReadOnlyModelAdmin):
-    list_display = ("session_key", "meeting", "name", "start_time")
-    list_filter = (("meeting", admin.RelatedOnlyFieldListFilter),)
-    search_fields = ("session_key", "meeting__meeting_key", "name")
+    list_display = ("session_key", "meeting_key", "name", "start_time")
+    list_filter = ("meeting_key",)
+    search_fields = ("session_key", "meeting_key", "name")
     ordering = ("session_key",)
-    readonly_fields = ("session_key", "meeting", "name", "start_time")
+    readonly_fields = ("session_key", "meeting_key", "name", "start_time")

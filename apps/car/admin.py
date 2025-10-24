@@ -1,14 +1,11 @@
 from django.contrib import admin
-
 from apps.car.models import Car
-
 
 class ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
     def has_delete_permission(self, request, obj=None):
         return False
-
 
 @admin.register(Car)
 class CarAdmin(ReadOnlyAdmin):
@@ -27,13 +24,13 @@ class CarAdmin(ReadOnlyAdmin):
         "is_manual",
         "brake",
         "drs",
-        ("meeting_key", admin.RelatedOnlyFieldListFilter),
-        ("session_key", admin.RelatedOnlyFieldListFilter),
+        "meeting_key",
+        "session_key",
     )
     search_fields = (
         "driver_number",
-        "meeting_key__meeting_key",
-        "session_key__session_key",
+        "meeting_key",
+        "session_key",
     )
     ordering = ("-date",)
     readonly_fields = (
@@ -53,12 +50,10 @@ class CarAdmin(ReadOnlyAdmin):
         "updated_at",
     )
 
-    @admin.display(ordering="meeting_key__meeting_key", description="Meeting")
+    @admin.display(ordering="meeting_key", description="Meeting")
     def display_meeting(self, obj: Car):
         return obj.meeting_key_value
 
-    @admin.display(ordering="session_key__session_key", description="Session")
+    @admin.display(ordering="session_key", description="Session")
     def display_session(self, obj: Car):
-        if obj.session_key:
-            return f"{obj.session_key.session_key} ({obj.session_key.name or 'Session'})"
-        return "-"
+        return obj.session_key or "-"
