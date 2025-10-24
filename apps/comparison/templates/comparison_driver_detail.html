@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block meta %}
+    <title>{{ cmp.title|default:"Driver Comparison" }} – SpeedView</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .icon-btn { display:inline-flex; align-items:center; justify-content:center; padding:6px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); transition:transform .15s ease, background .15s ease, border-color .15s ease; }
+        .icon-btn:hover { transform:translateY(-1px); background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.2); }
+        .icon-btn img { width:18px; height:18px; display:block; }
+        .gap-x-1_5 { column-gap: .375rem; }
+        .field { background:#0B0F14; border:1px solid rgba(255,255,255,.15); color:#fff; border-radius:.6rem; padding:.5rem .6rem; }
+        .field:focus { outline: none; border-color: rgba(239,68,68,.6); }
+        .btn { background:#ef4444; color:#fff; border-radius:.6rem; padding:.5rem .75rem; font-weight:600; }
+        .btn:hover { background:#dc2626; }
+    </style>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-12 py-12 mx-auto">
+    <div class="mb-6">
+        <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+            <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+            <span>›</span>
+            <a class="hover:text-red-400" href="{% url 'comparison:list_page' %}">Comparison</a>
+            <span>›</span>
+            <span class="text-white">{{ cmp.title|default:"Driver Comparison" }}</span>
+        </div>
+
+        <div class="flex items-start gap-4">
+            <div class="min-w-0">
+                <h1 class="text-4xl font-bold text-white truncate">{{ cmp.title|default:"Driver Comparison" }}</h1>
+                <p class="text-white/60 mt-1">Pick a meeting and session, then compare telemetry across drivers.</p>
+            </div>
+
+            <div class="ml-auto flex items-center gap-x-1_5">
+                {% if request.user.is_authenticated %}
+                    {% if request.user == cmp.owner or request.user.profile.role == "admin" %}
+                        <button id="cmp-delete-btn" type="button" class="icon-btn" title="Delete">
+                            <img alt="Delete" src="https://img.icons8.com/?size=100&id=85194&format=png&color=FFFFFF" />
+                        </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {% for d in drivers %}
+        <div class="rounded-xl bg-white/5 border border-white/10 p-4 flex items-center gap-3">
+            <div class="h-9 w-9 rounded bg-white/10 flex items-center justify-center text-white/80 text-sm font-semibold">
+                {% if d.number %}#{{ d.number }}{% else %}—{% endif %}
+            </div>
+            <div class="min-w-0">
+                <div class="text-white font-semibold truncate">
+                    {% if d.full_name %}{{ d.full_name }}{% elif d.name %}{{ d.name }}{% else %}Driver{% endif %}
+                </div>
+                <div class="text-xs text-white/60 truncate">
+                    {% if d.code %}{{ d.code }}{% else %}{{ d.nationality|default:"" }}{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-8 rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <label for="metric" class="text-white/70 text-sm">Metric</label>
+                    <select id="metric" class="field text-sm">
+                        <option value="speed">Speed</option>
+                        <option value="rpm">RPM</option>
+                        <option value="throttle">Throttle</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="meeting" class="text-white/70 text-sm">Meeting</label>
+                    <input id="meeting" class="field text-sm w-28" type="number" placeholder="e.g. 1219">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="session" class="text-white/70 text-sm">Session</label>
+                    <input id="session" class="field text-sm w-24" type="number" placeholder="e.g. 3">
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="load" class="btn text-sm">Load</button>
+            </div>
+        </div>
+
+        <canvas id="driverLine" height="180"></canvas>
+        <div class="mt-3 text-xs text-white/50">Each line is a driver in the chosen meeting/session. X axis is sample index.</div>
+        <div id="hint" class="mt-2 text-xs text-white/50"></div>
+    </div>
+
+    <div class="mt-8 rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
+        <h2 class="text-white text-lg font-semibold mb-4">Overview</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="text-white/60">
+                    <tr>
+                        <th class="text-left py-2 pr-4">Attribute</th>
+                        {% for d in drivers %}
+                        <th class="text-left py-2 px-4">
+                            {% if d.full_name %}{{ d.full_name }}{% elif d.name %}{{ d.name }}{% else %}Driver{% endif %}
+                            {% if d.number %}<span class="text-white/50">(#{{ d.number }})</span>{% endif %}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="text-white/90">
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Code</td>
+                        {% for d in drivers %}<td class="py-2 px-4">{{ d.code|default:"—" }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Nationality</td>
+                        {% for d in drivers %}<td class="py-2 px-4">{{ d.nationality|default:"—" }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Date of birth</td>
+                        {% for d in drivers %}<td class="py-2 px-4">{{ d.date_of_birth|date:"Y-m-d"|default:"—" }}</td>{% endfor %}
+                    </tr>
+                    <tr class="border-t border-white/10">
+                        <td class="py-2 pr-4">Team</td>
+                        {% for d in drivers %}<td class="py-2 px-4">{{ d.team_name|default:"—" }}</td>{% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="cmp-delete-modal" class="fixed inset-0 z-50 hidden">
+    <div id="cmp-modal-backdrop" class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-2xl bg-[#0B0F14] border border-white/10 shadow-xl">
+            <div class="p-5 border-b border-white/10">
+                <h3 class="text-white text-lg font-semibold">Delete Comparison</h3>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-white/80">Are you sure you want to delete <span class="font-semibold text-white">{{ cmp.title }}</span>?</p>
+                <p class="text-white/60 text-sm">This action cannot be undone.</p>
+                <div id="cmp-modal-error" class="hidden text-red-400 text-sm"></div>
+            </div>
+            <div class="px-5 pb-5 pt-2 flex items-center justify-end gap-2">
+                <button id="cmp-modal-cancel" type="button" class="px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-white/90 hover:bg-white/15 transition">Cancel</button>
+                <button id="cmp-modal-confirm" type="button" class="px-3 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const drivers = [
+            {% for d in drivers %}
+            { number: {{ d.number|default:"null" }}, label: "{% if d.full_name %}{{ d.full_name|escapejs }}{% elif d.name %}{{ d.name|escapejs }}{% else %}Driver{% endif %}" },
+            {% endfor %}
+        ].filter(x => x.number !== null);
+
+        const palette = ["#ef4444","#3b82f6","#22c55e","#a855f7","#f59e0b","#14b8a6","#eab308","#10b981"];
+        const metricSel = document.getElementById("metric");
+        const meetingInput = document.getElementById("meeting");
+        const sessionInput = document.getElementById("session");
+        const loadBtn = document.getElementById("load");
+        const hint = document.getElementById("hint");
+        const ctx = document.getElementById("driverLine").getContext("2d");
+        let chart;
+
+        function readParam(name) {
+            const u = new URL(window.location.href);
+            return u.searchParams.get(name);
+        }
+
+        function applyURLDefaults() {
+            const m = readParam("meeting_key");
+            const s = readParam("session_key");
+            if (m) meetingInput.value = m;
+            if (s) sessionInput.value = s;
+        }
+
+        async function fetchSeries(driverNumber, meetingKey, sessionKey, metric) {
+            const params = new URLSearchParams({
+                metric: metric,
+                driver_number: String(driverNumber),
+                meeting_key: String(meetingKey),
+                session_key: String(sessionKey)
+            });
+            const res = await fetch("{% url 'car:api_grouped' %}?" + params.toString(), { credentials: "same-origin" });
+            const json = await res.json().catch(() => null);
+            if (!json || !json.ok) return null;
+            const grp = (json.groups || [])[0];
+            if (!grp || !Array.isArray(grp.telemetry)) return null;
+            const xs = grp.telemetry.map((t, i) => i);
+            const ys = grp.telemetry.map(t => t[metric] ?? null);
+            return { xs, ys };
+        }
+
+        async function render() {
+            const metric = metricSel.value;
+            const meetingKey = meetingInput.value.trim();
+            const sessionKey = sessionInput.value.trim();
+            if (!meetingKey || !sessionKey) {
+                hint.textContent = "Enter a meeting and session to load telemetry.";
+                return;
+            }
+            hint.textContent = "";
+
+            const results = await Promise.all(
+                drivers.map(d => fetchSeries(d.number, meetingKey, sessionKey, metric))
+            );
+
+            const datasets = [];
+            let longest = 0;
+            results.forEach((r, i) => {
+                if (!r) return;
+                if (r.xs.length > longest) longest = r.xs.length;
+                const color = palette[i % palette.length];
+                datasets.push({
+                    label: drivers[i].label + " (#" + drivers[i].number + ")",
+                    data: r.ys,
+                    borderColor: color,
+                    backgroundColor: color + "22",
+                    pointRadius: 0,
+                    borderWidth: 2,
+                    tension: 0.15
+                });
+            });
+
+            const labels = Array.from({ length: longest }, (_, i) => i);
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: "line",
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    animation: false,
+                    scales: {
+                        x: { grid: { color: "rgba(255,255,255,0.15)" }, ticks: { color: "#fff" } },
+                        y: { grid: { color: "rgba(255,255,255,0.15)" }, ticks: { color: "#fff" } }
+                    },
+                    plugins: { legend: { labels: { color: "#fff" } }, tooltip: { intersect: false, mode: "index" } }
+                }
+            });
+        }
+
+        applyURLDefaults();
+        loadBtn.addEventListener("click", render);
+        metricSel.addEventListener("change", render);
+    })();
+
+    (function() {
+        function getCSRF() {
+            const name = "csrftoken=";
+            return document.cookie.split(";").map(s => s.trim()).find(s => s.startsWith(name))?.slice(name.length) || "";
+        }
+
+        const delBtn = document.getElementById("cmp-delete-btn");
+        const modal = document.getElementById("cmp-delete-modal");
+        const backdrop = document.getElementById("cmp-modal-backdrop");
+        const cancelBtn = document.getElementById("cmp-modal-cancel");
+        const confirmBtn = document.getElementById("cmp-modal-confirm");
+        const errorBox = document.getElementById("cmp-modal-error");
+        const API_DELETE = "{% url 'comparison:api_delete' pk=cmp.pk %}";
+
+        function openModal() {
+            modal.classList.remove("hidden");
+            errorBox.classList.add("hidden");
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Delete";
+        }
+        function closeModal() {
+            modal.classList.add("hidden");
+        }
+
+        if (delBtn) delBtn.addEventListener("click", openModal);
+        if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+        if (backdrop) backdrop.addEventListener("click", closeModal);
+        document.addEventListener("keydown", (e) => {
+            if (!modal.classList.contains("hidden") && e.key === "Escape") closeModal();
+        });
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener("click", async () => {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = "Deleting…";
+                errorBox.classList.add("hidden");
+                try {
+                    const res = await fetch(API_DELETE, {
+                        method: "POST",
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                            "X-CSRFToken": getCSRF(),
+                            "Accept": "application/json"
+                        },
+                        credentials: "same-origin"
+                    });
+                    const json = await res.json().catch(() => ({}));
+                    if (!res.ok || json.ok === false) {
+                        errorBox.textContent = json.error || `Failed to delete (status ${res.status}).`;
+                        errorBox.classList.remove("hidden");
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = "Delete";
+                        return;
+                    }
+                    window.location.href = json.redirect || "{% url 'comparison:list_page' %}";
+                } catch (e) {
+                    errorBox.textContent = "Network error while deleting. Please try again.";
+                    errorBox.classList.remove("hidden");
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = "Delete";
+                }
+            });
+        }
+    })();
+</script>
+{% endblock content %}

@@ -1,15 +1,20 @@
 from django.contrib import admin
+from .models import Session
 
-from apps.session.models import Session
-
-
-class ReadOnlyModelAdmin(admin.ModelAdmin):
+class ReadOnlyAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
-
+        
     def has_delete_permission(self, request, obj=None):
         return False
-
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+    
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return [field.name for field in self.model._meta.fields]
+        return []
 
 @admin.register(Session)
 class SessionAdmin(ReadOnlyModelAdmin):

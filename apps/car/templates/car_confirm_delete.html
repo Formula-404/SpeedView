@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block meta %}
+<title>Delete Manual Telemetry - SpeedView</title>
+<style>
+    html, body {
+        height: auto !important;
+        min-height: 100vh;
+    }
+    body {
+        overflow-y: auto;
+    }
+    body > .ml-64.flex {
+        min-height: 100vh;
+    }
+</style>
+{% endblock meta %}
+
+{% block content %}
+<div class="px-6 py-10 pb-24 md:px-12">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+      <a class="hover:text-red-400 transition" href="{% url 'main:show_main' %}">Home</a>
+      <span>&gt;</span>
+      <a class="hover:text-red-400 transition" href="{% url 'car:manual_list' %}">Manual Data</a>
+      <span>&gt;</span>
+      <span class="text-white">Delete Entry</span>
+    </div>
+
+    <div class="rounded-2xl border border-white/10 bg-[#0D1117]/80 p-6 sm:p-8 shadow-lg shadow-black/20">
+      <h1 class="text-2xl font-bold text-white">Hapus telemetry ini?</h1>
+      <p class="mt-2 text-sm text-white/70">
+        Entry manual ini akan dihapus permanen dari database SpeedView.
+      </p>
+
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 text-sm">
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Driver</p>
+          <p class="mt-1 text-white font-medium">
+            #{{ car.driver_number }}
+            {% if car.driver %}
+              &ndash; {{ car.driver.full_name|default:car.driver.name_acronym|default:"Driver" }}
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Recorded</p>
+          <p class="mt-1 text-white font-medium">
+            {% if car.date %}
+              {{ car.date|date:"Y-m-d H:i:s" }}
+            {% else %}
+              -
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Meeting</p>
+          <p class="mt-1 text-white font-medium">{{ car.meeting_key|default:"-" }}</p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Session</p>
+          <p class="mt-1 text-white font-medium">
+            {% if car.session_key %}
+              {{ car.session_key }}
+              {% if session and session.name %}
+                &ndash; {{ session.name }}
+              {% endif %}
+            {% else %}
+              -
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 text-sm">
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Speed</p>
+          <p class="mt-1 text-white font-medium">
+            {% if car.speed or car.speed == 0 %}
+              {{ car.speed }} km/h
+            {% else %}
+              -
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Throttle</p>
+          <p class="mt-1 text-white font-medium">
+            {% if car.throttle or car.throttle == 0 %}
+              {{ car.throttle }}%
+            {% else %}
+              -
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Brake</p>
+          <p class="mt-1 text-white font-medium">
+            {% if car.brake or car.brake == 0 %}
+              {{ car.brake }}%
+            {% else %}
+              -
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">Gear</p>
+          <p class="mt-1 text-white font-medium">
+            {% if car.n_gear or car.n_gear == 0 %}
+              {{ car.n_gear }}
+            {% else %}
+              -
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">RPM</p>
+          <p class="mt-1 text-white font-medium">
+            {% if car.rpm or car.rpm == 0 %}
+              {{ car.rpm }}
+            {% else %}
+              -
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-white/50">DRS</p>
+          <p class="mt-1 text-white font-medium">{{ car.get_drs_display|default:"-" }}</p>
+        </div>
+      </div>
+
+      <form method="POST" class="mt-8 flex justify-end gap-3">
+        {% csrf_token %}
+        <a href="{% url 'car:manual_list' %}" class="px-6 py-2 rounded-lg bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3] transition">
+          Cancel
+        </a>
+        <button type="submit" class="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition">
+          Delete Entry
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock content %}

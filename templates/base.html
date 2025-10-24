@@ -5,25 +5,66 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="{% static 'image/icon/speedview.png' %}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <script src="https://cdn.tailwindcss.com"></script>
-
     {% block meta %}{% endblock meta %}
-
     <link rel="stylesheet" href="{% static 'style/global.css' %}" />
 </head>
 <body class="flex overflow-x-hidden">
     {% include 'sidebar.html' %}
 
     <div class="ml-64 w-full min-w-0 overflow-x-hidden">
-        <main class="w-full min-w-0 overflow-x-hidden">
-            {% block content %}{% endblock content %}
+        <header class="md:hidden sticky top-0 z-30 bg-[#0B0F14] border-b border-gray-800/60">
+            <div class="px-4 py-3 flex items-center gap-3">
+                <button id="mobile-menu-btn" type="button" class="inline-flex items-center justify-center p-2 rounded-md text-white bg-white/5 border border-white/10">
+                    <svg id="mobile-menu-icon" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M4 6h16M4 12h16M4 18h16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                </button>
+                <a href="{% url 'main:show_main' %}" class="flex items-center">
+                    <img class="h-6" src="{% static 'image/icon/speedview-white.png' %}" alt="SpeedView">
+                </a>
+                <div class="ml-auto"></div>
+            </div>
+        </header>
+
+         <main class="w-full min-w-0 overflow-x-hidden">
+            <div class="w-full min-h-screen">
+                {% block content %}{% endblock content %}
+            </div>
         </main>
         {% include 'footer.html' %}
     </div>
 
     <script>
-        
+        (function() {
+            const openBtn = document.getElementById("mobile-menu-btn");
+            const drawer = document.getElementById("mobile-sidebar");
+            const backdrop = document.getElementById("mobile-backdrop");
+            const closeBtn = document.getElementById("mobile-close-btn");
+
+            function openDrawer() {
+                if (!drawer || !backdrop) return;
+                drawer.classList.remove("-translate-x-full");
+                drawer.classList.add("translate-x-0");
+                backdrop.classList.remove("hidden");
+            }
+
+            function closeDrawer() {
+                if (!drawer || !backdrop) return;
+                drawer.classList.add("-translate-x-full");
+                drawer.classList.remove("translate-x-0");
+                backdrop.classList.add("hidden");
+            }
+
+            if (openBtn) openBtn.addEventListener("click", openDrawer);
+            if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
+            if (backdrop) backdrop.addEventListener("click", function(e) {
+                if (e.target === backdrop) closeDrawer();
+            });
+            document.addEventListener("keydown", function(e) {
+                if (e.key === "Escape") closeDrawer();
+            });
+        })();
     </script>
 </body>
 </html>

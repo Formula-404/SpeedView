@@ -9,61 +9,44 @@
         </div>
         <p class="text-[#E6EDF3]/70 mb-6">Are you sure you want to logout from your account?</p>
         <div class="flex gap-3">
-            <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 bg-gray-700 text-[#E6EDF3] rounded-lg hover:bg-gray-600 transition-colors">
-                Cancel
-            </button>
-            <a href="{% url 'user:logout' %}" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-center" onclick="sessionStorage.clear()">
-                Logout
-            </a>
+            <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2 bg-gray-700 text-[#E6EDF3] rounded-lg hover:bg-gray-600 transition-colors">Cancel</button>
+            <a href="{% url 'user:logout' %}" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-center" onclick="sessionStorage.clear()">Logout</a>
         </div>
     </div>
 </div>
 
-<aside class="w-64 bg-[#161B22] flex-shrink-0 flex flex-col justify-between border-r border-gray-700/50 fixed top-0 left-0 bottom-0">
+<aside class="hidden md:flex w-64 bg-[#161B22] flex-shrink-0 flex-col justify-between border-r border-gray-700/50 fixed top-0 left-0 bottom-0 z-30">
     <div>
-        <!-- Logo -->
         <a href="{% url 'main:show_main' %}" class="flex items-center justify-center w-64 mt-4">
             <img class="h-[60px]" src="{% static 'image/icon/speedview-white.png' %}" alt="SpeedView">
         </a>
-
-        <!-- Navigation -->
         <nav class="mt-4 flex flex-col space-y-1" id="main-nav">
             <a href="/" class="nav-link active flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=Yj5svDsC4jQA&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Dashboard
+                <img src="https://img.icons8.com/?size=100&id=Yj5svDsC4jQA&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Dashboard
             </a>
             <a href="{% url 'meeting:list_page' %}" class="nav-link flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=sGeHnSchL0fu&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Grand Prix
+                <img src="https://img.icons8.com/?size=100&id=sGeHnSchL0fu&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Grand Prix
             </a>
             <a href="{% url 'circuit:list_page' %}" class="nav-link flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=gQqjs0SHffus&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Circuit
+                <img src="https://img.icons8.com/?size=100&id=gQqjs0SHffus&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Circuit
             </a>
             <a href="{% url 'session:list_page' %}" class="nav-link flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=Uv5jYjUmFUTy&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Session
+                <img src="https://img.icons8.com/?size=100&id=Uv5jYjUmFUTy&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Session
             </a>
             <a href="/team/" class="nav-link flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=97144&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Team
+                <img src="https://img.icons8.com/?size=100&id=97144&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Team
             </a>
             <a href="{% url 'car:list_page' %}" class="nav-link flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=23857&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Car
+                <img src="https://img.icons8.com/?size=100&id=23857&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Car
             </a>
             <a href="/driver/" class="nav-link flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=3049&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Driver
+                <img src="https://img.icons8.com/?size=100&id=3049&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Driver
             </a>
             <a href="/comparison/" class="nav-link flex items-center px-6 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50">
-                <img src="https://img.icons8.com/?size=100&id=26122&format=png&color=FFFFFF" class="w-5 h-5 mr-3">
-                Comparison
+                <img src="https://img.icons8.com/?size=100&id=26122&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Comparison
             </a>
         </nav>
     </div>
-
-    <!-- User Section -->
     <div class="px-6 py-4 border-t border-gray-700/50">
         {% if user.is_authenticated %}
             <div class="mb-3 px-4">
@@ -76,13 +59,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     Profile
-
                     {% if user.profile.role == "admin" %}
-                    <span class="ml-2 px-3 py-1 rounded-none text-[10px] font-bold
-                                bg-red-500/10 text-red-400 border-l-[2px] border-red-400
-                                ">
-                        ADMIN
-                    </span>
+                    <span class="ml-2 px-3 py-1 rounded-none text-[10px] font-bold bg-red-500/10 text-red-400 border-l-[2px] border-red-400">ADMIN</span>
                     {% endif %}
                 </a>
                 <button onclick="openLogoutModal()" class="nav-link flex items-center px-4 py-2 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md w-full text-left">
@@ -111,18 +89,90 @@
     </div>
 </aside>
 
+<div id="mobile-backdrop" class="md:hidden hidden fixed inset-0 z-40 bg-black/60"></div>
+<div id="mobile-sidebar" class="md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-[#161B22] border-r border-gray-700/50 transform -translate-x-full transition-transform duration-200 ease-out flex flex-col">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+        <a href="{% url 'main:show_main' %}" class="flex items-center">
+            <img class="h-6" src="{% static 'image/icon/speedview-white.png' %}" alt="SpeedView">
+        </a>
+        <button id="mobile-close-btn" type="button" class="p-2 rounded-md text-white bg-white/5 border border-white/10">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M6 18L18 6M6 6l12 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+        </button>
+    </div>
+    <nav class="mt-2 flex flex-col space-y-1 px-2">
+        <a href="/" class="nav-link active flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=Yj5svDsC4jQA&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Dashboard
+        </a>
+        <a href="{% url 'meeting:list_page' %}" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=sGeHnSchL0fu&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Grand Prix
+        </a>
+        <a href="{% url 'circuit:list_page' %}" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=gQqjs0SHffus&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Circuit
+        </a>
+        <a href="{% url 'session:list_page' %}" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=Uv5jYjUmFUTy&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Session
+        </a>
+        <a href="/team/" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=97144&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Team
+        </a>
+        <a href="{% url 'car:list_page' %}" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=23857&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Car
+        </a>
+        <a href="/driver/" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=3049&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Driver
+        </a>
+        <a href="/comparison/" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+            <img src="https://img.icons8.com/?size=100&id=26122&format=png&color=FFFFFF" class="w-5 h-5 mr-3">Comparison
+        </a>
+    </nav>
+    <div class="mt-auto px-4 py-4 border-t border-gray-700/50">
+        {% if user.is_authenticated %}
+            <div class="mb-3">
+                <p class="text-xs text-[#E6EDF3]/50 mb-1">Signed in as</p>
+                <p class="text-sm text-[#E6EDF3] font-semibold">{{ user.username }}</p>
+            </div>
+            <a href="{% url 'user:profile_settings' %}" class="nav-link flex items-center px-3 py-2 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+                <svg class="w-5 h-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Profile
+                {% if user.profile.role == "admin" %}
+                <span class="ml-2 px-3 py-1 rounded-none text-[10px] font-bold bg-red-500/10 text-red-400 border-l-[2px] border-red-400">ADMIN</span>
+                {% endif %}
+            </a>
+            <button onclick="openLogoutModal()" class="nav-link w-full flex items-center px-3 py-2 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md mt-1">
+                <svg class="w-5 h-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                </svg>
+                Logout
+            </button>
+        {% else %}
+            <a href="{% url 'user:login' %}" class="nav-link flex items-center px-3 py-2 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md">
+                <svg class="w-5 h-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                </svg>
+                Login
+            </a>
+            <a href="{% url 'user:register' %}" class="nav-link flex items-center px-3 py-2 text-sm font-medium transition-colors duration-200 hover:bg-gray-700/50 rounded-md mt-1">
+                <svg class="w-5 h-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                </svg>
+                Register
+            </a>
+        {% endif %}
+    </div>
+</div>
+
 <script>
 function openLogoutModal() {
     document.getElementById('logoutModal').classList.remove('hidden');
 }
-
 function closeLogoutModal() {
     document.getElementById('logoutModal').classList.add('hidden');
 }
-
 document.getElementById('logoutModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeLogoutModal();
-    }
+    if (e.target === this) closeLogoutModal();
 });
 </script>

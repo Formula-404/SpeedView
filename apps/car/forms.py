@@ -3,6 +3,7 @@ from django import forms
 from django.forms import ModelForm
 
 from apps.car.models import Car
+from apps.driver.models import DriverEntry
 from apps.session.models import Session
 
 
@@ -51,20 +52,18 @@ class CarForm(ModelForm):
     def __init__(self, *args, **kwargs):
         meeting_choices_param = kwargs.pop("meeting_choices", None)
         super().__init__(*args, **kwargs)
+        self._matched_driver_entry: DriverEntry | None = None
+
+        base_input_class = (
+            "w-full rounded-xl border border-white/10 bg-[#0D1117] px-4 py-3 text-white "
+            "placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+        )
 
         meeting_field = self.fields["meeting_key"]
         session_field = self.fields["session_key"]
         offset_field = self.fields["session_offset_seconds"]
         date_field = self.fields["date"]
 
-        meeting_field.widget.attrs.setdefault(
-            "class",
-            "w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500",
-        )
-        session_field.widget.attrs.setdefault(
-            "class",
-            "w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500",
-        )
         session_field.widget.attrs.setdefault("data-placeholder", "Pilih session")
         session_field.widget.attrs.setdefault(
             "data-empty-placeholder", "Tidak ada session untuk meeting ini"
@@ -144,6 +143,11 @@ class CarForm(ModelForm):
 
         session_field.choices = session_choices
 
+        for name, field in self.fields.items():
+            if isinstance(field.widget, forms.HiddenInput):
+                continue
+            field.widget.attrs["class"] = base_input_class
+
         self.order_fields(
             [
                 "meeting_key",
@@ -177,6 +181,7 @@ class CarForm(ModelForm):
 
         session_key = cleaned.get("session_key")
         offset = cleaned.get("session_offset_seconds")
+        driver_number = cleaned.get("driver_number")
 
         if session_key in (None, ""):
             self.add_error(
@@ -202,6 +207,23 @@ class CarForm(ModelForm):
         offset_seconds = max(0, offset_seconds)
         cleaned["session_offset_seconds"] = offset_seconds
         cleaned["date"] = session_obj.start_time + timedelta(seconds=offset_seconds)
+
+        if driver_number is not None:
+            entry = (
+                DriverEntry.objects.select_related("driver", "meeting")
+                .filter(driver__driver_number=driver_number, session_key=session_key)
+                .first()
+            )
+            if entry is None:
+                self.add_error(
+                    "driver_number",
+                    f"Driver with key {driver_number} did not participate in that session.",
+                )
+            else:
+                self._matched_driver_entry = entry
+                if entry.meeting and not cleaned.get("meeting_key"):
+                    cleaned["meeting_key"] = entry.meeting.meeting_key
+
         return cleaned
 
     def save(self, commit=True):
@@ -214,6 +236,13 @@ class CarForm(ModelForm):
             ).first()
             if session_obj and session_obj.meeting_key is not None:
                 car.meeting_key = session_obj.meeting_key
+        if self._matched_driver_entry:
+            car.driver = self._matched_driver_entry.driver
+            if (
+                self._matched_driver_entry.meeting
+                and self._matched_driver_entry.meeting.meeting_key is not None
+            ):
+                car.meeting_key = self._matched_driver_entry.meeting.meeting_key
 
         if commit:
             car.save()

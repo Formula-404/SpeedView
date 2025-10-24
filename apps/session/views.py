@@ -1,29 +1,23 @@
 import requests
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse
 from django.shortcuts import render
 from datetime import datetime
-import json
-
+from django.db.models import Q
 import requests
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.utils.dateparse import parse_datetime
-from django.views.decorators.http import require_POST
-
+from django.core.paginator import Paginator
 from apps.meeting.models import Meeting
 from apps.session.models import Session
 
-OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
-
 def session_list_page(request):
     return render(request, 'session_list.html')
-
 
 def api_session_list(request):
     """
     API endpoint untuk mengambil data sesi dari OpenF1.
     Akan mengembalikan sesi untuk SEMUA meeting yang ada,
-    dengan paginasi (10 meeting per halaman).
+    dengan paginasi (5 meeting per halaman).
     """
     query = request.GET.get('q', '').strip().lower()    
     try:
@@ -32,64 +26,51 @@ def api_session_list(request):
         page = 1
     
     page_size = 5
-    meetings_to_process = []
     try:
-        # Ambil semua meeting
-        meetings_response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
-        meetings_response.raise_for_status()
-        all_meetings = meetings_response.json()
-
-        # Tentukan meeting mana yang akan diproses
+        base_meetings = Meeting.objects.all()
         if query:
-            for meeting in all_meetings:
-                circuit_name = meeting.get('circuit_short_name', '').lower()
-                country_name = meeting.get('country_name', '').lower()
-                if query in circuit_name or query in country_name:
-                    meetings_to_process.append(meeting)
-        else:
-            meetings_to_process = all_meetings
-        
-        # Urutkan agar yang terbaru muncul di atas
-        meetings_to_process.sort(key=lambda m: m.get('date_start', ''), reverse=True)
-        # --- LOGIKA PAGINASI BARU ---
-        total_meetings = len(meetings_to_process)
-        total_pages = (total_meetings + page_size - 1) // page_size # Kalkulasi total halaman
-        # Ambil potongan 5 meeting untuk halaman saat ini
-        start_index = (page - 1) * page_size
-        end_index = page * page_size
-        meetings_for_this_page = meetings_to_process[start_index:end_index]
-
-        if not meetings_for_this_page:
-             return JsonResponse({'ok': True, 'data': [], 'pagination': {
-                 'current_page': page, 'total_pages': total_pages, 
-                 'has_previous': False, 'has_next': False, 'total_meetings': 0
-             }})
+            base_meetings = base_meetings.filter(
+                Q(circuit_short_name__icontains=query) | 
+                Q(country_name__icontains=query) |
+                Q(meeting_name__icontains=query)
+            )
+        meetings_sorted = base_meetings.order_by('-date_start')
+        paginator = Paginator(meetings_sorted, page_size)
+        page_obj = paginator.get_page(page)
+        meetings_for_this_page = list(page_obj.object_list)
         results = []
         
         for meeting in meetings_for_this_page:
-            meeting_key = meeting['meeting_key']
-            params = {'meeting_key': meeting_key}
-            response = requests.get(f"{OPENF1_API_BASE_URL}/sessions", params=params)
-            if not response.ok:
-                print(f"Gagal mengambil sesi untuk meeting_key: {meeting_key}")
-                continue 
-                
-            sessions_data = response.json()  
-            for session in sessions_data:
-                session['date_start_str'] = format_date(session.get('date_start'))
-                session['date_end_str'] = format_date(session.get('date_end'))
+            sessions_query = Session.objects.filter(meeting_key=meeting.meeting_key).order_by('start_time')            
+            sessions_data = []
+            for session in sessions_query:
+                sessions_data.append({
+                    'session_key': session.session_key,
+                    'session_name': session.name,
+                    'date_start': session.start_time.isoformat() if session.start_time else None,
+                    'date_start_str': format_date(session.start_time),
+                    'date_end_str': '',
+                })
+            
+            meeting_info = {
+                'meeting_key': meeting.meeting_key,
+                'meeting_name': meeting.meeting_name,
+                'circuit_short_name': meeting.circuit_short_name,
+                'country_name': meeting.country_name,
+                'year': meeting.year,
+            }
             
             results.append({
-                'meeting_info': meeting,
+                'meeting_info': meeting_info,
                 'sessions': sessions_data
             })
         
         pagination_data = {
-            'current_page': page,
-            'total_pages': total_pages,
-            'has_previous': page > 1,
-            'has_next': page < total_pages,
-            'total_meetings': total_meetings
+            'current_page': page_obj.number,
+            'total_pages': paginator.num_pages,
+            'has_previous': page_obj.has_previous(),
+            'has_next': page_obj.has_next(),
+            'total_meetings': paginator.count
         }
         return JsonResponse({'ok': True, 'data': results, 'pagination': pagination_data})
     except requests.exceptions.RequestException as e:
