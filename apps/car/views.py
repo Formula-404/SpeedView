@@ -127,7 +127,6 @@ def add_car(request):
     )
 
 
-@login_required(login_url="/login")
 def show_car(request, id):
     car = get_object_or_404(Car, pk=id)
     return render(request, "car_detail.html", {"car": car})
