@@ -68,6 +68,23 @@
         resultsInfo.textContent = "Error";
     }
 
+    function formatDateLabel(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        try {
+            return new Intl.DateTimeFormat(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit"
+            }).format(d);
+        } catch {
+            return d.toLocaleString();
+        }
+    }
+
     async function fetchComparisons(filter = "all") {
         container.innerHTML = `<div class="text-[#E6EDF3]/60">Loading comparisons…</div>`;
         resultsInfo.textContent = "Loading comparisons…";
@@ -117,10 +134,9 @@
                 const badgeClass = isPublic
                     ? "border-green-500/40 text-green-400 bg-green-500/10"
                     : "border-white/20 text-white/70 bg-white/5";
-
                 const moduleLabel = c.module_label || c.module || "—";
                 const ownerName = c.owner_name || "—";
-                const createdAt = c.created_at || "";
+                const createdLabel = formatDateLabel(c.created_at);
                 const subjectList = (c.items && c.items.length) ? c.items.join(", ") : "—";
 
                 return `
@@ -131,7 +147,7 @@
                                 <h2 class="text-lg font-semibold text-[#E6EDF3] truncate">${c.title}</h2>
                                 <span class="px-2.5 py-0.5 text-[10px] rounded-full border ${badgeClass}">${badgeText}</span>
                             </div>
-                            <span class="text-xs text-[#E6EDF3]/50">${createdAt}</span>
+                            <span class="text-xs text-[#E6EDF3]/50">${createdLabel}</span>
                         </div>
                         <p class="text-sm text-[#E6EDF3]/70 truncate">Module: ${moduleLabel} • ${subjectList}</p>
                         <p class="text-sm text-[#E6EDF3]/60">By ${ownerName}</p>
@@ -165,6 +181,5 @@
         fetchComparisons("all");
     });
 </script>
-
 
 {% endblock %}
