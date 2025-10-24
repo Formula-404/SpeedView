@@ -1,4 +1,4 @@
-# 🏎**SpeedView**🏎
+# **SpeedView**
 
 Setiap balapan **Formula 1** bukan hanya tentang *20 mobil yang berputar di suatu lintasan*.  
 Tapi ini tentang kombinasi **pembalap yang memacu batasan**, **tim pemenang adalah tim yang bermain strategi**, dan detail kecil seperti **cuaca** atau **timing pit stop** yang bisa menentukan hasil akhir.
