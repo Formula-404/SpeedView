@@ -1,10 +1,9 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-import requests
-from datetime import datetime
 import traceback
-
-OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
+from django.db.models import Q
+from apps.meeting.models import Meeting
+from .models import Weather
 
 def weather_list_page(request):
     """
@@ -21,60 +20,48 @@ def api_weather_list(request):
     
     try:
         target_meeting = None
-        
+        base_query = Meeting.objects.all().order_by('-date_start')
         if query:
-            all_meetings_response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
-            all_meetings_response.raise_for_status()
-            all_meetings = all_meetings_response.json()
-            
             query_lower = query.lower()
-            matches = [
-                m for m in all_meetings 
-                if query_lower in (m.get('meeting_name') or '').lower() or \
-                   query_lower in (m.get('circuit_short_name') or '').lower() or \
-                   query_lower in (m.get('country_name') or '').lower()
-            ]
+            matches = base_query.filter(
+                Q(meeting_name__icontains=query_lower) |
+                Q(circuit_short_name__icontains=query_lower) |
+                Q(country_name__icontains=query_lower)
+            )
             
-            if matches:
-                matches.sort(key=lambda m: m.get('year') or 0, reverse=True)
-                target_meeting = matches[0] # Ambil yang paling relevan/terbaru
+            if matches.exists():
+                target_meeting = matches.first()
             else:
-                return JsonResponse({"ok": False, "error": f"No meeting found matching '{query}'"}, status=404)
+                return JsonResponse({"ok": False, "error": f"No meeting found matching '{query}'"}, status=44)
         
         else:
-            latest_meeting_response = requests.get(f"{OPENF1_API_BASE_URL}/meetings?year=latest")
-            latest_meeting_response.raise_for_status()
-            latest_meetings = latest_meeting_response.json()
-            if latest_meetings:
-                target_meeting = latest_meetings[0]
-            else:
-                return JsonResponse({"ok": False, "error": "No 'latest' meeting found from API"}, status=404)
+            target_meeting = base_query.first()
+            if not target_meeting:
+                return JsonResponse({"ok": False, "error": "No 'latest' meeting found in database"}, status=404)
 
-        if not target_meeting or not target_meeting.get('meeting_key'):
-            return JsonResponse({"ok": False, "error": "Could not determine a valid meeting."}, status=404)
-        
-        meeting_key = target_meeting.get('meeting_key')
-        weather_response = requests.get(f"{OPENF1_API_BASE_URL}/weather?meeting_key={meeting_key}")
-        weather_response.raise_for_status()
-        weather_data = weather_response.json()
+        weather_query = Weather.objects.filter(meeting=target_meeting).order_by('date')        
+        weather_data = []
+        for entry in weather_query:
+            weather_data.append({
+                'date': entry.date.isoformat(),
+                'air_temperature': entry.air_temperature,
+                'track_temperature': entry.track_temperature,
+                'pressure': entry.pressure,
+                'wind_speed': entry.wind_speed,
+                'wind_direction': entry.wind_direction,
+                'humidity': entry.humidity,
+                'rainfall': entry.rainfall,
+            })
 
-        for entry in weather_data:
-            if entry.get('date'):
-                try:
-                    entry['date'] = datetime.fromisoformat(entry['date'].replace('Z', '+00:00')).isoformat()
-                except (ValueError, TypeError):
-                    entry['date'] = None 
+        meeting_info = {
+            'meeting_key': target_meeting.meeting_key,
+            'meeting_name': target_meeting.meeting_name,
+            'circuit_short_name': target_meeting.circuit_short_name,
+            'country_name': target_meeting.country_name,
+            'year': target_meeting.year,
+        }
 
-        return JsonResponse({
-            "ok": True,
-            "data": {
-                "meeting_info": target_meeting,
-                "weather_data": weather_data
-            }
-        })
-
-    except requests.exceptions.RequestException as e:
-        return JsonResponse({"ok": False, "error": f"Failed to fetch data from OpenF1 API: {e}"}, status=502)
+        return JsonResponse({"ok": True, "data": {"meeting_info": meeting_info, "weather_data": weather_data}})
     except Exception as e:
         traceback.print_exc()
-        return JsonResponse({"ok": False, "error": f"An unexpected server error occurred: {e}"}, status=500)
+        return JsonResponse({"ok": False, "error": f"An unexpected server error occurred: {e}"})

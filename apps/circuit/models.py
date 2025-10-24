@@ -1,12 +1,6 @@
 from django.db import models
-import requests
-from django.core.files.base import ContentFile
 
 class Circuit(models.Model):
-    """
-    Model yang diperbarui untuk menyimpan informasi sirkuit Formula 1, dari https://en.wikipedia.org/wiki/List_of_Formula_One_circuits
-    """
-    
     # Tipe sirkuit (pilihan tetap)
     CIRCUIT_TYPES = [
         ('STREET', 'Street circuit'),
