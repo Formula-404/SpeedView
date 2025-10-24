@@ -27,6 +27,46 @@ from apps.session.models import Session
 from apps.session.services import ensure_sessions_for_meetings
 
 
+import json
+from typing import List, Dict
+
+def _loads_json_array_best_effort(payload: bytes | str) -> List[Dict]:
+    if isinstance(payload, (bytes, bytearray)):
+        text = payload.decode("utf-8", errors="replace")
+    else:
+        text = payload
+
+    dec = json.JSONDecoder()
+    i = 0
+    n = len(text)
+
+    while i < n and text[i].isspace():
+        i += 1
+    if i >= n or text[i] != "[":
+        return []
+
+    i += 1  
+    out: List[Dict] = []
+
+    while i < n:
+        while i < n and text[i] in " \t\r\n,":
+            i += 1
+        if i >= n:
+            break
+        if text[i] == "]":
+            break  
+
+        try:
+            obj, j = dec.raw_decode(text, i)
+        except json.JSONDecodeError:
+            break
+
+        out.append(obj)
+        i = j
+
+    return out
+
+
 def admin_required(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
@@ -300,10 +340,7 @@ def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tupl
     return choices
 
 
-def _fetch_openf1_telemetry(
-    meeting_key: int,
-    min_speed: int,
-) -> List[Dict]:
+def _fetch_openf1_telemetry(meeting_key: int, min_speed: int) -> List[Dict]:
     url = f"{OPENF1_CAR_DATA_URL}?meeting_key={meeting_key}&speed>={min_speed}"
     try:
         with urlopen(url) as response:
@@ -315,8 +352,11 @@ def _fetch_openf1_telemetry(
 
     try:
         data = json.loads(payload)
+        if not isinstance(data, list):
+            return []
     except json.JSONDecodeError:
-        return []
+        data = _loads_json_array_best_effort(payload)
+
     if not isinstance(data, list):
         return []
     return data
