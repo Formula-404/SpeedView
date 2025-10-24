@@ -32,7 +32,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "helven-marcia-speedview.pbp.cs.ui.ac.id", "naila-khadijah-speedview.pbp.cs.ui.ac.id"]
 CSRF_TRUSTED_ORIGINS = [
-    "https://helven-marcia-speedview.pbp.cs.ui.ac.id"
+    "https://helven-marcia-speedview.pbp.cs.ui.ac.id",
+    "https://naila-khadijah-speedview.pbp.cs.ui.ac.id"
 ]
 
 # Application definition
