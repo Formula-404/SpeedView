@@ -24,6 +24,8 @@ def api_meeting_list(request):
         page = 1
 
     page_size = 10
+    meetings_to_process = []
+    meeting_keys: list[int] = []
     try:
         base_meetings = Meeting.objects.all()
         if query:
@@ -38,6 +40,8 @@ def api_meeting_list(request):
         page_obj = paginator.get_page(page)
         results = []
         for meeting in page_obj.object_list:
+            meeting_key_value = meeting.meeting_key
+            meeting_keys.append(int(meeting_key_value))
             results.append({
                 'meeting_key': meeting.meeting_key,
                 'meeting_name': meeting.meeting_name,
@@ -56,7 +60,7 @@ def api_meeting_list(request):
             'total_meetings': paginator.count
         }
 
-        return JsonResponse({'ok': True, 'data': results, 'pagination': pagination_data})
+        return JsonResponse({'ok': True, 'data': results, 'meeting_keys': meeting_keys, 'pagination': pagination_data})
     except requests.exceptions.RequestException as e:
         return JsonResponse({'ok': False, 'error': f"Gagal mengambil data dari OpenF1 API: {e}"}, status=500)
     except Exception as e:
