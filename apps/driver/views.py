@@ -25,6 +25,7 @@ def serialize_driver(driver: Driver):
         "broadcast_name": driver.broadcast_name or "",
         "headshot_url": driver.headshot_url or "",
         "country_code": driver.country_code or "",
+        "teams": list(driver.teams.values_list("team_name", flat=True)),
         "created_at": driver.created_at.isoformat() if driver.created_at else None,
         "updated_at": driver.updated_at.isoformat() if driver.updated_at else None,
         "detail_url": driver.get_absolute_url(),
@@ -87,7 +88,7 @@ def delete_driver_page(request, driver_number):
 # ================== API ==================
 @require_GET
 def api_driver_list(request):
-    drivers = Driver.objects.all()
+    drivers = Driver.objects.all().prefetch_related("teams")
     data = [serialize_driver(d) for d in drivers]
     return JsonResponse({"ok": True, "count": len(data), "data": data})
 
@@ -104,7 +105,8 @@ def api_driver_create(request):
     if not is_admin(request):                                
         return json_error("Admin role required.", status=403)
 
-    payload = request.POST.dict() or parse_json(request)
+    payload = parse_json(request) if request.content_type == "application/json" else request.POST
+
     if payload is None:
         return HttpResponseBadRequest("Invalid JSON body.")
     form = DriverForm(payload)
@@ -136,7 +138,7 @@ def api_driver_update(request, driver_number):
         return json_error("Admin role required.", status=403)
 
     driver = get_object_or_404(Driver, pk=driver_number)
-    payload = parse_json(request) or request.POST.dict()
+    payload = parse_json(request) if request.content_type == "application/json" else request.POST
     if payload is None:
         return HttpResponseBadRequest("Invalid JSON body.")
 
