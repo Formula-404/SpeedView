@@ -6,7 +6,7 @@ from django.urls import reverse
 from apps.user.models import UserProfile
 from apps.team.models import Team
 from .models import Comparison, ComparisonTeam
-from . import views as comparison_views
+from . import views as comparison_viewshttps://helven-marcia-speedview.pbp.cs.ui.ac.id/team/
 
 
 def make_user(username="user", password="pass12345", role="user"):
