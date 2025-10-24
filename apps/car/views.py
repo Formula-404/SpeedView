@@ -6,7 +6,6 @@ from typing import Dict, Iterable, List, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 import requests
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -17,16 +16,15 @@ from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import localtime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from apps.car.forms import CarForm
 from apps.car.models import Car
+from apps.meeting.models import Meeting
 from apps.session.models import Session
 from apps.session.services import ensure_sessions_for_meetings
-from apps.meeting.models import Meeting
 
 
 def admin_required(view_func):
@@ -81,7 +79,7 @@ def _build_session_catalog(meetings: Iterable[int]) -> dict[str, List[dict[str, 
             continue
         catalog.setdefault(str(session.meeting_key), []).append(
             {
-                "value": str(session.session_key),
+                "value": session.session_key,
                 "label": str(session),
             }
         )
@@ -129,7 +127,6 @@ def add_car(request):
     )
 
 
-@login_required(login_url="/login")
 def show_car(request, id):
     car = get_object_or_404(Car, pk=id)
     return render(request, "car_detail.html", {"car": car})
@@ -255,54 +252,6 @@ def api_grouped_car_data(request):
 OPENF1_MEETINGS_URL = "https://api.openf1.org/v1/meetings"
 OPENF1_CAR_DATA_URL = "https://api.openf1.org/v1/car_data"
 OPENF1_MIN_SPEED_FLOOR = 310
-
-
-def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tuple[int, str]]:
-    choices: list[tuple[int, str]] = []
-    seen: set[int] = set()
-
-    try:
-        response = requests.get(OPENF1_MEETINGS_URL, timeout=10.0)
-        response.raise_for_status()
-        payload = response.json()
-    except (requests.RequestException, ValueError):
-        payload = []
-
-    if isinstance(payload, list):
-        for entry in payload:
-            if not isinstance(entry, dict):
-                continue
-            key = entry.get("meeting_key")
-            try:
-                key_int = int(key)
-            except (TypeError, ValueError):
-                continue
-            if key_int in seen:
-                continue
-            label = (
-                entry.get("meeting_name")
-                or entry.get("circuit_short_name")
-                or entry.get("country_name")
-                or str(key_int)
-            )
-            choices.append((key_int, f"{key_int} - {label}"))
-            seen.add(key_int)
-
-    if extra_keys:
-        for key in extra_keys:
-            if key is None:
-                continue
-            try:
-                key_int = int(key)
-            except (TypeError, ValueError):
-                continue
-            if key_int in seen:
-                continue
-            choices.append((key_int, str(key_int)))
-            seen.add(key_int)
-
-    choices.sort(key=lambda item: item[0])
-    return choices
 
 
 def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tuple[int, str]]:
@@ -582,14 +531,7 @@ def manual_list(request):
     }
     for car in manual_entries:
         car.session_obj = session_map.get(car.session_key)
-        display_date = car.date
-        if display_date:
-            if timezone.is_aware(display_date):
-                display_date = timezone.make_naive(
-                    display_date, datetime.timezone.utc
-                )
-            display_date = display_date + datetime.timedelta(hours=7)
-        car.display_date = display_date
+        car.display_date = localtime(car.date)
 
     return render(
         request,
