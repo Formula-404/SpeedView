@@ -39,20 +39,22 @@
 
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
-        
-        <!-- Left Column: Map Image -->
+        <!-- Map Image -->
         <div class="lg:col-span-1">
             {% if circuit.map_image_file %}
-                <img src="{{ circuit.map_image_file.url }}" alt="Map of {{ circuit.name }}" class="w-full h-auto rounded-lg object-cover border border-white/10">
-                [Image of {{ circuit.name }} circuit layout]
+                <img src="{{ circuit.map_image_file.url }}" alt="Map of {{ circuit.name }}" class="w-full h-auto rounded-lg object-cover border border-white/10 aspect-video">
+            
+            {% elif circuit.map_image_url %}
+                <img src="{{ circuit.map_image_url }}" alt="Map of {{ circuit.name }} (from URL)" class="w-full h-auto rounded-lg object-cover border border-white/10 aspect-video">
+
             {% else %}
-                <div class="w-full h-64 flex items-center justify-center bg-[#0D1117] border border-white/10 rounded-lg text-white/60">
+                <div class="w-full h-64 flex items-center justify-center bg-[#0D1117] border border-white/10 rounded-lg text-white/60 aspect-video">
                     No map image available.
                 </div>
             {% endif %}
         </div>
         
-        <!-- Right Column: Circuit Details -->
+        <!-- Circuit Details -->
         <div class="lg:col-span-2 bg-[#0D1117]/80 border border-white/10 rounded-xl p-6">
             <h2 class="text-2xl font-semibold text-white mb-6">Circuit Specifications</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5">
