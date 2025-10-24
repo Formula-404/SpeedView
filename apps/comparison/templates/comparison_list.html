@@ -52,10 +52,11 @@
         container.innerHTML = `<div class='text-[#E6EDF3]/60'>Loading comparisons...</div>`;
         resultsInfo.textContent = "Loading comparisons…";
 
-        const res = await fetch(`{% url 'comparison:api_list' %}?filter=${filter}`);
+        const scope = filter === "mine" ? "my" : filter;
+        const res = await fetch(`{% url 'comparison:api_list' %}?scope=${scope}`);
         const json = await res.json();
 
-        if (!json.ok || json.data.length === 0) {
+        if (!json.ok || (json.data || []).length === 0) {
             container.innerHTML = `
                 <div class="rounded-xl bg-white/5 border border-white/10 p-8 text-center">
                     <p class="text-[#E6EDF3]/70 mb-4">No comparisons listed.</p>
@@ -64,20 +65,38 @@
             return;
         }
 
-        const total = json.data.length;
+        const items = json.data || [];
+        const total = items.length;
         resultsInfo.textContent = `${total} comparison${total === 1 ? "" : "s"}`;
 
-        container.innerHTML = json.data.map(c => `
-            <a href="/compare/${c.id}/"
-               class="block bg-[#0D1117] border border-gray-700 rounded-lg px-6 py-4 hover:border-red-500/50 transition-all">
-                <div class="flex justify-between items-center mb-1">
-                    <h2 class="text-lg font-semibold text-[#E6EDF3]">${c.title}</h2>
-                    <span class="text-xs text-[#E6EDF3]/50">${c.created_at}</span>
-                </div>
-                <p class="text-sm text-[#E6EDF3]/70">Module: ${c.module}</p>
-                <p class="text-sm text-[#E6EDF3]/60">By ${c.owner}</p>
-            </a>
-        `).join("");
+        container.innerHTML = items.map(c => {
+            const href = c.detail_url || `/comparison/${c.id}/`;
+            const isPublic = !!c.is_public;
+            const badgeText = isPublic ? "PUBLIC" : "PRIVATE";
+            const badgeClass = isPublic
+                ? "border-green-500/40 text-green-400 bg-green-500/10"
+                : "border-white/20 text-white/70 bg-white/5";
+
+            const moduleLabel = c.module_label || c.module || "—";
+            const ownerName = c.owner_name || "—";
+            const createdAt = c.created_at || "";
+            const subjectList = (c.items && c.items.length) ? c.items.join(", ") : "—";
+
+            return `
+                <a href="${href}"
+                   class="block bg-[#0D1117] border border-gray-700 rounded-lg px-6 py-4 hover:border-red-500/50 transition-all">
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <h2 class="text-lg font-semibold text-[#E6EDF3] truncate">${c.title}</h2>
+                            <span class="px-2.5 py-0.5 text-[10px] rounded-full border ${badgeClass}">${badgeText}</span>
+                        </div>
+                        <span class="text-xs text-[#E6EDF3]/50">${createdAt}</span>
+                    </div>
+                    <p class="text-sm text-[#E6EDF3]/70 truncate">Module: ${moduleLabel} • ${subjectList}</p>
+                    <p class="text-sm text-[#E6EDF3]/60">By ${ownerName}</p>
+                </a>
+            `;
+        }).join("");
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -100,4 +119,5 @@
         fetchComparisons("all");
     });
 </script>
+
 {% endblock %}
