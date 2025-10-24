@@ -5,7 +5,7 @@ Tapi ini tentang kombinasi **pembalap yang memacu batasan**, **tim pemenang adal
 
 ---
 
-**SpeedView** hadir untuk menangkap detail-detail itu.  
+**SpeedView** hadir untuk melihat lebih dekat detail-detail itu.  
 Tujuannya adalah mengubah **data balapan yang tadinya monoton dan teknis** menjadi **hub interaktif** tempat penggemar, mahasiswa, dan peneliti bisa:
 
 - Menjelajahi balapan lewat ***meetings, sessions, drivers, dan circuits***
