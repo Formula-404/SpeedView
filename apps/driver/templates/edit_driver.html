@@ -7,6 +7,7 @@
 
 {% block content %}
 <div class="px-12 py-12 mx-auto max-w-5xl">
+  <!-- Breadcrumb -->
   <div class="text-sm text-white/60 tracking-wide mb-4 space-x-2">
     <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a><span>›</span>
     <a class="hover:text-red-400" href="{% url 'driver:driver_list' %}">Drivers</a><span>›</span>
@@ -19,7 +20,11 @@
   </div>
   {% endif %}
 
-  <form method="POST" action="{% url 'driver:api_update' form.instance.pk %}" id="driver-form" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <!-- ====== Form ====== -->
+  <form method="POST"
+        action="{% url 'driver:api_update' form.instance.pk %}"
+        id="driver-form"
+        class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     {% csrf_token %}
 
     <div class="lg:col-span-2 space-y-6 rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
@@ -29,26 +34,31 @@
         <p class="text-xs text-white/40 mt-1">Tidak disarankan mengubah nomor jika sudah dipakai.</p>
         {% for error in form.driver_number.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
       </div>
+
       <div>
         <label class="block text-sm font-medium text-[#E6EDF3] mb-1">Full Name</label>
         {{ form.full_name }}
         {% for error in form.full_name.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
       </div>
+
       <div>
         <label class="block text-sm font-medium text-[#E6EDF3] mb-1">Broadcast Name</label>
         {{ form.broadcast_name }}
         {% for error in form.broadcast_name.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
       </div>
+
       <div>
         <label class="block text-sm font-medium text-[#E6EDF3] mb-1">Country Code</label>
         {{ form.country_code }}
         {% for error in form.country_code.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
       </div>
+
       <div>
         <label class="block text-sm font-medium text-[#E6EDF3] mb-1">Headshot URL</label>
         {{ form.headshot_url }}
         {% for error in form.headshot_url.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
       </div>
+
       <div>
         <label class="block text-sm font-medium text-[#E6EDF3] mb-1">Teams</label>
         {{ form.teams }}
@@ -56,35 +66,115 @@
       </div>
 
       <div class="flex justify-end gap-3 pt-2">
-        <a href="{% url 'driver:driver_detail' form.instance.pk %}" class="px-6 py-3 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3]/80 hover:text-white rounded-lg border border-gray-600/50">
+        <a href="{% url 'driver:driver_detail' form.instance.pk %}"
+           class="px-6 py-3 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3]/80 hover:text-white rounded-lg border border-gray-600/50">
           Cancel
         </a>
-        <button type="submit" class="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold">
+        <button type="submit"
+                class="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold">
           Save Changes
         </button>
       </div>
     </div>
 
+    <!-- ====== Sidebar ====== -->
     <aside class="space-y-4">
       <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6">
         <h3 class="text-sm font-semibold text-white mb-4">Preview</h3>
-        <img id="headshot-preview" class="w-full h-64 object-cover rounded-md bg-white/5 border border-white/10"
+        <img id="headshot-preview"
+             class="w-full h-64 object-cover rounded-md bg-white/5 border border-white/10"
              src="{{ form.instance.headshot_url|default:'https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png' }}"
              onerror="this.src='https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png'">
-        <p class="mt-3 text-white font-semibold">{{ form.instance.full_name|default:form.instance.broadcast_name|default:form.instance.name_acronym }}</p>
+        <p class="mt-3 text-white font-semibold">
+          {{ form.instance.full_name|default:form.instance.broadcast_name|default:form.instance.name_acronym }}
+        </p>
         <p class="text-xs text-white/60">#{{ form.instance.driver_number }} • {{ form.instance.country_code|default:"—" }}</p>
       </div>
 
-      <a href="{% url 'driver:delete_page' form.instance.pk %}" class="block text-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700">
+      <!-- Tombol Delete -->
+      <button type="button"
+              class="w-full text-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              data-delete-button
+              data-delete-number="{{ form.instance.pk }}"
+              data-delete-label="{{ form.instance.full_name|default:form.instance.broadcast_name|default:'#'|add:form.instance.driver_number|escape }}">
         Delete Driver
-      </a>
+      </button>
     </aside>
   </form>
 
+  <!-- =====  Delete  ===== -->
+  <div id="delete-modal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-md rounded-2xl bg-[#0D1117] border border-white/10 p-6">
+        <h3 class="text-lg font-semibold text-white" data-del-title>Delete?</h3>
+        <p class="text-white/60 mt-2">This action cannot be undone.</p>
+        <div class="mt-6 flex justify-end gap-3">
+          <button data-del-no
+                  class="px-6 py-2 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3] rounded-lg">Cancel</button>
+          <button data-del-yes
+                  class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    const classy = "w-full px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
-    ["id_driver_number","id_full_name","id_broadcast_name","id_country_code","id_headshot_url","id_teams"]
-      .forEach(id => { const el = document.getElementById(id); if (el) el.className = classy; });
+    (function(){
+      var classy = "w-full px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+      ["id_driver_number","id_full_name","id_broadcast_name","id_country_code","id_headshot_url","id_teams"]
+        .forEach(function(id){ var el=document.getElementById(id); if(el) el.className = classy; });
+    })();
+
+    (function(){
+      var input = document.getElementById("id_headshot_url");
+      var img = document.getElementById("headshot-preview");
+      if (!input || !img) return;
+      input.addEventListener("input", function(){
+        var url = input.value || "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png";
+        img.src = url;
+      });
+    })();
+
+    function getCSRFCookie(name){
+      var m = document.cookie.match(new RegExp('(^|; )' + (name||'csrftoken') + '=([^;]*)')); 
+      return m ? decodeURIComponent(m[2]) : '';
+    }
+
+    (function initDeleteModal(){
+      var modal = document.getElementById('delete-modal');
+      var btnOpen = document.querySelector('[data-delete-button]');
+      if (!modal || !btnOpen) return;
+
+      var title = modal.querySelector('[data-del-title]');
+      var btnYes = modal.querySelector('[data-del-yes]');
+      var btnNo  = modal.querySelector('[data-del-no]');
+      var number = btnOpen.getAttribute('data-delete-number');
+      var label  = btnOpen.getAttribute('data-delete-label') || ('#' + number);
+
+      function close(){ modal.classList.add('hidden'); }
+      function open(){
+        title.textContent = 'Delete ' + label + '?';
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden','false');
+      }
+
+      btnOpen.addEventListener('click', open);
+      btnNo.addEventListener('click', close);
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+
+      btnYes.addEventListener('click', function(){
+        btnYes.disabled = true;
+        fetch('/driver/api/' + number + '/delete/', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCSRFCookie('csrftoken') }
+        })
+        .then(function(res){ if(!res.ok) throw new Error(); return res.json(); })
+        .then(function(){ window.location.href = "{% url 'driver:driver_list' %}"; })
+        .catch(function(){ alert('Failed to delete driver.'); })
+        .finally(function(){ btnYes.disabled = false; });
+      });
+    })();
   </script>
 </div>
 {% endblock content %}

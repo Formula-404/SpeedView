@@ -7,13 +7,28 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     {% endif %}
+
+    <style>
+        /* scrollbar tipis biar matching tema gelap */
+        .thin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .thin-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(255,255,255,0.15);
+            border-radius: 9999px;
+        }
+        .thin-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: rgba(255,255,255,0.30);
+        }
+        /* gradient fade atas/bawah saat area scroll */
+        .fade-top { pointer-events:none; position:absolute; left:0; right:0; top:0; height:16px;
+            background: linear-gradient(to bottom, rgba(13,17,23,0.8), rgba(13,17,23,0)); }
+        .fade-bottom { pointer-events:none; position:absolute; left:0; right:0; bottom:0; height:16px;
+            background: linear-gradient(to top, rgba(13,17,23,0.8), rgba(13,17,23,0)); }
+    </style>
 {% endblock meta %}
 
 {% block content %}
 
-    <!-- =================================== -->
-    <!-- ===== TAMPILAN UNTUK USER LOGIN ===== -->
-    <!-- =================================== -->
     {% if user.is_authenticated %}
     
     <div id="welcomeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-500 pointer-events-none">
@@ -31,7 +46,7 @@
         </div>
     </div>
 
-    <!-- Layout Dashboard (Search, Select Meeting, Weather, etc.) -->
+    <!-- Layout Dashboard -->
     <div class="px-12 py-12 mx-auto space-y-8">
         <!-- 1. Header (Judul + Search Bar) -->
         <div class="flex justify-between items-center mb-6">
@@ -74,18 +89,21 @@
 
         <div id="dashboard-data-container" class="space-y-8 hidden">
             <!-- 3. Widget Meeting -->
-            <div id="widget-meeting" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10">
-            </div>
+            <div id="widget-meeting" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
 
             <!-- 4. Widget Sessions -->
-            <div id="widget-sessions" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10">
-            </div>
+            <div id="widget-sessions" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
             
-            <!-- 5. Widget Drivers -->
-            <div id="widget-drivers" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 h-64">
+            <!-- 5. Widget Drivers (hapus h-64) -->
+            <div id="widget-drivers" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10">
                 <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
-                <div class="flex items-center justify-center h-4/5 border border-dashed border-white/20 rounded-lg">
-                    <p class="text-white/50">Driver data widget placeholder</p>
+                <!-- scroll area default (diganti oleh JS saat load) -->
+                <div class="relative">
+                    <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar border border-dashed border-white/20 rounded-lg">
+                        <div class="p-4 text-white/50">Driver data widget placeholder</div>
+                    </div>
+                    <div class="fade-top"></div>
+                    <div class="fade-bottom"></div>
                 </div>
             </div>
 
@@ -98,8 +116,7 @@
             </div>
             
             <!-- 7. Widget Weather -->
-            <div id="widget-weather" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10">
-            </div>
+            <div id="widget-weather" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10"></div>
 
             <!-- 8. Widget Laps -->
             <div id="widget-laps" class="p-6 rounded-xl bg-[#0D1117]/80 border border-white/10 h-64">
@@ -205,7 +222,6 @@
             
             searchForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                // TODO: Hubungkan ini ke API search yang sebenarnya. Untuk sekarang, kita hanya reload 4 tombol
                 fetchRecentMeetings(); 
             });
 
@@ -225,10 +241,9 @@
                     renderWeatherWidget(data.data.weather); 
                     weatherDataStore = data.data.weather;
                     
-                    setTimeout(() => {
-                        updateWeatherChart('temperature');
-                    }, 100);
+                    setTimeout(() => { updateWeatherChart('temperature'); }, 100);
 
+                    loadDrivers();
                 } catch (e) {
                     dataContainer.innerHTML = `<div class="p-6 rounded-xl bg-red-500/10 border border-red-500/50"><h3 class="text-red-400 font-semibold">Error loading dashboard</h3><p class="text-white/70">${e.message}</p></div>`;
                 }
@@ -333,10 +348,8 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div id="weather-sub-widget-1" class="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50">
-                        </div>
-                        <div id="weather-sub-widget-2" class="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50">
-                        </div>
+                        <div id="weather-sub-widget-1" class="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50"></div>
+                        <div id="weather-sub-widget-2" class="p-4 rounded-lg bg-gray-700/30 border border-gray-600/50"></div>
                     </div>
                 `;
                 
@@ -451,14 +464,93 @@
             }
             fetchRecentMeetings();
         });
+
+        /* ===== Drivers widget ===== */
+        async function loadDrivers() {
+            const driversWidget = document.getElementById('widget-drivers');
+            if (!driversWidget) return;
+
+            // skeleton saat loading (tetap di dalam area scroll)
+            driversWidget.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                <div class="relative">
+                    <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 border border-gray-600/30 rounded-lg p-3 bg-gray-700/10">
+                        <div class="h-16 rounded-lg bg-gray-700/50 animate-pulse"></div>
+                        <div class="h-16 rounded-lg bg-gray-700/50 animate-pulse"></div>
+                        <div class="h-16 rounded-lg bg-gray-700/50 animate-pulse"></div>
+                    </div>
+                    <div class="fade-top"></div>
+                    <div class="fade-bottom"></div>
+                </div>
+            `;
+
+            try {
+                const res = await fetch("{% url 'driver:api_list' %}");
+                const json = await res.json();
+                if (!json.ok) throw new Error(json.error || 'Failed to load drivers.');
+                renderDriversWidget(json.data);
+            } catch (err) {
+                driversWidget.innerHTML = `
+                    <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                    <div class="p-4 rounded-lg bg-red-500/10 border border-red-500/50 text-red-300">
+                        Error: ${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        function renderDriversWidget(drivers) {
+            const driversWidget = document.getElementById('widget-drivers');
+            if (!driversWidget) return;
+
+            if (!drivers || drivers.length === 0) {
+                driversWidget.innerHTML = `
+                    <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                    <div class="relative">
+                        <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar border border-dashed border-white/20 rounded-lg">
+                            <div class="p-6 text-white/50">No driver data.</div>
+                        </div>
+                        <div class="fade-top"></div>
+                        <div class="fade-bottom"></div>
+                    </div>
+                `;
+                return;
+            }
+
+            const cards = drivers.map(d => `
+                <a href="${d.detail_url}" class="group min-h-16 p-3 rounded-lg bg-gray-700/30 border border-gray-600/50 flex items-center gap-3 hover:bg-gray-700/50 transition">
+                    <img src="${d.headshot_url || ''}" alt="${d.full_name}" class="w-10 h-10 rounded-full object-cover bg-gray-800">
+                    <div class="flex-1">
+                        <div class="text-white font-semibold group-hover:text-white">
+                            ${d.broadcast_name || d.full_name || 'Unknown'}
+                        </div>
+                        <div class="text-white/60 text-xs">
+                            #${d.driver_number}${d.country_code ? ' • ' + d.country_code : ''}
+                        </div>
+                        ${d.teams && d.teams.length ? `<div class="text-white/50 text-[11px] mt-1">${d.teams.join(', ')}</div>` : ''}
+                    </div>
+                </a>
+            `).join('');
+
+            driversWidget.innerHTML = `
+                <h2 class="text-2xl font-bold text-white mb-4">Drivers</h2>
+                <div class="relative">
+                    <div class="max-h-80 overflow-y-auto pr-2 thin-scrollbar grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 border border-gray-600/30 rounded-lg p-3 bg-gray-700/10">
+                        ${cards}
+                    </div>
+                    <div class="fade-top"></div>
+                    <div class="fade-bottom"></div>
+                </div>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDrivers();
+        });
     </script>
 
-
-    <!-- ======================================= -->
-    <!-- ===== TAMPILAN UNTUK USER NON LOGIN ===== -->
-    <!-- ======================================= -->
     {% else %}
-    
+    <!-- Non login -->
     <div class="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] text-center px-6">
         <img src="{% static 'image/icon/speedview-white.png' %}" alt="SpeedView Logo" class="h-24 mb-6">
         <h1 class="text-5xl font-bold text-white mb-4" style="font-family: Alphacorsa, Inter, sans-serif;">
@@ -468,7 +560,6 @@
             Your ultimate dashboard for Formula 1 data. Analyze meetings, sessions, weather, and driver telemetry all in one place.
         </p>
     </div>
-
     {% endif %}
 
 {% endblock content %}
