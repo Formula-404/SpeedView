@@ -1,205 +1,231 @@
 {% extends 'base.html' %}
+
 {% block meta %}
-<title>Add Car Telemetry - SpeedView</title>
+    <title>Add Car Telemetry - SpeedView</title>
+    <style>
+        .input-field { transition: all 0.3s ease; }
+        .input-field:focus { transform: translateY(-1px); }
+        .btn-primary { transition: all 0.3s ease; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
+    </style>
 {% endblock meta %}
 
 {% block content %}
-<div class="bg-gray-50 w-full min-h-screen">
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="mb-6">
-      <a href="{% url 'car:manual_list' %}" class="text-gray-600 hover:text-gray-900 font-medium transition-colors">
-        &larr; Back to Telemetry
-      </a>
+<div class="min-h-screen px-12 py-12">
+    <!-- Header -->
+    <div class="mb-10">
+        <div class="text-sm text-white/60 tracking-wide mb-3 space-x-2">
+            <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
+            <span>›</span>
+            <a class="hover:text-red-400" href="{% url 'car:list_page' %}">Car Telemetry</a>
+            <span>›</span>
+            <a class="hover:text-red-400" href="{% url 'car:manual_list' %}">Manual Data</a>
+            <span>›</span>
+            <span class="text-white">Add Car Telemetry</span>
+        </div>
+        <h1 class="text-4xl font-bold text-[#E6EDF3] tracking-tight" style="font-family: Alphacorsa, Inter, sans-serif;">Add Car Telemetry</h1>
+        <p class="text-[#E6EDF3]/60 mt-1">Input telemetry manual ke database internal SpeedView.</p>
     </div>
-    <div class="bg-white rounded-lg border border-gray-200 p-6 sm:p-8 form-style">
-      <div class="mb-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Add Car Telemetry</h1>
-        <p class="text-gray-600">Input telemetry manual ke database internal SpeedView.</p>
-      </div>
-      <form id="add-car-form" method="POST" action="{% url 'car:add_car' %}" class="space-y-6">
+
+    <!-- Form -->
+    <form id="add-car-form" method="POST" action="{% url 'car:add_car' %}" class="space-y-10">
         {% csrf_token %}
+
         <div id="add-car-alerts"></div>
 
-        {% for field in form %}
-          <div>
-            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-              {{ field.label }}
-            </label>
-            <div class="w-full">
-              {{ field }}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div class="space-y-6">
+                {% for field in form.visible_fields %}
+                    {% if forloop.counter0|divisibleby:2 %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">{{ field.label }}</label>
+                        <div class="w-full">
+                            {{ field }}
+                        </div>
+                        {% if field.help_text %}
+                            <p class="mt-1 text-sm text-[#E6EDF3]/60">{{ field.help_text }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-red-400 field-error" data-field="{{ field.name }}"></p>
+                    </div>
+                    {% else %}
+                    {% endif %}
+                {% endfor %}
             </div>
-            {% if field.help_text %}
-              <p class="mt-1 text-sm text-gray-500">{{ field.help_text }}</p>
-            {% endif %}
-            <p class="mt-1 text-sm text-red-600 field-error" data-field="{{ field.name }}"></p>
-          </div>
-        {% endfor %}
-
-        <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
-          <a href="{% url 'car:manual_list' %}" class="order-2 sm:order-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors text-center">
-            Cancel
-          </a>
-          <button type="submit" class="order-1 sm:order-2 flex-1 bg-green-600 text-white px-6 py-3 rounded-md font-medium hover:bg-green-700 transition-colors">
-            Add Car Telemetry
-          </button>
+            <div class="space-y-6">
+                {% for field in form.visible_fields %}
+                    {% if not forloop.counter0|divisibleby:2 %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">{{ field.label }}</label>
+                        <div class="w-full">
+                            {{ field }}
+                        </div>
+                        {% if field.help_text %}
+                            <p class="mt-1 text-sm text-[#E6EDF3]/60">{{ field.help_text }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-red-400 field-error" data-field="{{ field.name }}"></p>
+                    </div>
+                    {% else %}
+                    {% endif %}
+                {% endfor %}
+            </div>
         </div>
-      </form>
-    </div>
-  </div>
+
+        <div class="flex justify-end gap-3 pt-10 border-t border-gray-700/40 mt-10">
+            <a href="{% url 'car:manual_list' %}" class="px-6 py-3 bg-gray-700/40 hover:bg-gray-700 text-[#E6EDF3]/80 hover:text-white rounded-lg font-medium border border-gray-600/50 transition-all">
+                Cancel
+            </a>
+            <button type="submit" class="btn-primary px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-[#161B22]">
+                Add Car Telemetry
+            </button>
+        </div>
+    </form>
 </div>
 
 {{ session_catalog|json_script:"session-catalog-data" }}
 
 <script>
-  function setupAjaxForm(formId, alertId, options = {}) {
-    const form = document.getElementById(formId);
-    if (!form) return;
+    /* ajax form */
+    function setupAjaxForm(formId, alertId, options = {}) {
+        const form = document.getElementById(formId);
+        if (!form) return;
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const alerts = document.getElementById(alertId);
-      const submitButton = form.querySelector("button[type='submit']");
-      const csrfInput = form.querySelector("[name=csrfmiddlewaretoken]");
-      const fieldErrors = form.querySelectorAll(".field-error");
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const alerts = document.getElementById(alertId);
+            const submitButton = form.querySelector("button[type='submit']");
+            const csrfInput = form.querySelector("[name=csrfmiddlewaretoken]");
+            const fieldErrors = form.querySelectorAll(".field-error");
 
-      alerts.innerHTML = "";
-      fieldErrors.forEach((el) => (el.textContent = ""));
-      submitButton.disabled = true;
+            alerts.innerHTML = "";
+            fieldErrors.forEach((el) => (el.textContent = ""));
+            submitButton.disabled = true;
 
-      try {
-        const response = await fetch(form.action, {
-          method: "POST",
-          headers: {
-            "X-Requested-With": "XMLHttpRequest",
-            "X-CSRFToken": csrfInput ? csrfInput.value : "",
-          },
-          credentials: "same-origin",
-          body: new FormData(form),
+            try {
+                const response = await fetch(form.action, {
+                    method: "POST",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRFToken": csrfInput ? csrfInput.value : "",
+                    },
+                    credentials: "same-origin",
+                    body: new FormData(form),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (typeof options.onSuccess === "function") options.onSuccess(data);
+                    if (typeof showToast === "function") {
+                        showToast("Telemetry saved", data.message || "Car telemetry entry created successfully.", "success");
+                    }
+                } else {
+                    if (typeof showToast === "function") {
+                        showToast("Telemetry not saved", "Please correct the highlighted fields.", "error");
+                    }
+                    if (data.errors) {
+                        Object.entries(data.errors).forEach(([fieldName, messages]) => {
+                            const errorTarget = Array.from(fieldErrors).find((el) => el.dataset.field === fieldName);
+                            if (errorTarget) {
+                                errorTarget.textContent = messages.join(", ");
+                            } else {
+                                alerts.insertAdjacentHTML(
+                                    "beforeend",
+                                    `<div class="px-4 py-3 rounded-lg text-sm bg-red-500/10 border border-red-500/50 text-red-400 mb-3">${messages.join(", ")}</div>`
+                                );
+                            }
+                        });
+                    }
+                    if (typeof options.onError === "function") options.onError(data);
+                }
+            } catch (error) {
+                if (typeof showToast === "function") {
+                    showToast("Network error", "Something went wrong. Please try again.", "error");
+                }
+                console.error("AJAX form error:", error);
+            } finally {
+                submitButton.disabled = false;
+            }
         });
+    }
 
-        const data = await response.json();
+    /* dynamic session options */
+    document.addEventListener("DOMContentLoaded", () => {
+        const baseInput = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+        const baseTextarea = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+        const baseSelect = "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#E6EDF3] focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent";
+        const baseCheckbox = "h-4 w-4 rounded accent-red-600 focus:ring-red-500";
 
-        if (data.success) {
-          if (typeof options.onSuccess === "function") {
-            options.onSuccess(data);
-          }
-          if (typeof showToast === "function") {
-            showToast("Telemetry saved", data.message || "Car telemetry entry created successfully.", "success");
-          }
-        } else {
-          if (typeof showToast === "function") {
-            showToast("Telemetry not saved", "Please correct the highlighted fields.", "error");
-          }
-          if (data.errors) {
-            Object.entries(data.errors).forEach(([fieldName, messages]) => {
-              const errorTarget = Array.from(fieldErrors).find((el) => el.dataset.field === fieldName);
-              if (errorTarget) {
-                errorTarget.textContent = messages.join(", ");
-              } else {
-                alerts.insertAdjacentHTML(
-                  "beforeend",
-                  `<div class="px-4 py-3 rounded-md text-sm bg-red-50 border border-red-200 text-red-700">${messages.join(", ")}</div>`
-                );
-              }
+        const form = document.getElementById("add-car-form");
+        if (form) {
+            form.querySelectorAll('input[type="text"], input[type="url"], input[type="number"], input[type="email"], input[type="password"]').forEach(el => { el.className = baseInput; });
+            form.querySelectorAll('textarea').forEach(el => { el.className = baseTextarea; });
+            form.querySelectorAll('select').forEach(el => { el.className = baseSelect; });
+            form.querySelectorAll('input[type="checkbox"]').forEach(el => { el.className = baseCheckbox; });
+        }
+
+        const catalogElement = document.getElementById("session-catalog-data");
+        const sessionCatalog = catalogElement ? JSON.parse(catalogElement.textContent) : {};
+        const meetingSelect = document.querySelector("#add-car-form select[name='meeting_key']");
+        const sessionSelect = document.querySelector("#add-car-form select[name='session_key']");
+        const defaultPlaceholder = sessionSelect ? sessionSelect.getAttribute("data-placeholder") || "Pilih session" : "Pilih session";
+        const emptyPlaceholder = sessionSelect ? sessionSelect.getAttribute("data-empty-placeholder") || "Tidak ada session untuk meeting ini" : "Tidak ada session untuk meeting ini";
+
+        function populateSessionOptions(meetingValue, preserveSelection = true) {
+            if (!sessionSelect) return;
+
+            const meetingKey = meetingValue ? String(meetingValue) : "";
+            const previousValue = preserveSelection ? sessionSelect.value : "";
+            const options = meetingKey ? sessionCatalog[meetingKey] || [] : [];
+
+            sessionSelect.innerHTML = "";
+
+            const placeholderOption = document.createElement("option");
+            placeholderOption.value = "";
+            placeholderOption.textContent = meetingKey
+                ? (options.length ? defaultPlaceholder : emptyPlaceholder)
+                : defaultPlaceholder;
+            sessionSelect.appendChild(placeholderOption);
+
+            let matched = false;
+            options.forEach(({ value, label }) => {
+                const option = document.createElement("option");
+                option.value = String(value);
+                option.textContent = label;
+                if (previousValue && String(value) === String(previousValue)) {
+                    option.selected = true;
+                    matched = true;
+                }
+                sessionSelect.appendChild(option);
             });
-          }
-          if (typeof options.onError === "function") {
-            options.onError(data);
-          }
+
+            if (!matched) sessionSelect.selectedIndex = 0;
+
+            if (!meetingKey || options.length === 0) sessionSelect.setAttribute("disabled", "disabled");
+            else sessionSelect.removeAttribute("disabled");
         }
-      } catch (error) {
-        if (typeof showToast === "function") {
-          showToast("Network error", "Something went wrong. Please try again.", "error");
+
+        if (meetingSelect && sessionSelect) {
+            populateSessionOptions(meetingSelect.value, true);
+            meetingSelect.addEventListener("change", (event) => populateSessionOptions(event.target.value, false));
         }
-        console.error("AJAX form error:", error);
-      } finally {
-        submitButton.disabled = false;
-      }
+
+        const ajaxOptions = {};
+        if (typeof fetchCarTelemetryFromServer === "function") {
+            ajaxOptions.onSuccess = () => {
+                fetchCarTelemetryFromServer();
+                const formEl = document.getElementById("add-car-form");
+                if (formEl) formEl.reset();
+                populateSessionOptions(meetingSelect ? meetingSelect.value : "", false);
+            };
+        } else {
+            ajaxOptions.onSuccess = () => {
+                const formEl = document.getElementById("add-car-form");
+                if (formEl) formEl.reset();
+                populateSessionOptions(meetingSelect ? meetingSelect.value : "", false);
+            };
+        }
+
+        setupAjaxForm("add-car-form", "add-car-alerts", ajaxOptions);
     });
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const catalogElement = document.getElementById("session-catalog-data");
-    const sessionCatalog = catalogElement ? JSON.parse(catalogElement.textContent) : {};
-    const meetingSelect = document.querySelector("#add-car-form select[name='meeting_key']");
-    const sessionSelect = document.querySelector("#add-car-form select[name='session_key']");
-    const defaultPlaceholder = sessionSelect ? sessionSelect.getAttribute("data-placeholder") || "Pilih session" : "Pilih session";
-    const emptyPlaceholder =
-      sessionSelect ? sessionSelect.getAttribute("data-empty-placeholder") || "Tidak ada session untuk meeting ini" : "Tidak ada session untuk meeting ini";
-
-    function populateSessionOptions(meetingValue, preserveSelection = true) {
-      if (!sessionSelect) {
-        return;
-      }
-
-      const meetingKey = meetingValue ? String(meetingValue) : "";
-      const previousValue = preserveSelection ? sessionSelect.value : "";
-      const options = meetingKey ? sessionCatalog[meetingKey] || [] : [];
-
-      sessionSelect.innerHTML = "";
-
-      const placeholderOption = document.createElement("option");
-      placeholderOption.value = "";
-      placeholderOption.textContent = meetingKey
-        ? options.length
-          ? defaultPlaceholder
-          : emptyPlaceholder
-        : defaultPlaceholder;
-      sessionSelect.appendChild(placeholderOption);
-
-      let matched = false;
-      options.forEach(({ value, label }) => {
-        const option = document.createElement("option");
-        option.value = String(value);
-        option.textContent = label;
-        if (previousValue && String(value) === String(previousValue)) {
-          option.selected = true;
-          matched = true;
-        }
-        sessionSelect.appendChild(option);
-      });
-
-      if (!matched) {
-        sessionSelect.selectedIndex = 0;
-      }
-
-      if (!meetingKey || options.length === 0) {
-        sessionSelect.setAttribute("disabled", "disabled");
-      } else {
-        sessionSelect.removeAttribute("disabled");
-      }
-    }
-
-    if (meetingSelect && sessionSelect) {
-      populateSessionOptions(meetingSelect.value, true);
-      meetingSelect.addEventListener("change", (event) => {
-        populateSessionOptions(event.target.value, false);
-      });
-    }
-
-    const ajaxOptions = {};
-    if (typeof fetchCarTelemetryFromServer === "function") {
-      ajaxOptions.onSuccess = () => {
-        fetchCarTelemetryFromServer();
-        const formEl = document.getElementById("add-car-form");
-        if (formEl) {
-          formEl.reset();
-        }
-        populateSessionOptions(meetingSelect ? meetingSelect.value : "", false);
-      };
-    } else {
-      ajaxOptions.onSuccess = () => {
-        const formEl = document.getElementById("add-car-form");
-        if (formEl) {
-          formEl.reset();
-        }
-        populateSessionOptions(meetingSelect ? meetingSelect.value : "", false);
-      };
-    }
-
-    setupAjaxForm("add-car-form", "add-car-alerts", ajaxOptions);
-  });
 </script>
-
 {% endblock %}
-

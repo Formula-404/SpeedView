@@ -58,14 +58,23 @@
 
 html { 
     scroll-behavior: smooth; 
-    height: 100%; width: 100%;
+    min-height: 100vh;
+    width: 100%;
 }
 
 body { 
     font-family: 'Inter', sans-serif;
-    height: 100%; width: 100%;
+    min-height: 100vh;
+    width: 100%;
     background: linear-gradient(142deg, rgba(239, 68, 68, 0.00) 44.94%, rgba(186, 25, 49, 0.11) 85.45%), #0D1117;
+    background-repeat: no-repeat;
+    background-size: cover;
     color: #E6EDF3;
+    overflow-y: auto;
+}
+
+body > .ml-64.flex {
+    min-height: 100vh;
 }
 
 /* scrollbar */

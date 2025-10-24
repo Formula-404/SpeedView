@@ -2,6 +2,7 @@ import logging
 from typing import Iterable
 
 import requests
+from django.db import IntegrityError
 from django.utils.dateparse import parse_datetime
 
 from apps.meeting.models import Meeting
@@ -119,15 +120,27 @@ def ensure_sessions_for_meetings(
 
             session = existing_sessions.get(session_key)
             if session is None:
-                session = Session.objects.create(
-                    session_key=session_key,
-                    meeting_key=meeting_key,
-                    name=name,
-                    start_time=start_time,
-                )
-                existing_sessions[session_key] = session
-                created += 1
-                continue
+                try:
+                    session = Session.objects.create(
+                        session_key=session_key,
+                        meeting_key=meeting_key,
+                        name=name,
+                        start_time=start_time,
+                    )
+                except IntegrityError:
+                    session = Session.objects.filter(session_key=session_key).first()
+                    if session is None:
+                        LOGGER.warning(
+                            "IntegrityError creating session %s but no existing row found.",
+                            session_key,
+                        )
+                        continue
+                else:
+                    existing_sessions[session_key] = session
+                    created += 1
+                    continue
+
+            existing_sessions[session_key] = session
 
             update_fields: list[str] = []
 
