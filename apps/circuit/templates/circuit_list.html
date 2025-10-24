@@ -20,16 +20,19 @@
         </div>
         <div class="flex items-center gap-3">
             <div class="relative">
-                <input
-                    id="circuit-search"
-                    type="text"
-                    placeholder="Search circuit..."
-                    class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    autocomplete="off"
-                />
-                <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
-                </svg>
+                <form id="search-form" class="relative">
+                    {% csrf_token %} 
+                    <input
+                        id="circuit-search"
+                        type="text"
+                        placeholder="Search circuit..."
+                        class="w-64 md:w-72 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        autocomplete="off"
+                    />
+                    <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
+                    </svg>
+                </form>
             </div>
             {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
                 <a href="{% url 'circuit:add_page' %}"
@@ -46,7 +49,6 @@
     <p id="results-info" class="text-sm text-white/60 mb-4">Loading circuits…</p>
 
     <div id="grid" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <!-- Kartu sirkuit akan di-generate oleh JavaScript di sini -->
     </div>
 
     <template id="card-template">
@@ -64,9 +66,9 @@
                 {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
                     <div class="flex justify-end items-center gap-4 mt-3 border-t border-white/10 pt-3">
                         <a class="edit-link text-xs font-semibold text-yellow-400 hover:text-yellow-300" href="#">EDIT</a>
-                        <form class="delete-form contents" method="POST" action="#" onsubmit="return confirm('Are you sure you want to delete this circuit?');">
+                        <form class="delete-form contents" method="POST" action="#">
                             {% csrf_token %}
-                            <button type="submit" class="text-xs font-semibold text-red-400 hover:text-red-300">DELETE</button>
+                            <button type="button" class="open-delete-modal text-xs font-semibold text-red-400 hover:text-red-300">DELETE</button>
                         </form>
                     </div>
                 {% endif %}
@@ -76,17 +78,48 @@
     </template>
 </div>
 
+<!-- Modal Delete -->
+<div id="delete-modal" class="fixed inset-0 z-50 hidden">
+    <div id="modal-backdrop" class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-2xl bg-[#0B0F14] border border-white/10 shadow-xl">
+            <div class="p-5 border-b border-white/10">
+                <h3 class="text-white text-lg font-semibold">Delete Circuit</h3>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-white/80">Are you sure you want to delete <span id="modal-circuit-name" class="font-semibold text-white"></span>?</p>
+                <p class="text-white/60 text-sm">This action cannot be undone.</p>
+                <div id="modal-error" class="hidden text-red-400 text-sm"></div>
+            </div>
+            <div class="px-5 pb-5 pt-2 flex items-center justify-end gap-2">
+                <button id="modal-cancel" type="button" class="px-3 py-2 rounded-lg bg-white/10 border border-white/15 text-white/90 hover:bg-white/15 transition">Cancel</button>
+                <button id="modal-confirm" type="button" class="px-3 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // ... (fungsi renderCards, applyFilter, dan fetchCircuits tetap sama) ...
+        // === VARIABEL ===
         const API_LIST_URL = "{% url 'circuit:api_list' %}";
         const grid = document.getElementById("grid");
         const searchInput = document.getElementById("circuit-search");
         const resultsInfo = document.getElementById("results-info");
         const cardTemplate = document.getElementById("card-template");
+        
+        const deleteModal = document.getElementById('delete-modal');
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
+        const modalCircuitName = document.getElementById('modal-circuit-name');
+        const modalError = document.getElementById('modal-error');
+        const _csrfToken = document.querySelector("#search-form [name='csrfmiddlewaretoken']").value;
 
         let allCircuits = [];
 
+        // === FUNGSI ===
         function renderCards(circuits) {
             grid.innerHTML = "";
             if (!circuits.length) {
@@ -95,29 +128,24 @@
             }
 
             circuits.forEach(c => {
-                const card = cardTemplate.content.firstElementChild.cloneNode(true);
-                
+                const card = cardTemplate.content.firstElementChild.cloneNode(true);             
                 card.querySelector('.card-name').textContent = c.name;
                 card.querySelector('.card-location').textContent = `${c.location}, ${c.country}`;
-                
                 const img = card.querySelector('.card-img');
                 img.src = c.map_image_url || 'https://placehold.co/600x400/0D1117/E6EDF3?text=No+Map';
                 img.alt = `Map of ${c.name}`;
                 img.onerror = () => { img.src = 'https://placehold.co/600x400/0D1117/E6EDF3?text=No+Map'; };
-
                 card.querySelectorAll('.card-link').forEach(link => link.href = c.detail_url);
-
-                // Admin-only links
                 const editLink = card.querySelector('.edit-link');
-                const deleteForm = card.querySelector('.delete-form');
-                if (editLink && deleteForm) {
-                    // Membuat URL yang benar untuk halaman edit
-                    editLink.href = `/circuit/${c.id}/edit/`;
-                    
-                    // Membuat URL yang benar untuk API delete
-                    deleteForm.action = `/circuit/api/${c.id}/delete/`;
-                }
-                
+                const deleteButton = card.querySelector('.open-delete-modal');
+                if (c.is_admin && editLink && deleteButton) {
+                    editLink.href = c.edit_url;                     
+                    deleteButton.dataset.name = c.name;
+                    deleteButton.dataset.url = c.delete_url;
+                } else if (!c.is_admin) {
+                    const adminActions = card.querySelector('.mt-auto .flex');
+                    if(adminActions) adminActions.remove();
+                }                
                 grid.appendChild(card);
             });
         }
@@ -130,7 +158,7 @@
                 c.location.toLowerCase().includes(query)
             );
             renderCards(filteredCircuits);
-            resultsInfo.textContent = `${filteredCircuits.length} of ${allCircuits.length} circuits shown.`;
+            resultsInfo.textContent = `${filteredCircuits.length} of ${allCircuits.length} circuits shown`;
         }
 
         async function fetchCircuits() {
@@ -149,9 +177,61 @@
             }
         }
         
-        searchInput.addEventListener('input', applyFilter);
+        function closeModal() {
+            deleteModal.classList.add('hidden');
+            modalError.classList.add('hidden');
+            modalError.textContent = '';
+        }
+
+        // === EVENT LISTENERS ===
+        grid.addEventListener('click', (e) => {
+            const deleteButton = e.target.closest('.open-delete-modal');
+            if (deleteButton) {
+                e.preventDefault();
+                const circuitName = deleteButton.dataset.name;
+                const deleteUrl = deleteButton.dataset.url;
+                
+                modalCircuitName.textContent = circuitName;
+                modalConfirm.dataset.deleteUrl = deleteUrl;
+                deleteModal.classList.remove('hidden');
+            }
+        });
+
+        modalCancel.addEventListener('click', closeModal);
+        modalBackdrop.addEventListener('click', closeModal);
+        modalConfirm.addEventListener('click', async () => {
+            const deleteUrl = modalConfirm.dataset.deleteUrl;
+            if (!deleteUrl) return;
+
+            modalConfirm.disabled = true;
+            modalError.classList.add('hidden');
+            
+            try {
+                const response = await fetch(deleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': _csrfToken,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    fetchCircuits(); 
+                } else {
+                    const data = await response.json();
+                    modalError.textContent = data.error || 'Failed to delete circuit.';
+                    modalError.classList.remove('hidden');
+                }
+            } catch (err) {
+                modalError.textContent = 'An error occurred. Check your connection.';
+                modalError.classList.remove('hidden');
+            } finally {
+                modalConfirm.disabled = false;
+            }
+        });
+        searchInput.addEventListener('input', applyFilter);        
         fetchCircuits();
     });
 </script>
 {% endblock content %}
-
