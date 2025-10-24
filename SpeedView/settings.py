@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-7=0&h2o71kncnbvc(g8r!%j($^z(9=$m%4i5n9u5^!^-xfbp5h
 PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "helven-marcia-speedview.pbp.cs.ui.ac.id"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "helven-marcia-speedview.pbp.cs.ui.ac.id", "naila-khadijah-speedview.pbp.cs.ui.ac.id"]
 CSRF_TRUSTED_ORIGINS = [
     "https://helven-marcia-speedview.pbp.cs.ui.ac.id"
 ]
