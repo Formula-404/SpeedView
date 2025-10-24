@@ -26,6 +26,7 @@ class Circuit(models.Model):
     grands_prix = models.CharField("Grands Prix", max_length=255, help_text="Nama Grand Prix yang diadakan di sini")
     seasons = models.CharField("Season(s)", max_length=255, help_text="Contoh: 1985–1995, 2023")
     grands_prix_held = models.IntegerField("Grands Prix held")
+    is_admin_created = models.BooleanField(default=False, editable=False, help_text="True jika dibuat oleh admin, False jika dari seeder.")
 
     def __str__(self):
         return self.name
