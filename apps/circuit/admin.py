@@ -27,6 +27,20 @@ class CircuitAdmin(admin.ModelAdmin):
         obj.is_admin_created = True
         super().save_model(request, obj, form, change)
 
+    def has_delete_permission(self, request, obj=None):
+        if obj and not obj.is_admin_created:
+            return False
+        
+        return super().has_delete_permission(request, obj)
+    
+    def get_readonly_fields(self, request, obj=None):        
+        if obj is None:
+            return ()
+        
+        if not obj.is_admin_created:
+            return [field.name for field in self.model._meta.fields if field.name != "id"]
+        return super().get_readonly_fields(request, obj)
+
 class ReadOnlyMixin:
     actions = None
     def has_add_permission(self, request):
