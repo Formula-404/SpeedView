@@ -1,24 +1,31 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
+from django.utils.html import escape
+import re
 from .models import UserProfile
 
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(required=True)
     username = forms.CharField(max_length=150, required=True)
-    
+
     class Meta:
         model = User
         fields = ['username', 'email', 'password1', 'password2']
-    
+
     def clean_email(self):
         email = self.cleaned_data.get('email')
+        email = escape(email.strip())
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError("Email already exists")
         return email
-    
+
     def clean_username(self):
         username = self.cleaned_data.get('username')
+        username = escape(username.strip())
+        if not re.match(r'^[\w.@+-]+$', username):
+            raise forms.ValidationError("Username can only contain letters, numbers, and @/./+/-/_ characters")
         if User.objects.filter(username=username).exists():
             raise forms.ValidationError("Username already exists")
         return username
@@ -26,6 +33,10 @@ class RegisterForm(UserCreationForm):
 class LoginForm(forms.Form):
     username = forms.CharField(max_length=150, required=True)
     password = forms.CharField(widget=forms.PasswordInput, required=True)
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        return escape(username.strip())
 
 class EditProfileForm(forms.Form):
     username = forms.CharField(max_length=150, required=True)
@@ -37,12 +48,16 @@ class EditProfileForm(forms.Form):
 
     def clean_username(self):
         username = self.cleaned_data.get('username')
+        username = escape(username.strip())
+        if not re.match(r'^[\w.@+-]+$', username):
+            raise forms.ValidationError("Username can only contain letters, numbers, and @/./+/-/_ characters")
         if User.objects.filter(username=username).exclude(id=self.user.id).exists():
             raise forms.ValidationError("Username already exists")
         return username
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
+        email = escape(email.strip())
         if User.objects.filter(email=email).exclude(id=self.user.id).exists():
             raise forms.ValidationError("Email already exists")
         return email

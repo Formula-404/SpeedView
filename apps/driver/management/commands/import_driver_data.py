@@ -9,9 +9,7 @@ from urllib.request import Request, urlopen
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.driver.models import Driver, DriverEntry
-from apps.meeting.models import Meeting
-from apps.team.models import Team
+from apps.driver.models import Driver
 
 try:
     import certifi 
@@ -37,11 +35,6 @@ class Command(BaseCommand):
             "--insecure", action="store_true",
             help="DEV ONLY: skip TLS certificate verification."
         )
-        parser.add_argument(
-            "--entry",
-            action="store_true",
-            help="Also upsert DriverEntry rows for each driver/session.",
-        )
 
     def handle(self, *args, **options):
         driver_numbers: List[int] = options.get("driver_numbers") or []
@@ -49,7 +42,6 @@ class Command(BaseCommand):
         sleep_time: float = options["sleep"]
         create_only: bool = options["create_only"]
         dry_run: bool = options["dry_run"]
-        create_entries: bool = options["entry"]
         self._timeout: float = options["timeout"]
         self._debug: bool = options["debug"]
 
@@ -82,16 +74,11 @@ class Command(BaseCommand):
             self.stdout.write(f"Dry-run: would process {len(batch)} rows.")
             return
 
-        created, updated, entries_created, entries_updated = self._store_batch(
-            batch=batch,
-            create_only=create_only,
-            create_entries=create_entries,
-        )
+        created, updated = self._store_batch(batch=batch, create_only=create_only)
 
-        message = f"Done. processed={len(batch)}, created={created}, updated={updated}"
-        if create_entries:
-            message += f", entry_created={entries_created}, entry_updated={entries_updated}"
-        self.stdout.write(self.style.SUCCESS(message))
+        self.stdout.write(self.style.SUCCESS(
+            f"Done. processed={len(batch)}, created={created}, updated={updated}"
+        ))
 
         if sleep_time:
             time.sleep(sleep_time)
@@ -120,14 +107,8 @@ class Command(BaseCommand):
             return []
         return data
 
-    def _store_batch(
-        self,
-        batch: List[dict],
-        create_only: bool,
-        create_entries: bool,
-    ) -> Tuple[int, int, int, int]:
+    def _store_batch(self, batch: List[dict], create_only: bool) -> Tuple[int, int]:
         created = updated = 0
-        entries_created = entries_updated = 0
         for row in batch:
             dn = self._to_int(row.get("driver_number"))
             if dn is None:
@@ -146,74 +127,15 @@ class Command(BaseCommand):
                     Driver.objects.create(driver_number=dn, **defaults)
                     created += 1
                 continue
-            driver, was_created = Driver.objects.update_or_create(
-                driver_number=dn,
-                defaults=defaults,
-            )
+            _, was_created = Driver.objects.update_or_create(driver_number=dn, defaults=defaults)
             if was_created:
                 created += 1
             else:
                 updated += 1
-
-            if create_entries:
-                entry_created, entry_updated = self._upsert_entry(driver=driver, row=row)
-                entries_created += entry_created
-                entries_updated += entry_updated
-        return created, updated, entries_created, entries_updated
+        return created, updated
 
     def _to_int(self, value) -> Optional[int]:
         try:
             return int(value)
         except Exception:
             return None
-
-    def _upsert_entry(self, driver: Driver, row: dict) -> Tuple[int, int]:
-        meeting_key = self._to_int(row.get("meeting_key"))
-        session_key = self._to_int(row.get("session_key"))
-        if meeting_key is None or session_key is None:
-            return 0, 0
-
-        meeting, _ = Meeting.objects.get_or_create(meeting_key=meeting_key)
-
-        team_name = (row.get("team_name") or "").strip()
-        team_colour_value = (row.get("team_colour") or "").strip().upper()[:6]
-        team: Optional[Team] = None
-        if team_name:
-            team_colour = team_colour_value or "000000"
-            team_defaults = {"team_colour": team_colour}
-            team, created = Team.objects.get_or_create(
-                team_name=team_name,
-                defaults=team_defaults,
-            )
-            if not created and team_colour and team.team_colour != team_colour:
-                team.team_colour = team_colour
-                team.save(update_fields=["team_colour"])
-
-        entry_defaults = {
-            "meeting": meeting,
-            "team": team,
-            "team_colour": team_colour_value,
-        }
-        entry, created = DriverEntry.objects.get_or_create(
-            driver=driver,
-            session_key=session_key,
-            defaults=entry_defaults,
-        )
-        if created:
-            return 1, 0
-
-        dirty_fields: List[str] = []
-        if entry.meeting_id != meeting.pk:
-            entry.meeting = meeting
-            dirty_fields.append("meeting")
-        team_id = team.pk if team else None
-        if entry.team_id != team_id:
-            entry.team = team
-            dirty_fields.append("team")
-        if team_colour_value and entry.team_colour != team_colour_value:
-            entry.team_colour = team_colour_value
-            dirty_fields.append("team_colour")
-        if dirty_fields:
-            entry.save(update_fields=dirty_fields)
-            return 0, 1
-        return 0, 0
