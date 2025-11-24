@@ -7,6 +7,10 @@ from django.views.decorators.csrf import csrf_protect
 from django.db import IntegrityError
 from .forms import RegisterForm, LoginForm, EditProfileForm, ChangePasswordForm, DeleteAccountForm
 from .models import UserProfile
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+from django.contrib.auth.models import User
 
 @require_http_methods(["GET", "POST"])
 @csrf_protect
@@ -146,3 +150,101 @@ def profile_settings_view(request):
     }
 
     return render(request, 'profile_settings.html', context)
+
+@csrf_exempt
+def login_flutter(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return JsonResponse({
+                'status': True,
+                'username': username,
+                'message': 'Login successful!',
+            }, status=200)
+        else:
+            return JsonResponse({
+                'status': False,
+                'message': 'Invalid username or password',
+            }, status=401)
+    return JsonResponse({'status': False, 'message': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+def register_flutter(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            password = data.get('password')
+            email = data.get('email', '')
+            
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({'status': False, 'message': 'Username already exists'}, status=400)
+            
+            user = User.objects.create_user(username=username, password=password, email=email)
+            user.save()
+            UserProfile.objects.create(id=user, role='user', theme_preference='dark')
+            
+            return JsonResponse({'status': True, 'message': 'Registration successful!'}, status=200)
+        except Exception as e:
+            return JsonResponse({'status': False, 'message': str(e)}, status=400)
+    return JsonResponse({'status': False, 'message': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+def logout_flutter(request):
+    if request.user.is_authenticated:
+        logout(request)
+        return JsonResponse({'status': True, 'message': 'Logout successful!'}, status=200)
+    return JsonResponse({'status': False, 'message': 'Not logged in'}, status=401)
+
+@csrf_exempt
+def get_user_profile(request):
+    if request.user.is_authenticated:
+        user = request.user
+        try:
+            profile = user.profile
+            return JsonResponse({
+                'status': True,
+                'username': user.username,
+                'email': user.email,
+                'role': profile.role,
+                'theme_preference': profile.theme_preference,
+            }, status=200)
+        except UserProfile.DoesNotExist:
+            return JsonResponse({'status': False, 'message': 'Profile not found'}, status=404)
+    return JsonResponse({'status': False, 'message': 'Not logged in'}, status=401)
+
+@csrf_exempt
+def edit_profile_flutter(request):
+    if request.method == 'POST' and request.user.is_authenticated:
+        try:
+            data = json.loads(request.body)
+            user = request.user
+            profile = user.profile
+            
+            username = data.get('username')
+            email = data.get('email')
+            theme_preference = data.get('theme_preference')
+            
+            if username:
+                if User.objects.filter(username=username).exclude(pk=user.pk).exists():
+                    return JsonResponse({'status': False, 'message': 'Username already exists'}, status=400)
+                user.username = username
+            
+            if email is not None:
+                user.email = email
+            
+            if theme_preference:
+                profile.theme_preference = theme_preference
+            
+            user.save()
+            profile.save()
+            
+            return JsonResponse({'status': True, 'message': 'Profile updated successfully!'}, status=200)
+        except Exception as e:
+            return JsonResponse({'status': False, 'message': str(e)}, status=400)
+    return JsonResponse({'status': False, 'message': 'Invalid request or not logged in'}, status=400)
+
