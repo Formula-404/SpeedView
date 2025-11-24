@@ -73,8 +73,22 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware', 
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?://localhost(:\d+)?$",
+    r"^https?://127\.0\.0\.1(:\d+)?$",
+    r"^https?://10\.0\.2\.2(:\d+)?$",
+]
+CORS_ALLOWED_ORIGINS = [
+    "https://helven-marcia-speedview.pbp.cs.ui.ac.id",
+]
+CSRF_TRUSTED_ORIGINS = [
+    "https://helven-marcia-speedview.pbp.cs.ui.ac.id",
+    "https://*.pbp.cs.ui.ac.id",
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://10.0.2.2",
+]
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SAMESITE = 'None'
