@@ -6,3 +6,4 @@ requests
 urllib3
 python-dotenv
 bs4
+django-cors-headers

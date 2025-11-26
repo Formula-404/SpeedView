@@ -56,13 +56,15 @@ INSTALLED_APPS = [
     'apps.car',
     'apps.laps',
     'apps.pit',
-    'apps.comparison'
+    'apps.comparison',
+    'corsheaders',
 ]
 
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -70,6 +72,27 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', 
 ]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?://localhost(:\d+)?$",
+    r"^https?://127\.0\.0\.1(:\d+)?$",
+    r"^https?://10\.0\.2\.2(:\d+)?$",
+]
+CORS_ALLOWED_ORIGINS = [
+    "https://helven-marcia-speedview.pbp.cs.ui.ac.id",
+]
+CSRF_TRUSTED_ORIGINS = [
+    "https://helven-marcia-speedview.pbp.cs.ui.ac.id",
+    "https://*.pbp.cs.ui.ac.id",
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://10.0.2.2",
+]
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SAMESITE = 'None'
 
 ROOT_URLCONF = 'SpeedView.urls'
 
