@@ -20,7 +20,6 @@ class Circuit(models.Model):
     direction = models.CharField("Direction", max_length=3, choices=DIRECTIONS, default='CW')
     location = models.CharField("Location", max_length=255)
     country = models.CharField("Country", max_length=100)
-    last_used = models.IntegerField("Last used", null=True, blank=True, help_text="Tahun terakhir sirkuit digunakan di F1")
     length_km = models.FloatField("Length (km)", help_text="Panjang sirkuit dalam kilometer")
     turns = models.IntegerField("Turns")
     grands_prix = models.CharField("Grands Prix", max_length=255, help_text="Nama Grand Prix yang diadakan di sini")

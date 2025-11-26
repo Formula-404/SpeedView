@@ -151,6 +151,25 @@ class HelperFunctionTest(TestCase):
         self.assertEqual(data2['error'], 'Server error')
 
 
+    def test_invalid_form_bad_data_type(self):
+        """Test form dengan tipe data yang salah."""
+        data = {
+            'name': 'Bad Type Circuit', 'location': 'Loc', 'country': 'Co',
+            'length_km': 'abc', 
+            'turns': 10.5,      
+            'grands_prix': 'GP', 'seasons': 'S', 'grands_prix_held': 'one', 
+            'map_image_url': 'not a valid url', 
+            'last_used': 'yesterday',
+            'circuit_type': 'RACE', # Perlu ada untuk field lain divalidasi
+            'direction': 'CW',      # Perlu ada
+        }
+        form = CircuitForm(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('length_km', form.errors)
+        self.assertIn('turns', form.errors)
+        self.assertIn('grands_prix_held', form.errors)
+        self.assertIn('map_image_url', form.errors)
+        self.assertIn('last_used', form.errors)
 
 class CircuitViewTest(TestCase):
     def setUp(self):
@@ -214,8 +233,9 @@ class CircuitViewTest(TestCase):
         self.assertEqual(response.status_code, 404)
         self.client.logout()
 
-    def test_api_circuit_list(self):
-        response = self.client.get(reverse('circuit:api_list'))
+    def test_detail_page_get(self):
+        """GET detail page."""
+        response = self.anonymous_client.get(self.detail_wiki_url)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         self.assertTrue(data['ok'])

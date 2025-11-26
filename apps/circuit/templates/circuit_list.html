@@ -65,15 +65,14 @@
                 <p class="card-location text-sm text-white/60 truncate"></p>
                 
                 <div class="mt-auto pt-3">
-                {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
-                    <div class="flex justify-end items-center gap-4 mt-3 border-t border-white/10 pt-3">
+                    <div class="admin-actions flex justify-end items-center gap-4 mt-3 border-t border-white/10 pt-3">
                         <a class="edit-link text-xs font-semibold text-yellow-400 hover:text-yellow-300" href="#">EDIT</a>
                         <form class="delete-form contents" method="POST" action="#">
                             {% csrf_token %}
                             <button type="button" class="open-delete-modal text-xs font-semibold text-red-400 hover:text-red-300">DELETE</button>
                         </form>
                     </div>
-                {% endif %}
+                
                 </div>
             </div>
         </div>
@@ -140,14 +139,14 @@
                 card.querySelectorAll('.card-link').forEach(link => link.href = c.detail_url);
                 const editLink = card.querySelector('.edit-link');
                 const deleteButton = card.querySelector('.open-delete-modal');
-                if (c.is_admin && editLink && deleteButton) {
-                    editLink.href = c.edit_url;                     
+                const adminActions = card.querySelector('.admin-actions');
+                if (c.is_admin && c.is_admin_created && adminActions && editLink && deleteButton) {                    editLink.href = c.edit_url;
+                    editLink.href = c.edit_url;
                     deleteButton.dataset.name = c.name;
                     deleteButton.dataset.url = c.delete_url;
-                } else if (!c.is_admin) {
-                    const adminActions = card.querySelector('.mt-auto .flex');
-                    if(adminActions) adminActions.remove();
-                }                
+                } else {
+                    if (adminActions) adminActions.remove();
+                }              
                 grid.appendChild(card);
             });
         }

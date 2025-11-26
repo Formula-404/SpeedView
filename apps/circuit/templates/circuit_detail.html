@@ -22,7 +22,7 @@
             </h1>
         </div>
         
-        {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
+        {% if request.user.is_authenticated and request.user.profile.role == 'admin' and circuit.is_admin_created %}
         <div class="flex items-center gap-3 mt-4 sm:mt-0">
             <a href="{% url 'circuit:edit_page' circuit.pk %}" class="px-4 py-2.5 rounded-lg bg-yellow-500/10 text-yellow-400 font-semibold hover:bg-yellow-500/20 transition text-sm">
                 Edit Circuit
@@ -81,10 +81,10 @@
                     <p class="text-xs font-medium text-white/60 uppercase tracking-wider">Turns</p>
                     <p class="text-base text-white mt-1">{{ circuit.turns }}</p>
                 </div>
-                <div>
+                <!-- <div>
                     <p class="text-xs font-medium text-white/60 uppercase tracking-wider">Last Used in F1</p>
                     <p class="text-base text-white mt-1">{{ circuit.last_used|default:"N/A" }}</p>
-                </div>
+                </div> -->
                 <div>
                     <p class="text-xs font-medium text-white/60 uppercase tracking-wider">Grands Prix Held</p>
                     <p class="text-base text-white mt-1">{{ circuit.grands_prix_held }}</p>
