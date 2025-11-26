@@ -7,6 +7,7 @@ app_name = "car"
 urlpatterns = [
     path("", views.show_main, name="show_main"),
     path("manual/", views.manual_list, name="manual_list"),
+    path("manual/json/", views.manual_json, name="manual_json"),
     path("all/", views.all_cars_dashboard, name="list_page"),
     path("api/grouped/", views.api_grouped_car_data, name="api_grouped"),
     path("api/refresh/", views.api_refresh_car_data, name="api_refresh"),

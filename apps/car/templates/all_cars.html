@@ -367,6 +367,18 @@ async function loadTelemetry(nextFilters) {
         activeFilters = nextFilters;
     }
 
+    const hasMeetingKey = Boolean(activeFilters.meeting_key);
+    const hasDriverSession = Boolean(activeFilters.driver_number && activeFilters.session_key);
+    if (!hasMeetingKey && !hasDriverSession) {
+        groupsSummary.textContent = "Select a meeting to view telemetry.";
+        groupsContainer.innerHTML = `
+            <div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-white/60">
+                Enter a meeting key above and refresh telemetry data to load samples.
+            </div>`;
+        updateSessionOptions([]);
+        return;
+    }
+
     const params = new URLSearchParams({ metric: currentMetric });
     Object.entries(activeFilters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && String(value).length > 0) {
@@ -389,15 +401,18 @@ async function loadTelemetry(nextFilters) {
         const sessionKeys = (payload.groups || []).map(group => group.session_key).filter(key => key !== undefined && key !== null);
         updateSessionOptions(sessionKeys);
         renderGroups(payload.groups || []);
-    } catch (error) {
-        console.error(error);
-        groupsContainer.innerHTML = `
-            <div class="col-span-full rounded-xl bg-white/5 border border-red-500/40 text-red-300 p-8 text-center">
-                Failed to load telemetry data. Please try again later.
-            </div>`;
-        groupsSummary.textContent = "Unable to fetch telemetry data.";
-        updateSessionOptions([]);
-    }
+        } catch (error) {
+            console.error(error);
+            groupsContainer.innerHTML = `
+                <div class="col-span-full rounded-xl bg-white/5 border border-red-500/40 text-red-300 p-8 text-center">
+                    Failed to load telemetry data.<br>
+                    <span class="text-red-400 text-sm">Error: ${error}</span><br>
+                    Please try again later.
+                </div>`;
+            groupsSummary.textContent = `Unable to fetch telemetry data: ${error}`;
+            updateSessionOptions([]);
+        }
+
 }
 
 metricButtons.forEach(button => {

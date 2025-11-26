@@ -258,6 +258,43 @@ def _fetch_openf1_triplet(driver_number: int, session_key: int, min_speed: int |
     return data if isinstance(data, list) else []
 
 
+def _serialize_car_sample_for_group(sample: Car) -> dict:
+    date_value = sample.date
+    return {
+        "id": str(sample.id),
+        "date": date_value.isoformat() if date_value else None,
+        "timestamp": localtime(date_value).strftime("%Y-%m-%d %H:%M:%S %Z") if date_value else None,
+        "speed": sample.speed,
+        "rpm": sample.rpm,
+        "throttle": sample.throttle,
+        "brake": sample.brake,
+        "gear": sample.n_gear,
+        "drs": sample.drs,
+    }
+
+
+def _build_groups_from_samples(samples: List[Car]) -> List[Dict]:
+    groups: List[Dict] = []
+    current_key: tuple | None = None
+    current_group: Dict | None = None
+
+    for sample in samples:
+        key = (sample.driver_number, sample.session_key, sample.meeting_key)
+        if current_group is None or key != current_key:
+            current_key = key
+            current_group = {
+                "session_key": sample.session_key,
+                "meeting_key": sample.meeting_key,
+                "driver_number": sample.driver_number,
+                "telemetry": [],
+            }
+            groups.append(current_group)
+
+        current_group["telemetry"].append(_serialize_car_sample_for_group(sample))
+
+    return groups
+
+
 @require_GET
 def api_grouped_car_data(request):
     metric = request.GET.get("metric", "speed")
@@ -278,25 +315,37 @@ def api_grouped_car_data(request):
     except (TypeError, ValueError):
         return JsonResponse({"ok": False, "error": "Invalid query params."}, status=400)
 
-    if driver_number_int is None or session_key_int is None:
+    has_driver_session = (
+        driver_number_int is not None and session_key_int is not None
+    )
+
+    if meeting_key_int is None and not has_driver_session:
         return JsonResponse(
-            {"ok": False, "error": "driver_number and session_key are required."},
+            {
+                "ok": False,
+                "error": "meeting_key or (driver_number + session_key) are required.",
+            },
             status=400,
         )
 
-    filters = {"driver_number": driver_number_int, "session_key": session_key_int}
+    filters: Dict[str, int] = {}
     if meeting_key_int is not None:
         filters["meeting_key"] = meeting_key_int
+    if session_key_int is not None:
+        filters["session_key"] = session_key_int
+    if driver_number_int is not None:
+        filters["driver_number"] = driver_number_int
 
     queryset = (
         Car.objects.filter(**filters)
-        .order_by("date")
+        .order_by("driver_number", "session_key", "date")
     )
 
     samples_db = list(queryset)
 
-    telemetry_rows: list[dict]
-    if not samples_db:
+    if samples_db:
+        groups_payload = _build_groups_from_samples(samples_db)
+    elif has_driver_session:
         raw = _fetch_openf1_triplet(
             driver_number=driver_number_int,
             session_key=session_key_int,
@@ -319,14 +368,13 @@ def api_grouped_car_data(request):
             if r.get("session_key") == session_key_int and r.get("driver_number") == driver_number_int
         ]
 
-        mk = None
+        mk = meeting_key_int
         if raw:
             try:
                 mk = int(raw[0].get("meeting_key"))
             except (TypeError, ValueError):
                 mk = meeting_key_int
-        else:
-            mk = meeting_key_int
+
         groups_payload = [{
             "session_key": session_key_int,
             "meeting_key": mk,
@@ -334,25 +382,7 @@ def api_grouped_car_data(request):
             "telemetry": telemetry_rows,
         }]
     else:
-        groups_payload = [{
-            "session_key": samples_db[0].session_key,
-            "meeting_key": samples_db[0].meeting_key,
-            "driver_number": samples_db[0].driver_number,
-            "telemetry": [
-                {
-                    "id": str(s.id),
-                    "date": s.date.isoformat() if s.date else None,
-                    "timestamp": localtime(s.date).strftime("%Y-%m-%d %H:%M:%S %Z") if s.date else None,
-                    "speed": s.speed,
-                    "rpm": s.rpm,
-                    "throttle": s.throttle,
-                    "brake": s.brake,
-                    "gear": s.n_gear,
-                    "drs": s.drs,
-                }
-                for s in samples_db
-            ],
-        }]
+        groups_payload = []
 
     return JsonResponse(
         {
@@ -638,14 +668,8 @@ def delete_car(request, id):
 def manual_list(request):
     manual_entries_qs = Car.objects.filter(is_manual=True).order_by("-date")
     manual_entries = list(manual_entries_qs)
-
-    session_keys = {car.session_key for car in manual_entries if car.session_key is not None}
-    session_map = {
-        session.session_key: session
-        for session in Session.objects.filter(session_key__in=session_keys)
-    }
+    _attach_session_metadata(manual_entries)
     for car in manual_entries:
-        car.session_obj = session_map.get(car.session_key)
         car.display_date = localtime(car.date)
 
     return render(
@@ -655,6 +679,41 @@ def manual_list(request):
             "manual_entries": manual_entries,
         },
     )
+
+
+def _attach_session_metadata(cars: list[Car]) -> None:
+    session_keys = {
+        car.session_key
+        for car in cars
+        if getattr(car, "session_key", None) is not None
+    }
+    if not session_keys:
+        return
+    session_map = {
+        session.session_key: session
+        for session in Session.objects.filter(session_key__in=session_keys)
+    }
+    for car in cars:
+        car.session_obj = session_map.get(car.session_key)
+
+
+@login_required(login_url="/login")
+def manual_json(request):
+    try:
+        limit = int(request.GET.get("limit", 200))
+    except (TypeError, ValueError):
+        limit = 200
+    limit = max(1, min(limit, 500))
+
+    manual_entries_qs = (
+        Car.objects.filter(is_manual=True)
+        .order_by("-date")
+        [:limit]
+    )
+    manual_entries = list(manual_entries_qs)
+    _attach_session_metadata(manual_entries)
+    data = [serialize_car(car) for car in manual_entries]
+    return JsonResponse(data, safe=False)
 
 
 def serialize_car(car: Car) -> dict:
