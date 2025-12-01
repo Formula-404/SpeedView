@@ -55,9 +55,10 @@ INSTALLED_APPS = [
     'apps.team',
     'apps.car',
     'apps.laps',
-    'apps.pit',
-    'apps.comparison',
+    'apps.pit',    
     'corsheaders',
+    'apps.comparison',
+
 ]
 
 
