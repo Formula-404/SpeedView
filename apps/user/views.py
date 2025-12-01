@@ -248,3 +248,54 @@ def edit_profile_flutter(request):
             return JsonResponse({'status': False, 'message': str(e)}, status=400)
     return JsonResponse({'status': False, 'message': 'Invalid request or not logged in'}, status=400)
 
+
+@csrf_exempt
+def change_password_flutter(request):
+    if request.method == 'POST' and request.user.is_authenticated:
+        try:
+            data = json.loads(request.body)
+            user = request.user
+            
+            old_password = data.get('old_password')
+            new_password = data.get('new_password')
+            confirm_password = data.get('confirm_password')
+            
+            if not user.check_password(old_password):
+                return JsonResponse({'status': False, 'message': 'Incorrect current password'}, status=400)
+            
+            if new_password != confirm_password:
+                return JsonResponse({'status': False, 'message': 'New passwords do not match'}, status=400)
+                
+            if len(new_password) < 8:
+                 return JsonResponse({'status': False, 'message': 'Password must be at least 8 characters'}, status=400)
+            
+            user.set_password(new_password)
+            user.save()
+            update_session_auth_hash(request, user)
+            
+            return JsonResponse({'status': True, 'message': 'Password changed successfully!'}, status=200)
+        except Exception as e:
+            return JsonResponse({'status': False, 'message': str(e)}, status=400)
+    return JsonResponse({'status': False, 'message': 'Invalid request or not logged in'}, status=400)
+
+@csrf_exempt
+def delete_account_flutter(request):
+    if request.method == 'POST' and request.user.is_authenticated:
+        try:
+            data = json.loads(request.body)
+            user = request.user
+            
+            password = data.get('password')
+            confirm_text = data.get('confirm_text')
+            
+            if not user.check_password(password):
+                return JsonResponse({'status': False, 'message': 'Incorrect password'}, status=400)
+            
+            if confirm_text != 'DELETE':
+                return JsonResponse({'status': False, 'message': 'Please type DELETE to confirm'}, status=400)
+            
+            user.delete()
+            return JsonResponse({'status': True, 'message': 'Account deleted successfully'}, status=200)
+        except Exception as e:
+            return JsonResponse({'status': False, 'message': str(e)}, status=400)
+    return JsonResponse({'status': False, 'message': 'Invalid request or not logged in'}, status=400)
