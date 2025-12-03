@@ -154,23 +154,40 @@ def profile_settings_view(request):
 @csrf_exempt
 def login_flutter(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            # fallback kalau suatu saat dikirim form-encoded
+            data = request.POST
+
+        username = data.get('username')
+        password = data.get('password')
 
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return JsonResponse({
-                'status': True,
-                'username': username,
-                'message': 'Login successful!',
-            }, status=200)
+            return JsonResponse(
+                {
+                    'status': True,
+                    'username': user.username,
+                    'message': 'Login successful!',
+                },
+                status=200,
+            )
         else:
-            return JsonResponse({
-                'status': False,
-                'message': 'Invalid username or password',
-            }, status=401)
-    return JsonResponse({'status': False, 'message': 'Invalid request method'}, status=400)
+            return JsonResponse(
+                {
+                    'status': False,
+                    'message': 'Invalid username or password',
+                },
+                status=401,
+            )
+
+    return JsonResponse(
+        {'status': False, 'message': 'Invalid request method'},
+        status=400,
+    )
+
 
 @csrf_exempt
 def register_flutter(request):
