@@ -33,28 +33,41 @@ def serialize_comparison(cmp: Comparison) -> dict:
             .filter(comparison=cmp).order_by("order_index")
             .values_list("team__team_name", flat=True)
         )
+
     elif cmp.module == Comparison.MODULE_CIRCUIT:
         items = list(
             ComparisonCircuit.objects.select_related("circuit")
             .filter(comparison=cmp).order_by("order_index")
             .values_list("circuit__name", flat=True)
         )
+
+    elif cmp.module == Comparison.MODULE_DRIVER:
+        # Use full name / broadcast name as label in list view
+        items = list(
+            ComparisonDriver.objects.select_related("driver")
+            .filter(comparison=cmp).order_by("order_index")
+            .values_list("driver__full_name", flat=True)
+        )
+
     else:
         items = []
 
-    owner_name = getattr(cmp.owner, "username", "") or (cmp.owner.get_username() if hasattr(cmp.owner, "get_username") else "")
+    owner_name = getattr(cmp.owner, "username", "") or (
+        cmp.owner.get_username() if hasattr(cmp.owner, "get_username") else ""
+    )
 
     return {
         "id": str(cmp.pk),
         "title": cmp.title,
         "module": cmp.module,
-        "module_label": cmp.get_module_display(), # type: ignore
+        "module_label": cmp.get_module_display(),  # type: ignore
         "is_public": cmp.is_public,
         "owner_name": owner_name or "—",
         "created_at": cmp.created_at.isoformat() if cmp.created_at else "",
         "detail_url": cmp.get_absolute_url(),
         "items": items,
     }
+
 
 def serialize_team_for_compare(t: Team):
     return {
@@ -169,7 +182,7 @@ def api_comparison_create(request):
     items = payload.get("items") or []
     is_public = bool(payload.get("is_public"))
 
-    if module not in {Comparison.MODULE_TEAM, Comparison.MODULE_CAR, Comparison.MODULE_DRIVER, Comparison.MODULE_CIRCUIT}:
+    if module not in {Comparison.MODULE_TEAM, Comparison.MODULE_DRIVER, Comparison.MODULE_CIRCUIT}:
         return JsonResponse({"ok": False, "error": "Unknown module."}, status=400)
     if not (2 <= len(items) <= 4):
         return JsonResponse({"ok": False, "error": "Pick 2–4 items."}, status=400)
@@ -197,11 +210,6 @@ def api_comparison_create(request):
             pk = int(raw_pk)
             driver = get_object_or_404(Driver, pk=pk)
             ComparisonDriver.objects.create(comparison=cmp, driver=driver, order_index=idx)
-    elif module == Comparison.MODULE_CAR:
-        for idx, raw_pk in enumerate(items):
-            pk = int(raw_pk)
-            car = get_object_or_404(Car, pk=pk)
-            ComparisonCar.objects.create(comparison=cmp, car=car, order_index=idx)
 
     return JsonResponse({"ok": True, "redirect": cmp.get_absolute_url()})
 
