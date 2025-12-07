@@ -1,8 +1,9 @@
 import json
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.db import transaction
 from django.views.decorators.http import require_GET, require_POST
 from django.db.models import Q, Prefetch
@@ -121,6 +122,20 @@ def serialize_car_for_compare(c: Car):
         "detail_url": getattr(c, "get_absolute_url", lambda: "")(),
     }
 
+def _auth_mobile_user(payload):
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+
+    if not username or not password:
+        return None, json_error("username and password are required.", status=401)
+
+    user = authenticate(username=username, password=password)
+    if user is None:
+        return None, json_error("Invalid credentials.", status=401)
+
+    return user, None
+
+
 # ================== pages ==================
 def list_page(request):
     return render(request, "comparison_list.html")
@@ -133,7 +148,7 @@ def create_page(request):
 def detail_page(request, pk):
     cmp = get_object_or_404(Comparison, pk=pk)
     if cmp.owner != request.user and not cmp.is_public:
-        return render(request, "403.html", status=403)
+        return render(request, "comparison_list.html", status=403)
 
 
     if cmp.module == Comparison.MODULE_TEAM:
@@ -194,7 +209,6 @@ def api_comparison_create(request):
             is_public=is_public,
         )
 
-
     if module == Comparison.MODULE_TEAM:
         for idx, team_pk in enumerate(items):
             team = get_object_or_404(Team, pk=team_pk)
@@ -231,7 +245,7 @@ def api_comparison_list(request):
 
 @require_GET
 def api_comparison_detail(request, pk):
-    cmp = get_object_or_404(Comparison, pk=pk, owner=request.user)
+    cmp = get_object_or_404(Comparison, pk=pk)
     payload: dict[str, object] = {"id": str(cmp.pk), "module": cmp.module}
 
 
@@ -253,7 +267,6 @@ def api_comparison_detail(request, pk):
         payload["items"] = [serialize_driver_for_compare(l.driver) for l in links]
         return JsonResponse({"ok": True, "data": payload})
 
-
     if cmp.module == Comparison.MODULE_CAR:
         links = (ComparisonCar.objects.select_related("car")
             .filter(comparison=cmp).order_by("order_index"))
@@ -272,3 +285,142 @@ def api_comparison_delete(request, pk):
         return HttpResponseForbidden("Not allowed")
     cmp.delete()
     return JsonResponse({"ok": True, "redirect": reverse("comparison:list_page")})
+
+# ================== mobile API ==================
+
+@csrf_exempt
+@require_POST
+def api_mobile_comparison_create(request):
+    payload = parse_json(request)
+    if payload is None:
+        return json_error("Invalid JSON body.", status=400)
+
+    user, err = _auth_mobile_user(payload)
+    if err is not None:
+        return err
+
+    title = (payload.get("title") or "").strip() or "My Comparison"
+    module = (payload.get("module") or "").strip()
+    items = payload.get("items") or []
+    is_public = bool(payload.get("is_public"))
+
+    if module not in {
+        Comparison.MODULE_TEAM,
+        Comparison.MODULE_CAR,
+        Comparison.MODULE_DRIVER,
+        Comparison.MODULE_CIRCUIT,
+    }:
+        return json_error("Unknown module.", status=400)
+
+    if not (2 <= len(items) <= 4):
+        return json_error("Pick 2–4 items.", status=400)
+
+    with transaction.atomic():
+        cmp = Comparison.objects.create(
+            owner=user,
+            module=module,
+            title=title,
+            is_public=is_public,
+        )
+
+        if module == Comparison.MODULE_TEAM:
+            for idx, team_pk in enumerate(items):
+                team = get_object_or_404(Team, pk=team_pk)
+                ComparisonTeam.objects.create(
+                    comparison=cmp, team=team, order_index=idx
+                )
+        elif module == Comparison.MODULE_CIRCUIT:
+            for idx, raw_pk in enumerate(items):
+                pk = int(raw_pk)
+                circuit = get_object_or_404(Circuit, pk=pk)
+                ComparisonCircuit.objects.create(
+                    comparison=cmp, circuit=circuit, order_index=idx
+                )
+        elif module == Comparison.MODULE_DRIVER:
+            for idx, raw_pk in enumerate(items):
+                pk = int(raw_pk)
+                driver = get_object_or_404(Driver, pk=pk)
+                ComparisonDriver.objects.create(
+                    comparison=cmp, driver=driver, order_index=idx
+                )
+        elif module == Comparison.MODULE_CAR:
+            for idx, raw_pk in enumerate(items):
+                pk = int(raw_pk)
+                car = get_object_or_404(Car, pk=pk)
+                ComparisonCar.objects.create(
+                    comparison=cmp, car=car, order_index=idx
+                )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "data": {
+                "id": str(cmp.pk),
+                "detail_url": cmp.get_absolute_url(),
+            },
+        }
+    )
+
+@csrf_exempt
+@require_POST
+def api_mobile_comparison_update(request, pk):
+    payload = parse_json(request)
+    if payload is None:
+        return json_error("Invalid JSON body.", status=400)
+
+    user, err = _auth_mobile_user(payload)
+    if err is not None:
+        return err
+
+    cmp = get_object_or_404(Comparison, pk=pk)
+
+    if cmp.owner != user:
+        return json_error("Not allowed to edit this comparison.", status=403)
+
+    title = payload.get("title")
+    is_public = payload.get("is_public")
+
+    changed = False
+    if isinstance(title, str):
+        new_title = title.strip()
+        if new_title:
+            cmp.title = new_title
+            changed = True
+
+    if isinstance(is_public, bool):
+        cmp.is_public = is_public
+        changed = True
+
+    if changed:
+        cmp.save(update_fields=["title", "is_public"])
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "data": {
+                "id": str(cmp.pk),
+                "title": cmp.title,
+                "is_public": cmp.is_public,
+            },
+        }
+    )
+
+@csrf_exempt
+@require_POST
+def api_mobile_comparison_delete(request, pk):
+    payload = parse_json(request)
+    if payload is None:
+        return json_error("Invalid JSON body.", status=400)
+
+    user, err = _auth_mobile_user(payload)
+    if err is not None:
+        return err
+
+    cmp = get_object_or_404(Comparison, pk=pk)
+
+    is_admin = getattr(getattr(user, "profile", None), "role", None) == "admin"
+    if cmp.owner != user and not is_admin:
+        return json_error("Not allowed to delete this comparison.", status=403)
+
+    cmp.delete()
+    return JsonResponse({"ok": True})
