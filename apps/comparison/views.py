@@ -168,7 +168,6 @@ def detail_page(request, pk):
 
 
 # ================== api ==================
-@login_required
 @csrf_protect
 @require_POST
 def api_comparison_create(request):
@@ -230,7 +229,6 @@ def api_comparison_list(request):
     return JsonResponse({"ok": True, "count": len(data), "data": data})
 
 
-@login_required
 @require_GET
 def api_comparison_detail(request, pk):
     cmp = get_object_or_404(Comparison, pk=pk, owner=request.user)
@@ -265,7 +263,6 @@ def api_comparison_detail(request, pk):
 
     return json_error("Unsupported module.", status=422)
 
-@login_required
 @csrf_protect
 @require_POST
 def api_comparison_delete(request, pk):
