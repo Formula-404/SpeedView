@@ -96,11 +96,44 @@ def serialize_team_for_compare(t: Team):
 
 def serialize_circuit_for_compare(c: Circuit) -> dict:
     label = getattr(c, "name", None) or str(c)
+    location = getattr(c, "location", "") or ""
+    country = getattr(c, "country", "") or ""
+
+    map_image_url = getattr(c, "map_image_url", "") or ""
+
+    get_type_display = getattr(c, "get_circuit_type_display", None)
+    circuit_type_label = get_type_display() if callable(get_type_display) else ""
+
+    get_direction_display = getattr(c, "get_direction_display", None)
+    direction_label = get_direction_display() if callable(get_direction_display) else ""
+
+    length_km = getattr(c, "length_km", None)
+    if length_km is not None:
+        try:
+            length_km = float(length_km)
+        except (TypeError, ValueError):
+            length_km = None
+
+    turns = getattr(c, "turns", None)
+    grands_prix_held = getattr(c, "grands_prix_held", None)
+
+    last_used = getattr(c, "last_used", None)
+    last_used_str = last_used.isoformat() if last_used is not None else ""
+
+    detail_url = getattr(c, "get_absolute_url", lambda: "")() or ""
+
     return {
         "label": label,
-        "country": getattr(c, "country", None),
-        "length_km": getattr(c, "length_km", None),
-        "detail_url": getattr(c, "get_absolute_url", lambda: "")(),
+        "country": country,
+        "length_km": length_km,
+        "detail_url": detail_url,
+        "location": location,
+        "map_image_url": map_image_url,
+        "circuit_type_label": circuit_type_label,
+        "direction_label": direction_label,
+        "turns": turns,
+        "grands_prix_held": grands_prix_held,
+        "last_used": last_used_str,
     }
 
 def serialize_driver_for_compare(d: Driver):
