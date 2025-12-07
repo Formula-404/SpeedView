@@ -349,9 +349,12 @@ def api_mobile_comparison_create(request):
     if payload is None:
         return json_error("Invalid JSON body.", status=400)
 
-    user, err = _auth_mobile_user(payload)
-    if err is not None:
-        return err
+    if request.user.is_authenticated:
+        user = request.user
+    else:
+        user, err = _auth_mobile_user(payload)
+        if err is not None:
+            return err
 
     title = (payload.get("title") or "").strip() or "My Comparison"
     module = (payload.get("module") or "").strip()
