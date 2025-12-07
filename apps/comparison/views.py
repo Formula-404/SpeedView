@@ -287,6 +287,27 @@ def api_comparison_delete(request, pk):
     return JsonResponse({"ok": True, "redirect": reverse("comparison:list_page")})
 
 # ================== mobile API ==================
+@require_GET
+def api_mobile_comparison_list(request):
+    scope = request.GET.get("scope", "all")
+    owner_username = request.GET.get("owner", "").strip()
+
+    qs = Comparison.objects.select_related("owner").order_by("-created_at")
+
+    if scope == "all":
+        qs = qs.filter(is_public=True)
+
+    elif scope == "my":
+        if not owner_username:
+            qs = qs.filter(is_public=True)
+        else:
+            qs = qs.filter(owner__username=owner_username)
+
+    else:
+        return JsonResponse({"ok": False, "error": "Invalid scope"}, status=400)
+
+    data = [serialize_comparison(c) for c in qs]
+    return JsonResponse({"ok": True, "count": len(data), "data": data})
 
 @csrf_exempt
 @require_POST
