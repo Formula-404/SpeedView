@@ -133,7 +133,7 @@ def create_page(request):
 def detail_page(request, pk):
     cmp = get_object_or_404(Comparison, pk=pk)
     if cmp.owner != request.user and not cmp.is_public:
-        return render(request, "403.html", status=403)
+        return render(request, "comparison_list.html", status=403)
 
 
     if cmp.module == Comparison.MODULE_TEAM:
@@ -194,7 +194,6 @@ def api_comparison_create(request):
             is_public=is_public,
         )
 
-
     if module == Comparison.MODULE_TEAM:
         for idx, team_pk in enumerate(items):
             team = get_object_or_404(Team, pk=team_pk)
@@ -231,7 +230,7 @@ def api_comparison_list(request):
 
 @require_GET
 def api_comparison_detail(request, pk):
-    cmp = get_object_or_404(Comparison, pk=pk, owner=request.user)
+    cmp = get_object_or_404(Comparison, pk=pk)
     payload: dict[str, object] = {"id": str(cmp.pk), "module": cmp.module}
 
 
@@ -252,7 +251,6 @@ def api_comparison_detail(request, pk):
             .filter(comparison=cmp).order_by("order_index"))
         payload["items"] = [serialize_driver_for_compare(l.driver) for l in links]
         return JsonResponse({"ok": True, "data": payload})
-
 
     if cmp.module == Comparison.MODULE_CAR:
         links = (ComparisonCar.objects.select_related("car")
