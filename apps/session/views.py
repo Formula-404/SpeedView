@@ -54,10 +54,10 @@ def api_session_list(request):
             
             meeting_info = {
                 'meeting_key': meeting.meeting_key,
-                'meeting_name': meeting.meeting_name,
-                'circuit_short_name': meeting.circuit_short_name,
-                'country_name': meeting.country_name,
-                'year': meeting.year,
+                'meeting_name': meeting.meeting_name or "Unknown Meeting",
+                'circuit_short_name': meeting.circuit_short_name or "Unknown Circuit",
+                'country_name': meeting.country_name or "Unknown Country",
+                'year': meeting.year or 2024,
             }
             
             results.append({

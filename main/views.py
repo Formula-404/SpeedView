@@ -4,7 +4,6 @@ from django.http import JsonResponse
 from datetime import datetime
 from apps.driver.models import Driver
 # views.py
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import FieldError
 from django.db.models import Prefetch

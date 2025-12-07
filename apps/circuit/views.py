@@ -70,7 +70,7 @@ def edit_circuit_page(request, pk):
     """Merender halaman dengan form untuk mengedit sirkuit yang ada."""
     if not is_admin(request):
         return HttpResponseForbidden("You are not authorized to edit this circuit.")
-    circuit = get_object_or_404(Circuit, pk=pk, is_admin_created=True)
+    circuit = get_object_or_404(Circuit, pk=pk)
     form = CircuitForm(instance=circuit)
     return render(request, "edit_circuit.html", {"form": form, "circuit": circuit, 'page_title': f'Edit {circuit.name}'})
 
@@ -116,12 +116,16 @@ def api_circuit_update(request, pk):
             return json_error("Admin role required.", status=403)
         else:
             return HttpResponseForbidden("Admin role required.")
-    circuit = get_object_or_404(Circuit, pk=pk, is_admin_created=True) 
+    circuit = get_object_or_404(Circuit, pk=pk) 
     form = CircuitForm(request.POST, instance=circuit)
     if form.is_valid():
         form.save()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+            return JsonResponse({"ok": True, "message": "Circuit updated successfully"})
         return HttpResponseRedirect(reverse("circuit:list_page"))
     else:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
+             return JsonResponse({"ok": False, "error": form.errors.as_json()}, status=400)
         return render(request, "edit_circuit.html", {"form": form, "circuit": circuit, 'page_title': f'Edit {circuit.name}'})
 
 
@@ -132,7 +136,7 @@ def api_circuit_delete(request, pk):
     if not is_admin(request):
         return json_error("Admin role required.", status=403) 
     try:
-        circuit = get_object_or_404(Circuit, pk=pk, is_admin_created=True)
+        circuit = get_object_or_404(Circuit, pk=pk)
         circuit_name = circuit.name
         circuit.delete()
         return JsonResponse({"ok": True, "message": f"Circuit '{circuit_name}' deleted."})

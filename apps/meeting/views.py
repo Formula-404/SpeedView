@@ -71,7 +71,11 @@ def format_date(date_string):
     if not date_string:
         return "N/A"
     try:
-        dt = datetime.fromisoformat(date_string)
-        return dt.strftime('%d %B')
-    except (ValueError, TypeError):
-        return date_string
+        return date_string.strftime('%d %B')
+    except AttributeError:
+        # Jaga-jaga jika ternyata inputnya string (misal dari raw data)
+        try:
+            dt = datetime.fromisoformat(str(date_string))
+            return dt.strftime('%d %B')
+        except:
+            return str(date_string)
