@@ -385,35 +385,24 @@ def api_mobile_comparison_create(request):
 @csrf_exempt
 @require_POST
 def api_mobile_comparison_update(request, pk):
-    payload = parse_json(request)
-    if payload is None:
-        return json_error("Invalid JSON body.", status=400)
-
-    user, err = _auth_mobile_user(payload)
-    if err is not None:
-        return err
-
     cmp = get_object_or_404(Comparison, pk=pk)
 
-    if cmp.owner != user:
-        return json_error("Not allowed to edit this comparison.", status=403)
+    is_admin = getattr(getattr(request.user, "profile", None), "role", None) == "admin"
+    if cmp.owner != request.user and not is_admin:
+        return HttpResponseForbidden("Not allowed")
 
-    title = payload.get("title")
-    is_public = payload.get("is_public")
+    data = parse_json(request)
+    if data is None:
+        return json_error("Invalid JSON.", status=400)
 
-    changed = False
-    if isinstance(title, str):
-        new_title = title.strip()
-        if new_title:
-            cmp.title = new_title
-            changed = True
+    title = (data.get("title") or "").strip()
+    if title:
+        cmp.title = title
 
-    if isinstance(is_public, bool):
-        cmp.is_public = is_public
-        changed = True
+    if "is_public" in data:
+        cmp.is_public = bool(data["is_public"])
 
-    if changed:
-        cmp.save(update_fields=["title", "is_public"])
+    cmp.save(update_fields=["title", "is_public"])
 
     return JsonResponse(
         {
@@ -429,19 +418,11 @@ def api_mobile_comparison_update(request, pk):
 @csrf_exempt
 @require_POST
 def api_mobile_comparison_delete(request, pk):
-    payload = parse_json(request)
-    if payload is None:
-        return json_error("Invalid JSON body.", status=400)
-
-    user, err = _auth_mobile_user(payload)
-    if err is not None:
-        return err
-
     cmp = get_object_or_404(Comparison, pk=pk)
 
-    is_admin = getattr(getattr(user, "profile", None), "role", None) == "admin"
-    if cmp.owner != user and not is_admin:
-        return json_error("Not allowed to delete this comparison.", status=403)
+    is_admin = getattr(getattr(request.user, "profile", None), "role", None) == "admin"
+    if cmp.owner != request.user and not is_admin:
+        return HttpResponseForbidden("Not allowed")
 
     cmp.delete()
     return JsonResponse({"ok": True})
