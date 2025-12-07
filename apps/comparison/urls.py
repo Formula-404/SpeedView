@@ -16,6 +16,7 @@ urlpatterns = [
     path("<uuid:pk>/", views.detail_page, name="detail_page"),
 
     # Mobile API
+    path('api/mobile/list/', views.api_mobile_comparison_list, name='api_mobile_comparison_list'),
     path("api/mobile/create/", views.api_mobile_comparison_create, name="api_mobile_create"),
     # path("api/mobile/<uuid:pk>/update/", views.api_mobile_comparison_update, name="api_mobile_update"),
     path("api/mobile/<uuid:pk>/delete/", views.api_mobile_comparison_delete, name="api_mobile_delete"),
