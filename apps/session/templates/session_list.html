@@ -81,9 +81,9 @@
                 dateStr = dtStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });                
                 startStr = dtStart.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });                
                 endStr = dtEnd.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });                
-                return `${dateStr}, ${startStr} - ${endStr}`;
+                return `${dateStr}, ${startStr}`;
             } catch (e) { 
-                console.error("Error formatting date:", e, s.date_start, s.date_end);
+                console.error("Error formatting date:", e);
                 return "Invalid date"; 
             }
         };
