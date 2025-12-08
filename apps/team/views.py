@@ -108,7 +108,10 @@ def edit_team_page(request, team_name):
         return redirect('team:list_page')
     team = get_object_or_404(Team, pk=team_name)
     if request.method == "POST":
-        form = TeamForm(request.POST, instance=team)
+        data = request.POST.copy()
+        data["team_name"] = team.team_name
+        
+        form = TeamForm(data, instance=team)
         if form.is_valid():
             updated = form.save()
             return redirect(updated.get_absolute_url())
@@ -172,6 +175,8 @@ def api_team_update(request, team_name):
     payload = parse_json(request) or request.POST.dict()
     if payload is None:
         return HttpResponseBadRequest("Invalid JSON body.")
+
+    payload["team_name"] = team.team_name
 
     form = TeamForm(payload, instance=team)
     if form.is_valid():
@@ -254,6 +259,8 @@ def api_mobile_team_update(request, team_name):
     if not is_admin(user):
         return json_error("Admin role required.", status=403)
 
+    payload["team_name"] = team.team_name
+
     form = TeamForm(payload, instance=team)
     if form.is_valid():
         try:
@@ -261,10 +268,7 @@ def api_mobile_team_update(request, team_name):
                 updated = form.save()
             return JsonResponse({"ok": True, "data": serialize_team(updated)})
         except IntegrityError:
-            form.add_error(
-                "team_name",
-                "Another team already uses this name.",
-            )
+            return json_error("Another team already uses this name.", status=409)
 
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
