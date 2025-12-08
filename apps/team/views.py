@@ -24,10 +24,13 @@ def json_error(message, status=400, field_errors=None):
         payload["field_errors"] = field_errors
     return JsonResponse(payload, status=status)
 
-def is_admin(request):
-    if not request.user.is_authenticated:
+def is_admin(obj):
+    user = getattr(obj, "user", obj)
+
+    if user is None or not getattr(user, "is_authenticated", False):
         return False
-    profile = getattr(request.user, "profile", None)
+
+    profile = getattr(user, "profile", None)
     return getattr(profile, "role", None) == "admin"
 
 def _auth_mobile_user(payload):
@@ -222,13 +225,13 @@ def api_mobile_team_create(request):
         try:
             with transaction.atomic():
                 team = form.save()
-            return JsonResponse({
-                "ok": True, 
-                "data": serialize_team(team)
-            }, status=201)
+            return JsonResponse(
+                {"ok": True, "data": serialize_team(team)},
+                status=201,
+            )
         except IntegrityError:
-            return json_error("A team with this name already exists.", status=409)
-    
+            form.add_error("team_name", "A team with this name already exists.")
+
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 
@@ -236,7 +239,7 @@ def api_mobile_team_create(request):
 @require_POST
 def api_mobile_team_update(request, team_name):
     team = get_object_or_404(Team, pk=team_name)
-    
+
     payload = parse_json(request)
     if payload is None:
         return json_error("Invalid JSON body.", status=400)
@@ -258,7 +261,10 @@ def api_mobile_team_update(request, team_name):
                 updated = form.save()
             return JsonResponse({"ok": True, "data": serialize_team(updated)})
         except IntegrityError:
-             return json_error("Another team already uses this name.", status=409)
+            form.add_error(
+                "team_name",
+                "Another team already uses this name.",
+            )
 
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
@@ -267,10 +273,10 @@ def api_mobile_team_update(request, team_name):
 @require_POST
 def api_mobile_team_delete(request, team_name):
     team = get_object_or_404(Team, pk=team_name)
-    
+
     payload = parse_json(request)
     if payload is None:
-        return json_error("Invalid JSON body.", status=400)
+        payload = {}
 
     if request.user.is_authenticated:
         user = request.user
