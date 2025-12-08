@@ -55,7 +55,7 @@ class PitViewsTest(TestCase):
         # cek pemanggilan requests.get (tanpa params)
         mock_get.assert_called_once_with(
             f"{views.OPENF1_API_BASE_URL}/pit",
-            params={},
+            params=None,
             timeout=20,
         )
 
@@ -87,7 +87,9 @@ class PitViewsTest(TestCase):
 
         mock_get.side_effect = requests.RequestException("boom")
         resp = self.client.get(reverse("pit:api_pit_list"))
-        self.assertEqual(resp.status_code, 502)
+        self.assertEqual(resp.status_code, 200)
         js = resp.json()
-        self.assertFalse(js["ok"])
-        self.assertIn("boom", js["error"])
+        self.assertTrue(js["ok"])
+        self.assertEqual(js["count"], 0)
+        self.assertEqual(js["data"], [])
+        self.assertIn("boom", js["warning"])

@@ -43,23 +43,14 @@
                 Pull the latest telemetry per meeting, lock in a speed window, and compare key metrics across drivers.
             </p>
         </div>
+        {% if request.user.is_authenticated and request.user|is_admin_user %}
         <div class="flex flex-wrap md:flex-nowrap items-center gap-2 bg-white/5 border border-white/10 rounded-lg p-2">
-            <button type="button" class="metric-toggle data-[active=true]:bg-red-500 data-[active=true]:text-white px-4 py-2 rounded-md text-sm font-semibold text-white/70 hover:text-white transition" data-metric="speed">
-                Speed
-            </button>
-            <button type="button" class="metric-toggle data-[active=true]:bg-red-500 data-[active=true]:text-white px-4 py-2 rounded-md text-sm font-semibold text-white/70 hover:text-white transition" data-metric="rpm">
-                RPM
-            </button>
-            <button type="button" class="metric-toggle data-[active=true]:bg-red-500 data-[active=true]:text-white px-4 py-2 rounded-md text-sm font-semibold text-white/70 hover:text-white transition" data-metric="throttle">
-                Throttle
-            </button>
-            {% if request.user.is_authenticated and request.user|is_admin_user %}
             <a href="{% url 'car:manual_list' %}" class="inline-flex items-center gap-2 rounded-md border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:text-white transition">
                 <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19.5v-15A1.5 1.5 0 0 1 5.5 3h9A1.5 1.5 0 0 1 16 4.5v15M8 7h4M8 11h4m-2 4h2"/></svg>
                 Manual Data
             </a>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 
     <form id="telemetry-filters" class="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 md:p-6 shadow-lg shadow-black/20">
@@ -80,11 +71,11 @@
                 <div class="rounded-xl border border-white/10 bg-[#0D1117] px-4 py-4">
                     <div class="flex items-center justify-between text-xs text-white/60 font-medium">
                         <span>Min <span id="speed-min-label" class="text-white font-semibold">310</span></span>
-                        <span>Max <span id="speed-max-label" class="text-white font-semibold">320</span></span>
+                        <span>Max <span id="speed-max-label" class="text-white font-semibold">400</span></span>
                     </div>
                     <div class="mt-4 flex flex-col gap-3">
-                        <input id="speed-min" type="range" min="310" max="320" value="310" step="1" class="w-full accent-red-500">
-                        <input id="speed-max" type="range" min="310" max="320" value="320" step="1" class="w-full accent-red-500">
+                        <input id="speed-min" type="range" min="310" max="400" value="310" step="1" class="w-full accent-red-500">
+                        <input id="speed-max" type="range" min="310" max="400" value="400" step="1" class="w-full accent-red-500">
                     </div>
                 </div>
             </div>

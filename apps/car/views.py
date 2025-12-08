@@ -5,7 +5,6 @@ from functools import wraps
 from typing import Dict, Iterable, List, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
-import requests
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
@@ -24,7 +23,6 @@ from apps.car.forms import CarForm
 from apps.car.models import Car
 from apps.meeting.models import Meeting
 from apps.session.models import Session
-from apps.session.services import ensure_sessions_for_meetings
 
 
 import json
@@ -153,9 +151,6 @@ def _collect_extra_meeting_keys(
 def _meeting_choices_for_payload(data, *, existing_car: Car | None = None):
     extra_keys = _collect_extra_meeting_keys(data, existing_car=existing_car)
     meeting_choices = _fetch_meeting_choices(extra_keys=extra_keys or None)
-    meeting_keys = [choice[0] for choice in meeting_choices]
-    if meeting_keys:
-        ensure_sessions_for_meetings(meeting_keys)
     return meeting_choices
 
 
@@ -202,7 +197,6 @@ def _build_session_catalog(meetings: Iterable[int]) -> dict[str, List[dict[str, 
 def add_car(request):
     meeting_choices = _fetch_meeting_choices()
     meeting_keys = [choice[0] for choice in meeting_choices]
-    ensure_sessions_for_meetings(meeting_keys)
     form = CarForm(request.POST or None, meeting_choices=meeting_choices)
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
@@ -531,7 +525,6 @@ def api_grouped_car_data(request):
 
 
 
-OPENF1_MEETINGS_URL = "https://api.openf1.org/v1/meetings"
 OPENF1_CAR_DATA_URL = "https://api.openf1.org/v1/car_data"
 OPENF1_MIN_SPEED_FLOOR = 310
 
@@ -540,32 +533,16 @@ def _fetch_meeting_choices(extra_keys: Sequence[int] | None = None) -> list[tupl
     choices: list[tuple[int, str]] = []
     seen: set[int] = set()
 
-    try:
-        response = requests.get(OPENF1_MEETINGS_URL, timeout=10.0)
-        response.raise_for_status()
-        payload = response.json()
-    except (requests.RequestException, ValueError):
-        payload = []
-
-    if isinstance(payload, list):
-        for entry in payload:
-            if not isinstance(entry, dict):
-                continue
-            key = entry.get("meeting_key")
-            try:
-                key_int = int(key)
-            except (TypeError, ValueError):
-                continue
-            if key_int in seen:
-                continue
-            label = (
-                entry.get("meeting_name")
-                or entry.get("circuit_short_name")
-                or entry.get("country_name")
-                or str(key_int)
-            )
-            choices.append((key_int, f"{key_int} - {label}"))
-            seen.add(key_int)
+    meetings = Meeting.objects.all().order_by("-date_start", "-meeting_key")
+    for meeting in meetings:
+        key = meeting.meeting_key
+        if key is None or key in seen:
+            continue
+        label = meeting.meeting_name or meeting.circuit_short_name or meeting.country_name or str(key)
+        if meeting.year:
+            label = f"{label} ({meeting.year})"
+        choices.append((key, f"{key} - {label}"))
+        seen.add(key)
 
     if extra_keys:
         for key in extra_keys:
@@ -731,7 +708,6 @@ def edit_car(request, id):
             extra_keys.append(session_obj.meeting_key)
     meeting_choices = _fetch_meeting_choices(extra_keys=extra_keys)
     meeting_keys = [choice[0] for choice in meeting_choices]
-    ensure_sessions_for_meetings(meeting_keys)
     form = CarForm(request.POST or None, instance=car, meeting_choices=meeting_choices)
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 

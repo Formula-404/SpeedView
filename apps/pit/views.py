@@ -1,9 +1,11 @@
+import logging
 import requests
 from django.http import JsonResponse
 from django.shortcuts import render
 from datetime import datetime
 
 OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
+LOGGER = logging.getLogger(__name__)
 
 
 def pit_list_page(request):
@@ -75,4 +77,16 @@ def api_pit_list(request):
             }
         )
     except requests.RequestException as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=502)
+        LOGGER.warning("Failed to fetch pit data from OpenF1: %s", e)
+        return JsonResponse(
+            {
+                "ok": True,
+                "count": 0,
+                "limit": limit,
+                "offset": offset,
+                "next_offset": None,
+                "has_more": False,
+                "data": [],
+                "warning": str(e),
+            }
+        )

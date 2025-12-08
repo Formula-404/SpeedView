@@ -1,14 +1,13 @@
 from django.shortcuts import render
-import requests
 from django.http import JsonResponse
 from datetime import datetime
-from apps.driver.models import Driver
-# views.py
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import FieldError
 from django.db.models import Prefetch
 from apps.driver.models import Driver, DriverEntry
 from apps.meeting.models import Meeting  # sesuaikan import path app 'meeting'
+from apps.session.models import Session
+from apps.weather.models import Weather
 
 def api_dashboard_drivers_by_meeting(request):
     meeting_key = request.GET.get("meeting_key")
@@ -57,8 +56,6 @@ def api_dashboard_drivers_by_meeting(request):
 def show_main(request):
     return render(request, "index.html")
 
-OPENF1_API_BASE_URL = "https://api.openf1.org/v1"
-
 def main_dashboard_page(request):
     """
     Menampilkan halaman dashboard utama.
@@ -67,74 +64,115 @@ def main_dashboard_page(request):
 
 def api_recent_meetings(request):
     """
-    API endpoint untuk mengambil 4 meeting paling baru.
+    API endpoint untuk mengambil 4 meeting paling baru dari database lokal.
     """
-    try:
-        meetings_response = requests.get(f"{OPENF1_API_BASE_URL}/meetings")
-        meetings_response.raise_for_status()
-        all_meetings = meetings_response.json()
-        all_meetings.sort(key=lambda m: m.get('date_start', ''), reverse=True)        
-        recent_meetings = all_meetings[:4]
-        
-        return JsonResponse({'ok': True, 'data': recent_meetings})
+    meetings = (
+        Meeting.objects.all()
+        .order_by("-date_start", "-meeting_key")[:4]
+    )
 
-    except requests.exceptions.RequestException as e:
-        return JsonResponse({'ok': False, 'error': f"Gagal mengambil data dari OpenF1 API: {e}"}, status=500)
-    except Exception as e:
-        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+    data = [
+        {
+            "meeting_key": meeting.meeting_key,
+            "meeting_name": meeting.meeting_name,
+            "circuit_short_name": meeting.circuit_short_name,
+            "country_name": meeting.country_name,
+            "year": meeting.year,
+            "date_start": meeting.date_start.isoformat() if meeting.date_start else None,
+        }
+        for meeting in meetings
+    ]
+
+    return JsonResponse({"ok": True, "data": data})
 
 def api_dashboard_data(request):
     """
     API endpoint untuk mengambil SEMUA data untuk dashboard
-    berdasarkan satu meeting_key.
+    berdasarkan satu meeting_key dari database lokal.
     """
     meeting_key = request.GET.get('meeting_key')
     if not meeting_key:
         return JsonResponse({'ok': False, 'error': 'meeting_key diperlukan'}, status=400)
 
     try:
-        meeting_info = requests.get(f"{OPENF1_API_BASE_URL}/meetings?meeting_key={meeting_key}").json()        
-        sessions = requests.get(f"{OPENF1_API_BASE_URL}/sessions?meeting_key={meeting_key}").json()
-        
-        race_session_key = None
-        if sessions:
-            for s in sessions:
-                if s['session_name'].lower() == 'race':
-                    race_session_key = s['session_key']
-                    break
-            if not race_session_key:
-                race_session_key = sessions[-1]['session_key']
-        
-        weather_data = []
-        if race_session_key:
-             weather_data = requests.get(f"{OPENF1_API_BASE_URL}/weather?session_key={race_session_key}").json()
+        meeting_key_int = int(meeting_key)
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'meeting_key tidak valid'}, status=400)
 
-        for s in sessions:
-            s['date_start_str'] = format_date(s.get('date_start'))
-            s['date_end_str'] = format_date(s.get('date_end'))
+    meeting = Meeting.objects.filter(meeting_key=meeting_key_int).first()
+    if not meeting:
+        return JsonResponse({'ok': False, 'error': 'meeting tidak ditemukan'}, status=404)
 
-        drivers = list(Driver.objects.all())
-        data = {
-            'meeting': meeting_info[0] if meeting_info else None,
-            'sessions': sessions,
-            'weather': weather_data,
-            'drivers': [
-                {
-                    "driver_number": d.driver_number,
-                    "full_name": d.full_name,
-                    "broadcast_name": d.broadcast_name or "",
-                    "headshot_url": d.headshot_url or "",
-                    "country_code": d.country_code or "",
-                } for d in drivers
-            ],
-            'laps': [],    # Placeholder - API akan ditambahkan nanti
-            'car_data': [],# Placeholder - API akan ditambahkan nanti
+    sessions_qs = Session.objects.filter(meeting_key=meeting.meeting_key).order_by(
+        "start_time", "session_key"
+    )
+    sessions: list[dict] = []
+    race_session_key = None
+
+    for session in sessions_qs:
+        start_iso = session.start_time.isoformat() if session.start_time else None
+        payload = {
+            "session_key": session.session_key,
+            "meeting_key": session.meeting_key,
+            "session_name": session.name,
+            "name": session.name,
+            "date_start": start_iso,
+            "date_end": None,
         }
-        
-        return JsonResponse({'ok': True, 'data': data})
-        
-    except requests.exceptions.RequestException as e:
-        return JsonResponse({'ok': False, 'error': f"Gagal mengambil data: {e}"}, status=500)
+        payload['date_start_str'] = format_date(start_iso)
+        payload['date_end_str'] = format_date(None)
+        sessions.append(payload)
+
+        if session.name and session.name.lower() == 'race' and race_session_key is None:
+            race_session_key = session.session_key
+
+    if not race_session_key and sessions:
+        race_session_key = sessions[-1]['session_key']
+
+    weather_entries = Weather.objects.filter(meeting=meeting).order_by('date')
+    weather_data = [
+        {
+            'meeting_key': meeting.meeting_key,
+            'date': entry.date.isoformat() if entry.date else None,
+            'air_temperature': entry.air_temperature,
+            'track_temperature': entry.track_temperature,
+            'pressure': entry.pressure,
+            'wind_speed': entry.wind_speed,
+            'wind_direction': entry.wind_direction,
+            'humidity': entry.humidity,
+            'rainfall': entry.rainfall,
+        }
+        for entry in weather_entries
+    ]
+
+    meeting_payload = {
+        'meeting_key': meeting.meeting_key,
+        'meeting_name': meeting.meeting_name,
+        'circuit_short_name': meeting.circuit_short_name,
+        'country_name': meeting.country_name,
+        'year': meeting.year,
+        'date_start': meeting.date_start.isoformat() if meeting.date_start else None,
+    }
+
+    drivers = list(Driver.objects.all())
+    data = {
+        'meeting': meeting_payload,
+        'sessions': sessions,
+        'weather': weather_data,
+        'drivers': [
+            {
+                "driver_number": d.driver_number,
+                "full_name": d.full_name,
+                "broadcast_name": d.broadcast_name or "",
+                "headshot_url": d.headshot_url or "",
+                "country_code": d.country_code or "",
+            } for d in drivers
+        ],
+        'laps': [],    # Placeholder - API akan ditambahkan nanti
+        'car_data': [],# Placeholder - API akan ditambahkan nanti
+    }
+    
+    return JsonResponse({'ok': True, 'data': data})
 
 
 def format_date(date_string):
