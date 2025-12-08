@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static user_extras %}
 
 {% block meta %}
     <title>{{ cmp.title|default:"Driver Comparison" }} – SpeedView</title>
@@ -35,7 +35,7 @@
 
             <div class="ml-auto flex items-center gap-x-1_5">
                 {% if request.user.is_authenticated %}
-                    {% if request.user == cmp.owner or request.user.profile.role == "admin" %}
+                    {% if request.user == cmp.owner or request.user|is_admin_user %}
                         <button id="cmp-delete-btn" type="button" class="icon-btn" title="Delete">
                             <img alt="Delete" src="https://img.icons8.com/?size=100&id=85194&format=png&color=FFFFFF" />
                         </button>

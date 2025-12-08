@@ -16,6 +16,16 @@ urlpatterns = [
     path("<int:id>/edit/", views.edit_car, name="edit_car"),
     path("<int:id>/delete/", views.delete_car, name="delete_car"),
     path("telemetry/create-ajax/", views.add_car_entry_ajax, name="add_car_entry_ajax"),
+    path(
+        "telemetry/<int:car_id>/update-ajax/",
+        views.update_car_entry_ajax,
+        name="update_car_entry_ajax",
+    ),
+    path(
+        "telemetry/<int:car_id>/delete-ajax/",
+        views.delete_car_entry_ajax,
+        name="delete_car_entry_ajax",
+    ),
     path("xml/", views.show_xml, name="show_xml"),
     path("json/", views.show_json, name="show_json"),
     path("xml/<int:car_id>/", views.show_xml_by_id, name="show_xml_by_id"),

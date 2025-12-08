@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static user_extras %}
 
 {% block meta %}
     <title>Teams – SpeedView</title>
@@ -31,7 +31,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/>
                     </svg>
                 </div>
-                {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
+                {% if request.user.is_authenticated and request.user|is_admin_user %}
                     <a href="{% url 'team:add_page' %}"
                        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
