@@ -1,8 +1,9 @@
 import json
 from django.http import JsonResponse, HttpResponseRedirect, HttpResponseForbidden
 from django.shortcuts import redirect, render, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.urls import reverse
 from .models import Circuit
 from .forms import CircuitForm
@@ -88,58 +89,119 @@ def api_circuit_list(request):
         return json_error(f"Server error: {e}", status=500)
 
 @csrf_protect
+@login_required
 @require_POST
-def api_circuit_create(request):
-    """Endpoint API untuk membuat sirkuit baru."""
+def web_circuit_create(request):
     if not is_admin(request):
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-             return json_error("Admin role required.", status=403)
-        else:
-            return HttpResponseForbidden("Admin role required.")
+        return HttpResponseForbidden("Admin role required.")
 
     form = CircuitForm(request.POST)
     if form.is_valid():
         circuit = form.save(commit=False)
-        circuit.is_admin_created = True 
+        circuit.is_admin_created = True
         circuit.save()
         return HttpResponseRedirect(reverse("circuit:list_page"))
     else:
-         return render(request, "add_circuit.html", {"form": form, 'page_title': 'Add New Circuit'})
+        return render(request, "add_circuit.html", {"form": form, 'page_title': 'Add New Circuit'})
 
 
 @csrf_protect
+@csrf_protect
+@login_required
 @require_POST
-def api_circuit_update(request, pk):
-    """Endpoint API untuk memperbarui sirkuit yang ada."""
+def web_circuit_update(request, pk):
     if not is_admin(request):
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return json_error("Admin role required.", status=403)
-        else:
-            return HttpResponseForbidden("Admin role required.")
-    circuit = get_object_or_404(Circuit, pk=pk) 
+        return HttpResponseForbidden("Admin role required.")
+
+    circuit = get_object_or_404(Circuit, pk=pk)
     form = CircuitForm(request.POST, instance=circuit)
+    
     if form.is_valid():
         form.save()
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
-            return JsonResponse({"ok": True, "message": "Circuit updated successfully"})
         return HttpResponseRedirect(reverse("circuit:list_page"))
     else:
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.META.get('HTTP_ACCEPT', ''):
-             return JsonResponse({"ok": False, "error": form.errors.as_json()}, status=400)
         return render(request, "edit_circuit.html", {"form": form, "circuit": circuit, 'page_title': f'Edit {circuit.name}'})
 
 
 @csrf_protect
+@login_required
 @require_POST
-def api_circuit_delete(request, pk):
-    """Endpoint API untuk menghapus sirkuit."""
+def web_circuit_delete(request, pk):
     if not is_admin(request):
-        return json_error("Admin role required.", status=403) 
+        return HttpResponseForbidden("Admin role required.")
+    
+    circuit = get_object_or_404(Circuit, pk=pk)
+    circuit.delete()
+    return HttpResponseRedirect(reverse("circuit:list_page"))
+
+@csrf_exempt
+@require_POST
+def api_circuit_create(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "message": "Authentication required"}, status=401)
+
+    try:
+        data = json.loads(request.body)
+        
+        if not data.get('name') or not data.get('country'):
+             return JsonResponse({"ok": False, "message": "Name and Country are required."}, status=400)
+
+        new_circuit = Circuit.objects.create(
+            name=data.get('name'),
+            map_image_url=data.get('map_image_url', ''),
+            location=data.get('location', ''),
+            country=data.get('country'),
+            circuit_type=data.get('circuit_type', 'RACE'),
+            direction=data.get('direction', 'CW'),
+            length_km=float(data.get('length_km') or 0),
+            turns=int(data.get('turns') or 0),
+            grands_prix=data.get('grands_prix', ''),
+            seasons=data.get('seasons', ''),
+            grands_prix_held=int(data.get('grands_prix_held') or 0),
+            is_admin_created=True
+        )
+        return JsonResponse({"ok": True, "message": "Circuit created successfully"})
+
+    except Exception as e:
+        return JsonResponse({"ok": False, "message": str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def api_circuit_update(request, pk):
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "message": "Authentication required"}, status=401)
+
     try:
         circuit = get_object_or_404(Circuit, pk=pk)
-        circuit_name = circuit.name
-        circuit.delete()
-        return JsonResponse({"ok": True, "message": f"Circuit '{circuit_name}' deleted."})
+        data = json.loads(request.body)
+
+        circuit.name = data.get('name', circuit.name)
+        circuit.map_image_url = data.get('map_image_url', circuit.map_image_url)
+        circuit.location = data.get('location', circuit.location)
+        circuit.country = data.get('country', circuit.country)
+        circuit.circuit_type = data.get('circuit_type', circuit.circuit_type)
+        circuit.direction = data.get('direction', circuit.direction)
+        circuit.length_km = float(data.get('length_km', circuit.length_km))
+        circuit.turns = int(data.get('turns', circuit.turns))
+        circuit.grands_prix = data.get('grands_prix', circuit.grands_prix)
+        circuit.seasons = data.get('seasons', circuit.seasons)
+        circuit.grands_prix_held = int(data.get('grands_prix_held', circuit.grands_prix_held))
+        
+        circuit.save()
+        return JsonResponse({"ok": True, "message": "Circuit updated successfully"})
+
     except Exception as e:
-        traceback.print_exc() 
-        return json_error(f"Error deleting circuit: {e}", status=500)
+        return JsonResponse({"ok": False, "message": str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def api_circuit_delete(request, pk):
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "message": "Authentication required"}, status=401)
+    
+    try:
+        circuit = get_object_or_404(Circuit, pk=pk)
+        circuit.delete()
+        return JsonResponse({"ok": True, "message": "Circuit deleted"})
+    except Exception as e:
+        return JsonResponse({"ok": False, "message": str(e)}, status=500)
