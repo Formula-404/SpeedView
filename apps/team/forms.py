@@ -2,7 +2,14 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import Team
 
+DEFAULT_TEAM_LOGO_URL = "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png"
+
 class TeamForm(forms.ModelForm):
+    team_logo_url = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
     team_colour = forms.CharField(
         required=True,
         max_length=7,
@@ -58,7 +65,6 @@ class TeamForm(forms.ModelForm):
             },
         }
         widgets = {
-            "team_logo_url": forms.Textarea(attrs={"rows": 2}),
             "team_description": forms.Textarea(attrs={"rows": 20}),
             "engines": forms.Textarea(attrs={"rows": 2}),
             "avg_lap_time_ms": forms.NumberInput(attrs={"min": "0", "step": "0.001", "placeholder": "e.g., 91500.000"}),
@@ -157,7 +163,7 @@ class TeamForm(forms.ModelForm):
 
         logo = (cleaned.get("team_logo_url") or "").strip()
         if not logo:
-            cleaned["team_logo_url"] = "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png"
+            cleaned["team_logo_url"] = DEFAULT_TEAM_LOGO_URL
         else:
             cleaned["team_logo_url"] = logo
 
