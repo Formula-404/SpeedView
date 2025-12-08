@@ -12,6 +12,17 @@ from django.views.decorators.http import require_http_methods
 
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
 
+import json
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.shortcuts import render, get_object_or_404, redirect
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
+from django.db import IntegrityError, transaction
+from django.urls import reverse
+from django.contrib.auth import authenticate  # kalau nanti mau pakai username/password di body
+
+from .models import Driver
+from .forms import DriverForm
 
 
 # ================== helpers ==================
@@ -177,6 +188,98 @@ def api_driver_delete(request, driver_number):
     driver_number_val = driver.driver_number
     driver.delete()
     return JsonResponse({"ok": True, "deleted": driver_number_val})
+
+# ========== MOBILE API (khusus Flutter) ==========
+
+@require_GET
+def api_mobile_driver_list(request):
+    """
+    List driver untuk mobile, format sama dengan api_driver_list
+    """
+    drivers = Driver.objects.all().prefetch_related("teams")
+    data = [serialize_driver(d) for d in drivers]
+    return JsonResponse({"ok": True, "count": len(data), "data": data})
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_driver_create(request):
+    """
+    Create driver dari Flutter.
+    Mengharapkan JSON:
+    {
+      "driver_number": "44",
+      "full_name": "Lewis Hamilton",
+      "broadcast_name": "LEWIS H.",
+      "country_code": "GBR",
+      "headshot_url": "https://..."
+    }
+    """
+    if not request.user.is_authenticated:
+        return json_error("Authentication required.", status=401)
+    if not is_admin(request):
+        return json_error("Admin role required.", status=403)
+
+    payload = parse_json(request)
+    if payload is None:
+        return json_error("Invalid JSON body.", status=400)
+
+    form = DriverForm(payload)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                driver = form.save()
+            return JsonResponse({"ok": True, "data": serialize_driver(driver)}, status=201)
+        except IntegrityError:
+            return json_error("A driver with this number already exists.", status=409)
+
+    return json_error("Validation failed", field_errors=form.errors, status=422)
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_driver_update(request, driver_number):
+    """
+    Update driver dari Flutter (JSON body sama dengan create).
+    """
+    if not request.user.is_authenticated:
+        return json_error("Authentication required.", status=401)
+    if not is_admin(request):
+        return json_error("Admin role required.", status=403)
+
+    driver = get_object_or_404(Driver, pk=driver_number)
+    payload = parse_json(request)
+    if payload is None:
+        return json_error("Invalid JSON body.", status=400)
+
+    form = DriverForm(payload, instance=driver)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                updated = form.save()
+            return JsonResponse({"ok": True, "data": serialize_driver(updated)})
+        except IntegrityError:
+            return json_error("Another driver already uses this number.", status=409)
+
+    return json_error("Validation failed", field_errors=form.errors, status=422)
+
+
+@csrf_exempt
+@require_POST
+def api_mobile_driver_delete(request, driver_number):
+    """
+    Delete driver dari Flutter.
+    """
+    if not request.user.is_authenticated:
+        return json_error("Authentication required.", status=401)
+    if not is_admin(request):
+        return json_error("Admin role required.", status=403)
+
+    driver = get_object_or_404(Driver, pk=driver_number)
+    num = driver.driver_number
+    driver.delete()
+    return JsonResponse({"ok": True, "deleted": num})
+
 
 
 from django.http import JsonResponse
