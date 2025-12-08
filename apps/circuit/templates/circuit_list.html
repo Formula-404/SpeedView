@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static user_extras %}
 
 {% block meta %}
     <title>Circuits – SpeedView</title>
@@ -34,7 +34,7 @@
                     </svg>
                 </form>
             </div>
-            {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
+            {% if request.user.is_authenticated and request.user|is_admin_user %}
                 <a href="{% url 'circuit:add_page' %}"
                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
