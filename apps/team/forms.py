@@ -154,7 +154,13 @@ class TeamForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        logo = cleaned.get("team_logo_url")
+
+        logo = (cleaned.get("team_logo_url") or "").strip()
+        if not logo:
+            cleaned["team_logo_url"] = "https://www.edigitalagency.com.au/wp-content/uploads/F1-logo-png-medium-size.png"
+        else:
+            cleaned["team_logo_url"] = logo
+
         for field in ("team_logo_url", "website", "wiki_url"):
             value = cleaned.get(field)
             if value and not (value.startswith("http://") or value.startswith("https://")):
