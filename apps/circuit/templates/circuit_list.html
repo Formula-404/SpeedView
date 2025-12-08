@@ -140,7 +140,7 @@
                 const editLink = card.querySelector('.edit-link');
                 const deleteButton = card.querySelector('.open-delete-modal');
                 const adminActions = card.querySelector('.admin-actions');
-                if (c.is_admin && c.is_admin_created && adminActions && editLink && deleteButton) {                    editLink.href = c.edit_url;
+                if (c.is_admin && adminActions && editLink && deleteButton) {                    editLink.href = c.edit_url;
                     editLink.href = c.edit_url;
                     deleteButton.dataset.name = c.name;
                     deleteButton.dataset.url = c.delete_url;

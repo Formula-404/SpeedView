@@ -39,6 +39,7 @@
             class="input-field w-full px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
         />
     </div>
+
     <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6 mb-6">
         <h2 class="text-white text-lg font-semibold mb-3">Visibility</h2>
         <label class="inline-flex items-center gap-2 text-white/80">
@@ -47,13 +48,11 @@
         </label>
     </div>
 
-
     <!-- Module -->
     <div class="rounded-2xl bg-[#0D1117]/80 border border-white/10 p-6 mb-6">
         <h2 class="text-white text-lg font-semibold mb-3">Module</h2>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button data-module="team" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white hover:border-red-500/40">Team</button>
-            <button data-module="car" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white">Car</button>
             <button data-module="driver" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white">Driver</button>
             <button data-module="circuit" class="module-btn px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white/60 hover:text-white">Circuit</button>
         </div>
@@ -163,10 +162,9 @@
                 document.querySelectorAll(".module-btn").forEach(b => b.classList.remove("border-red-500","text-white"));
                 btn.classList.add("border-red-500","text-white");
                 pickerTitle.textContent = (
-                    moduleSel === "team" ? "Select Teams" :
-                    moduleSel === "car" ? "Select Cars" :
+                    moduleSel === "team"   ? "Select Teams"   :
                     moduleSel === "driver" ? "Select Drivers" :
-                    "Select Circuits"
+                                             "Select Circuits"
                 );
                 selected.clear();
                 updateCount();
@@ -177,10 +175,9 @@
         /* options loader */
         async function loadOptions() {
             let url = "";
-            if (moduleSel === "team") url = "{% url 'team:api_list' %}";
-            if (moduleSel === "driver") url = "{% url 'driver:api_list' %}";
+            if (moduleSel === "team")    url = "{% url 'team:api_list' %}";
+            if (moduleSel === "driver")  url = "{% url 'driver:api_list' %}";
             if (moduleSel === "circuit") url = "{% url 'circuit:api_list' %}";
-            if (moduleSel === "car") url = "{% url 'car:show_json' %}";
 
             list.innerHTML = "";
             options = [];
@@ -210,13 +207,6 @@
                         name: c.name,
                         sub: [c.location, c.country].filter(Boolean).join(" • "),
                         logo: c.map_image_url || "https://via.placeholder.com/64x64.png?text=Track"
-                    }));
-                } else {
-                    options = (json || []).map(c => ({
-                        id: c.id,
-                        name: `${c.driver_number} – ${c.session_name || "Session"}`,
-                        sub: `Speed ${c.speed ?? 0}`,
-                        logo: "https://static.thenounproject.com/png/3790881-200.png"
                     }));
                 }
 

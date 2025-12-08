@@ -45,6 +45,8 @@
     </div>
 
     <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
         const API_LIST_URL = "{% url 'meeting:api_list' %}";
         const searchForm = document.getElementById("search-form");
         const searchInput = document.getElementById("meeting-search");
@@ -73,7 +75,12 @@
             const url = `${API_LIST_URL}?${params.toString()}`;
 
             try {
-                const res = await fetch(url);
+                const res = await fetch(url);                
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error("Server Error: Received HTML instead of JSON. Check terminal.");
+                }
+
                 if (!res.ok) throw new Error(`Failed to fetch: ${res.statusText}`);
                 
                 const data = await res.json();
@@ -83,8 +90,9 @@
                     throw new Error(data.error || "Unknown API error");
                 }
             } catch (e) {
+                console.error("Error fetching meetings:", e);
                 resultsInfo.textContent = "";
-                grid.innerHTML = `<div class="col-span-full rounded-xl bg-white/5 border border-white/10 p-8 text-center text-red-400">Error loading meetings: ${e.message}</div>`;
+                grid.innerHTML = `<div class="col-span-full rounded-xl bg-red-500/10 border border-red-500/20 p-8 text-center text-red-400">Error loading meetings: ${e.message}</div>`;
             }
         }
 
@@ -105,18 +113,15 @@
             pageInfo.textContent = `Page ${pagination.current_page} of ${pagination.total_pages}`;
             prevButton.disabled = !pagination.has_previous;
             nextButton.disabled = !pagination.has_next;
-            // --- Selesai Update Paginasi ---
 
             // --- Render Kotak Meeting ---
             meetings.forEach(meeting => {
                 const meetingCardHtml = `
                     <div class="block rounded-xl bg-[#0D1117]/80 border border-white/10 p-6 shadow-lg transition-all hover:border-red-500/50">
-                        <!-- Judul Besar -->
                         <h2 class="text-3xl font-bold text-white mb-3" style="font-family: Alphacorsa, Inter, sans-serif;">
                             ${meeting.meeting_name}
                         </h2>
                         
-                        <!-- Info Lainnya -->
                         <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/70 border-t border-white/10 pt-3 mt-3">
                             <span class="flex items-center gap-1.5">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 4.71 7.97 4 10 4c2.03 0 3.488.71 4.756 1.321a6.012 6.012 0 011.912 2.706C17.02 8.64 17 9.31 17 10s.02 1.36-.244 1.973a6.012 6.012 0 01-1.912 2.706C13.488 15.29 12.03 16 10 16c-2.03 0-3.488-.71-4.756-1.321a6.012 6.012 0 01-1.912-2.706C2.98 11.36 3 10.69 3 10s-.02-1.36.244-1.973zM10 8a2 2 0 100 4 2 2 0 000-4z" clip-rule="evenodd"></path></svg>
@@ -139,26 +144,31 @@
                 `;
                 grid.innerHTML += meetingCardHtml;
             });
-            // --- Selesai Render ---
         }
 
         // --- Event Listeners ---
-        searchForm.addEventListener("submit", (e) => {
-            e.preventDefault();
-            fetchMeetings(searchInput.value, 1);
-        });
+        if (searchForm) {
+            searchForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                fetchMeetings(searchInput.value, 1);
+            });
+        }
 
-        prevButton.addEventListener("click", () => {
-            if (currentPage > 1) {
-                fetchMeetings(currentQuery, currentPage - 1);
-            }
-        });
+        if (prevButton) {
+            prevButton.addEventListener("click", () => {
+                if (currentPage > 1) {
+                    fetchMeetings(currentQuery, currentPage - 1);
+                }
+            });
+        }
 
-        nextButton.addEventListener("click", () => {
-            fetchMeetings(currentQuery, currentPage + 1);
-        });
+        if (nextButton) {
+            nextButton.addEventListener("click", () => {
+                fetchMeetings(currentQuery, currentPage + 1);
+            });
+        }
 
-        // Muat data awal (halaman 1)
         fetchMeetings("", 1);
-    </script>
+    });
+</script>
 {% endblock content %}

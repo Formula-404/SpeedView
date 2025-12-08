@@ -27,7 +27,7 @@
     </div>
 
     <!-- Form -->
-    <form method="POST" action="{% url 'circuit:api_create' %}" class="space-y-10" id="circuit-form">
+    <form method="POST" action="{% url 'circuit:web_create' %}" class="space-y-10" id="circuit-form">
         {% csrf_token %}
 
         {% if form.non_field_errors %}

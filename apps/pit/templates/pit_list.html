@@ -4,7 +4,7 @@
 {% block meta %}<title>Pit – SpeedView</title>{% endblock meta %}
 
 {% block content %}
-<div class="px-12 py-12 space-y-6">
+<div class="px-6 lg:px-12 py-10 space-y-6">
   <div class="text-sm text-white/60 tracking-wide space-x-2">
     <a class="hover:text-red-400" href="{% url 'main:show_main' %}">Home</a>
     <span>›</span>
@@ -15,21 +15,35 @@
 
   <h1 class="text-3xl font-bold text-white" style="font-family: Alphacorsa, Inter, sans-serif;">Pit Stops</h1>
 
-  <form id="f" class="grid gap-3 sm:grid-cols-4 md:grid-cols-6">
-    <input name="session_key" placeholder="session_key" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
-    <input name="driver_number" placeholder="driver_number" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
-    <input name="lap_number" placeholder="lap_number" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
-    <input name="meeting_key" placeholder="meeting_key" class="px-3 py-2 rounded bg-[#0D1117] border border-white/10 text-white">
-    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Load</button>
-    <button type="button" id="clear" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">Clear</button>
-  </form>
+  <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-[#050816] via-[#020617] to-black p-5 shadow-xl shadow-red-900/20">
+    <p class="text-xs uppercase tracking-[0.2em] text-red-400 mb-3">Filters</p>
+    <form id="f" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <input name="session_key" placeholder="session_key"
+             class="px-3 py-2 rounded-xl bg-[#020617] border border-white/15 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60">
+      <input name="driver_number" placeholder="driver_number"
+             class="px-3 py-2 rounded-xl bg-[#020617] border border-white/15 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60">
+      <input name="lap_number" placeholder="lap_number"
+             class="px-3 py-2 rounded-xl bg-[#020617] border border-white/15 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60">
+      <input name="meeting_key" placeholder="meeting_key"
+             class="px-3 py-2 rounded-xl bg-[#020617] border border-white/15 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500/60">
 
-  <p id="meta" class="text-sm text-white/60">—</p>
+      <button type="submit"
+              class="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold shadow-md shadow-red-900/40 hover:bg-red-500 transition-colors">
+        Load
+      </button>
+      <button type="button" id="clear"
+              class="px-4 py-2 rounded-xl bg-white/5 text-white text-sm hover:bg-white/10 border border-white/10 transition-colors">
+        Clear
+      </button>
+    </form>
+  </div>
 
-  <div class="overflow-x-auto rounded border border-white/10">
+  <p id="meta" class="text-xs text-white/60">0 item(s)</p>
+
+  <div class="overflow-x-auto rounded-2xl border border-white/10 bg-[#020617] shadow-xl shadow-black/40">
     <table class="min-w-full text-sm text-white/80">
       <thead class="bg-white/5">
-        <tr>
+        <tr class="text-xs uppercase tracking-wide text-white/70">
           <th class="px-3 py-2 text-left">Date</th>
           <th class="px-3 py-2 text-left">Driver</th>
           <th class="px-3 py-2 text-left">Lap</th>
@@ -41,48 +55,157 @@
       <tbody id="tb"></tbody>
     </table>
   </div>
+
+  <p id="hint" class="text-xs text-white/40">
+    Scroll ke bawah untuk memuat 20 data berikutnya.
+  </p>
 </div>
 
 <script>
 const API = "{% url 'pit:api_pit_list' %}";
+const PAGE_SIZE = 20;
+
 const f = document.getElementById('f');
 const tb = document.getElementById('tb');
 const meta = document.getElementById('meta');
+const hint = document.getElementById('hint');
 
-function fmt(v, d='—'){ return (v||v===0) ? v : d; }
+let currentFilters = {};
+let offset = 0;
+let totalCount = 0;
+let loadedCount = 0;
+let isLoading = false;
+let hasMore = true;
 
-async function load(params){
-  tb.innerHTML = `<tr><td class="px-3 py-3 text-white/60" colspan="6">Loading…</td></tr>`;
-  const qs = new URLSearchParams(params);
-  const res = await fetch(`${API}?${qs.toString()}`);
-  const json = await res.json();
-  if(!json.ok){ tb.innerHTML = `<tr><td class="px-3 py-3 text-red-400" colspan="6">${json.error||'Failed'}</td></tr>`; meta.textContent='—'; return; }
-  const rows = json.data || [];
-  meta.textContent = `${rows.length} item(s)`;
-  if(!rows.length){ tb.innerHTML = `<tr><td class="px-3 py-3 text-white/60" colspan="6">No data.</td></tr>`; return; }
-  tb.innerHTML = rows.map(r => `
-    <tr class="border-t border-white/10">
-      <td class="px-3 py-2">${fmt(r.date_str)}</td>
-      <td class="px-3 py-2">${fmt(r.lap_number)}</td>
-      <td class="px-3 py-2">${fmt(r.pit_duration)} s</td>
-      <td class="px-3 py-2">${fmt(r.session_key)}</td>
-      <td class="px-3 py-2">${fmt(r.meeting_key)}</td>
-      <td class="px-3 py-2">#${fmt(r.driver_number)}</td>
-    </tr>`).join('');
+function fmt(v, d = '—') {
+  return (v || v === 0) ? v : d;
 }
 
-f.addEventListener('submit', (e)=>{
+function renderMeta() {
+  if (totalCount > 0) {
+    meta.textContent = `${loadedCount} dari ${totalCount} item(s)`;
+  } else {
+    meta.textContent = `${loadedCount} item(s)`;
+  }
+  if (!hasMore && totalCount > 0) {
+    hint.textContent = 'Semua data sudah dimuat.';
+  } else {
+    hint.textContent = 'Scroll ke bawah untuk memuat 20 data berikutnya.';
+  }
+}
+
+function appendRows(rows) {
+  const html = rows.map(r => `
+    <tr class="border-t border-white/10 hover:bg-white/5 transition-colors">
+      <td class="px-3 py-2">${fmt(r.date_str)}</td>
+      <td class="px-3 py-2 font-semibold">#${fmt(r.driver_number)}</td>
+      <td class="px-3 py-2">${fmt(r.lap_number)}</td>
+      <td class="px-3 py-2 text-red-400 font-medium">${fmt(r.pit_duration)} s</td>
+      <td class="px-3 py-2">${fmt(r.session_key)}</td>
+      <td class="px-3 py-2">${fmt(r.meeting_key)}</td>
+    </tr>
+  `).join('');
+  tb.insertAdjacentHTML('beforeend', html);
+}
+
+function showLoadingRow() {
+  const existing = document.getElementById('loading-row');
+  if (existing) return;
+  const tr = document.createElement('tr');
+  tr.id = 'loading-row';
+  tr.innerHTML = `<td class="px-3 py-3 text-white/60 text-center" colspan="6">Loading…</td>`;
+  tb.appendChild(tr);
+}
+
+function removeLoadingRow() {
+  const tr = document.getElementById('loading-row');
+  if (tr) tr.remove();
+}
+
+async function fetchPage() {
+  if (isLoading || !hasMore) return;
+  isLoading = true;
+  showLoadingRow();
+
+  const params = { ...currentFilters, limit: PAGE_SIZE.toString(), offset: offset.toString() };
+  const qs = new URLSearchParams(params);
+  try {
+    const res = await fetch(`${API}?${qs.toString()}`);
+    const json = await res.json();
+
+    if (!json.ok) {
+      tb.innerHTML = `<tr><td class="px-3 py-3 text-red-400" colspan="6">${json.error || 'Failed'}</td></tr>`;
+      meta.textContent = '—';
+      hint.textContent = '';
+      isLoading = false;
+      return;
+    }
+
+    removeLoadingRow();
+
+    const rows = json.data || [];
+    totalCount = json.count || 0;
+    loadedCount += rows.length;
+    offset = json.next_offset != null ? json.next_offset : loadedCount;
+    hasMore = json.has_more === true;
+
+    if (loadedCount === 0) {
+      tb.innerHTML = `<tr><td class="px-3 py-3 text-white/60 text-center" colspan="6">No data.</td></tr>`;
+    } else {
+      appendRows(rows);
+    }
+    renderMeta();
+  } catch (e) {
+    tb.innerHTML = `<tr><td class="px-3 py-3 text-red-400" colspan="6">Error: ${e}</td></tr>`;
+    meta.textContent = '—';
+    hint.textContent = '';
+  } finally {
+    removeLoadingRow();
+    isLoading = false;
+  }
+}
+
+function resetState() {
+  tb.innerHTML = '';
+  offset = 0;
+  totalCount = 0;
+  loadedCount = 0;
+  hasMore = true;
+  renderMeta();
+}
+
+f.addEventListener('submit', (e) => {
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(f).entries());
-  Object.keys(data).forEach(k => { if(!data[k]) delete data[k]; });
-  load(data);
+  const formData = new FormData(f);
+  const filters = {};
+  for (const [k, v] of formData.entries()) {
+    if (v) filters[k] = v.toString();
+  }
+  currentFilters = filters;
+  resetState();
+  fetchPage();
 });
 
-document.getElementById('clear').onclick = () => { f.reset(); meta.textContent='—'; tb.innerHTML=''; };
-
+document.getElementById('clear').onclick = () => {
+  f.reset();
+  currentFilters = {};
+  resetState();
+};
 
 const params = Object.fromEntries(new URLSearchParams(window.location.search).entries());
-for (const [k,v] of Object.entries(params)) { if (f.elements[k]) f.elements[k].value = v; }
-if (Object.keys(params).length) load(params);
+for (const [k, v] of Object.entries(params)) {
+  if (f.elements[k]) f.elements[k].value = v;
+}
+if (Object.keys(params).length) {
+  currentFilters = params;
+  resetState();
+  fetchPage();
+}
+
+window.addEventListener('scroll', () => {
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+    fetchPage();
+  }
+});
 </script>
 {% endblock content %}
