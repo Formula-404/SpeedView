@@ -24,10 +24,10 @@ def json_error(message, status=400, field_errors=None):
         payload["field_errors"] = field_errors
     return JsonResponse(payload, status=status)
 
-def is_admin(user):
-    if not user or not user.is_authenticated:
+def is_admin(request):
+    if not request.user.is_authenticated:
         return False
-    profile = getattr(user, "profile", None)
+    profile = getattr(request.user, "profile", None)
     return getattr(profile, "role", None) == "admin"
 
 def _auth_mobile_user(payload):
