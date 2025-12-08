@@ -99,95 +99,6 @@ def delete_driver_page(request, driver_number):
 
     return render(request, "driver_confirm_delete.html", {"driver": driver})
 
-# ================== API ==================
-@require_GET
-def api_driver_list(request):
-    drivers = Driver.objects.all().prefetch_related("teams")
-    data = [serialize_driver(d) for d in drivers]
-    return JsonResponse({"ok": True, "count": len(data), "data": data})
-
-@require_GET
-def api_driver_detail(request, driver_number):
-    driver = get_object_or_404(Driver, pk=driver_number)
-    return JsonResponse({"ok": True, "data": serialize_driver(driver)})
-
-@csrf_exempt
-@require_POST
-def api_driver_create(request):
-    if not request.user.is_authenticated:
-        return json_error("Authentication required.", status=401)
-    if not is_admin(request):
-        return json_error("Admin role required.", status=403)
-
-    payload = parse_json(request) if request.content_type == "application/json" else request.POST
-
-    if payload is None:
-        return HttpResponseBadRequest("Invalid JSON body.")
-    form = DriverForm(payload)
-    if form.is_valid():
-        try:
-            with transaction.atomic():
-                driver = form.save()
-
-            # Kalau dipanggil dari browser biasa → redirect
-            if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
-               "application/json" not in (request.headers.get("Accept", "") or ""):
-                return HttpResponseRedirect(reverse("driver:driver_list"))
-
-            # Kalau dari Flutter / klien JSON → balas JSON
-            return JsonResponse({"ok": True, "data": serialize_driver(driver)}, status=201)
-
-        except IntegrityError:
-            form.add_error("driver_number", "A driver with this number already exists.")
-
-    if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
-       "application/json" not in (request.headers.get("Accept", "") or ""):
-        return render(request, "add_driver.html", {"form": form})
-    return json_error("Validation failed", field_errors=form.errors, status=422)
-
-
-@csrf_exempt
-@require_POST
-def api_driver_update(request, driver_number):
-    if not request.user.is_authenticated:
-        return json_error("Authentication required.", status=401)
-    if not is_admin(request):
-        return json_error("Admin role required.", status=403)
-
-    driver = get_object_or_404(Driver, pk=driver_number)
-    payload = parse_json(request) if request.content_type == "application/json" else request.POST
-    if payload is None:
-        return HttpResponseBadRequest("Invalid JSON body.")
-
-    form = DriverForm(payload, instance=driver)
-    if form.is_valid():
-        try:
-            with transaction.atomic():
-                updated = form.save()
-            # browser biasa → redirect
-            if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
-               "application/json" not in (request.headers.get("Accept", "") or ""):
-                return HttpResponseRedirect(reverse("driver:driver_list"))
-
-            # Flutter / JSON client → JSON
-            return JsonResponse({"ok": True, "data": serialize_driver(updated)})
-        except IntegrityError:
-            form.add_error("driver_number", "Another driver already uses this number.")
-    return json_error("Validation failed", field_errors=form.errors, status=422)
-
-
-@csrf_exempt
-@require_POST
-def api_driver_delete(request, driver_number):
-    if not request.user.is_authenticated:
-        return json_error("Authentication required.", status=401)
-    if not is_admin(request):
-        return json_error("Admin role required.", status=403)
-
-    driver = get_object_or_404(Driver, pk=driver_number)
-    driver_number_val = driver.driver_number
-    driver.delete()
-    return JsonResponse({"ok": True, "deleted": driver_number_val})
 
 # ========== MOBILE API (khusus Flutter) ==========
 
@@ -279,6 +190,98 @@ def api_mobile_driver_delete(request, driver_number):
     num = driver.driver_number
     driver.delete()
     return JsonResponse({"ok": True, "deleted": num})
+
+# ================== API ==================
+@require_GET
+def api_driver_list(request):
+    drivers = Driver.objects.all().prefetch_related("teams")
+    data = [serialize_driver(d) for d in drivers]
+    return JsonResponse({"ok": True, "count": len(data), "data": data})
+
+@require_GET
+def api_driver_detail(request, driver_number):
+    driver = get_object_or_404(Driver, pk=driver_number)
+    return JsonResponse({"ok": True, "data": serialize_driver(driver)})
+
+@csrf_exempt
+@require_POST
+def api_driver_create(request):
+    if not request.user.is_authenticated:
+        return json_error("Authentication required.", status=401)
+    if not is_admin(request):
+        return json_error("Admin role required.", status=403)
+
+    payload = parse_json(request) if request.content_type == "application/json" else request.POST
+
+    if payload is None:
+        return HttpResponseBadRequest("Invalid JSON body.")
+    form = DriverForm(payload)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                driver = form.save()
+
+            # Kalau dipanggil dari browser biasa → redirect
+            if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
+               "application/json" not in (request.headers.get("Accept", "") or ""):
+                return HttpResponseRedirect(reverse("driver:driver_list"))
+
+            # Kalau dari Flutter / klien JSON → balas JSON
+            return JsonResponse({"ok": True, "data": serialize_driver(driver)}, status=201)
+
+        except IntegrityError:
+            form.add_error("driver_number", "A driver with this number already exists.")
+
+    if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
+       "application/json" not in (request.headers.get("Accept", "") or ""):
+        return render(request, "add_driver.html", {"form": form})
+    return json_error("Validation failed", field_errors=form.errors, status=422)
+
+
+@csrf_exempt
+@require_POST
+def api_driver_update(request, driver_number):
+    if not request.user.is_authenticated:
+        return json_error("Authentication required.", status=401)
+    if not is_admin(request):
+        return json_error("Admin role required.", status=403)
+
+    driver = get_object_or_404(Driver, pk=driver_number)
+    payload = parse_json(request) if request.content_type == "application/json" else request.POST
+    if payload is None:
+        return HttpResponseBadRequest("Invalid JSON body.")
+
+    form = DriverForm(payload, instance=driver)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                updated = form.save()
+            # browser biasa → redirect
+            if request.headers.get("X-Requested-With") != "XMLHttpRequest" and \
+               "application/json" not in (request.headers.get("Accept", "") or ""):
+                return HttpResponseRedirect(reverse("driver:driver_list"))
+
+            # Flutter / JSON client → JSON
+            return JsonResponse({"ok": True, "data": serialize_driver(updated)})
+        except IntegrityError:
+            form.add_error("driver_number", "Another driver already uses this number.")
+    return json_error("Validation failed", field_errors=form.errors, status=422)
+
+
+@csrf_exempt
+@require_POST
+def api_driver_delete(request, driver_number):
+    if not request.user.is_authenticated:
+        return json_error("Authentication required.", status=401)
+    if not is_admin(request):
+        return json_error("Admin role required.", status=403)
+
+    driver = get_object_or_404(Driver, pk=driver_number)
+    driver_number_val = driver.driver_number
+    driver.delete()
+    return JsonResponse({"ok": True, "deleted": driver_number_val})
+
+
 
 
 
