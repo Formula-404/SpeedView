@@ -41,12 +41,11 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
             <div class="space-y-6">
                 <div>
-                    <label for="{{ form.team_name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Team Name <span class="text-red-500">*</span></label>
-                    {{ form.team_name.as_widget(attrs={
-                        "readonly": "readonly",
-                        "class": "input-field w-full px-4 py-3 bg-[#0D1117] border border-gray-700 rounded-lg text-[#9CA3AF] placeholder-white/40 focus:outline-none focus:ring-0 focus:border-gray-700 cursor-not-allowed"
-                    }) }}
-                    <p class="help">Primary key; it cannot be changed here.</p>
+                    <label for="{{ form.team_name.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">
+                        Team Name <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.team_name }}
+                    <p class="help">Primary key; it cannot be changed.</p>
                     {% for error in form.team_name.errors %}
                         <p class="text-sm text-red-400 mt-1">{{ error }}</p>
                     {% endfor %}

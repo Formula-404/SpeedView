@@ -110,15 +110,26 @@ def edit_team_page(request, team_name):
     if request.method == "POST":
         data = request.POST.copy()
         data["team_name"] = team.team_name
-        
+
         form = TeamForm(data, instance=team)
         if form.is_valid():
             updated = form.save()
             return redirect(updated.get_absolute_url())
-        return render(request, "edit_team.html", {"form": form, "team": team})
+    else:
+        form = TeamForm(instance=team)
 
-    form = TeamForm(instance=team)
+    form.fields["team_name"].widget.attrs.update({
+        "readonly": "readonly",
+        "class": (
+            "input-field w-full px-4 py-3 bg-[#0D1117] "
+            "border border-gray-700 rounded-lg text-[#9CA3AF] "
+            "placeholder-white/40 focus:outline-none focus:ring-0 "
+            "focus:border-gray-700 cursor-not-allowed"
+        ),
+    })
+
     return render(request, "edit_team.html", {"form": form, "team": team})
+
 
 
 # ================== API ==================
