@@ -73,11 +73,6 @@
                         {% for error in form.direction.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
                     </div>
                 </div>
-                 <div>
-                    <label for="{{ form.last_used.id_for_label }}" class="block text-sm font-medium text-[#E6EDF3] mb-2">Last used</label>
-                    {{ form.last_used }}
-                    {% for error in form.last_used.errors %}<p class="text-sm text-red-400 mt-1">{{ error }}</p>{% endfor %}
-                </div>
             </div>
 
             <!-- Kolom Kanan -->
