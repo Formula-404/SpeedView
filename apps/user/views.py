@@ -10,6 +10,7 @@ from .models import UserProfile
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
+import re
 from django.contrib.auth.models import User
 
 @require_http_methods(["GET", "POST"])
@@ -31,7 +32,8 @@ def register_view(request):
         else:
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                    field_label = form.fields[field].label if field in form.fields else field
+                    messages.error(request, f"{field_label}: {error}")
     else:
         form = RegisterForm()
 
@@ -194,12 +196,35 @@ def register_flutter(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            username = data.get('username')
-            password = data.get('password')
-            email = data.get('email', '')
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
+            email = data.get('email', '').strip()
             
-            if User.objects.filter(username=username).exists():
-                return JsonResponse({'status': False, 'message': 'Username already exists'}, status=400)
+            errors = []
+            
+            if not username:
+                errors.append('Username is required')
+            elif len(username) < 3:
+                errors.append('Username must be at least 3 characters')
+            elif not re.match(r'^[\w.@+-]+$', username):
+                errors.append('Username can only contain letters, numbers, and @/./+/-/_ characters')
+            elif User.objects.filter(username=username).exists():
+                errors.append('Username already exists')
+            
+            if not password:
+                errors.append('Password is required')
+            elif len(password) < 8:
+                errors.append('Password must be at least 8 characters')
+            
+            if not email:
+                errors.append('Email is required')
+            elif '@' not in email or '.' not in email:
+                errors.append('Please enter a valid email address')
+            elif User.objects.filter(email=email).exists():
+                errors.append('Email already exists')
+            
+            if errors:
+                return JsonResponse({'status': False, 'message': ', '.join(errors)}, status=400)
             
             user = User.objects.create_user(username=username, password=password, email=email)
             user.save()

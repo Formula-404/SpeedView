@@ -141,7 +141,10 @@ def api_team_list(request):
 
 @require_GET
 def api_team_detail(request, team_name):
-    team = get_object_or_404(Team, pk=team_name)
+    try:
+        team = Team.objects.get(pk=team_name)
+    except Team.DoesNotExist:
+        return json_error(f"Team '{team_name}' not found.", status=404)
     return JsonResponse({"ok": True, "data": serialize_team(team)})
 
 @csrf_protect
@@ -154,7 +157,8 @@ def api_team_create(request):
 
     payload = request.POST.dict() or parse_json(request)
     if payload is None:
-        return HttpResponseBadRequest("Invalid JSON body.")
+        return json_error("Invalid JSON body.", status=400)
+    
     form = TeamForm(payload)
     if form.is_valid():
         try:
@@ -176,16 +180,21 @@ def api_team_create(request):
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 @csrf_protect
+@require_POST
 def api_team_update(request, team_name):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
     if not is_admin(request):
         return json_error("Admin role required.", status=403)
 
-    team = get_object_or_404(Team, pk=team_name)
+    try:
+        team = Team.objects.get(pk=team_name)
+    except Team.DoesNotExist:
+        return json_error(f"Team '{team_name}' not found.", status=404)
+
     payload = parse_json(request) or request.POST.dict()
     if payload is None:
-        return HttpResponseBadRequest("Invalid JSON body.")
+        return json_error("Invalid JSON body.", status=400)
 
     payload["team_name"] = team.team_name
 
@@ -200,13 +209,18 @@ def api_team_update(request, team_name):
     return json_error("Validation failed", field_errors=form.errors, status=422)
 
 @csrf_protect
+@require_POST
 def api_team_delete(request, team_name):
     if not request.user.is_authenticated:
         return json_error("Authentication required.", status=401)
     if not is_admin(request):
         return json_error("Admin role required.", status=403)
 
-    team = get_object_or_404(Team, pk=team_name)
+    try:
+        team = Team.objects.get(pk=team_name)
+    except Team.DoesNotExist:
+        return json_error(f"Team '{team_name}' not found.", status=404)
+
     team.delete()
     return JsonResponse({"ok": True, "deleted": team_name})
 
