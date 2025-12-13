@@ -11,5 +11,8 @@ urlpatterns = [
     path("", views.circuit_list_page, name="list_page"),
     path("add/", views.add_circuit_page, name="add_page"),
     path("<int:pk>/", views.circuit_detail_page, name="detail_page"),
-    path("<int:pk>/edit/", views.edit_circuit_page, name="edit_page")
+    path("<int:pk>/edit/", views.edit_circuit_page, name="edit_page"),
+    path("web/create/", views.web_circuit_create, name="web_create"),
+    path("web/update/<int:pk>/", views.web_circuit_update, name="web_update"),
+    path("web/delete/<int:pk>/", views.web_circuit_delete, name="web_delete"),
 ]

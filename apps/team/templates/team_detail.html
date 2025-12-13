@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static user_extras %}
 
 {% block meta %}
     <title>Team – SpeedView</title>
@@ -36,7 +36,7 @@
                             <span id="code-badge" class="px-2 py-0.5 text-[11px] font-bold rounded bg-white/10 border border-white/15 text-white/80 skeleton">—</span>
                             <span id="active-badge" class="px-2.5 py-1 text-[10px] rounded-full border text-white/80">—</span>
                             <div class="ml-auto flex items-center gap-x-1_5">
-                                {% if request.user.is_authenticated and request.user.profile.role == 'admin' %}
+                                {% if request.user.is_authenticated and request.user|is_admin_user %}
                                     <a id="edit-link" href="#" class="icon-btn" title="Edit">
                                         <img alt="Edit" src="https://img.icons8.com/?size=100&id=kCViyr9hZtLX&format=png&color=FFFFFF" />
                                     </a>

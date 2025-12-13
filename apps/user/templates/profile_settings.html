@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static user_extras %}
 
 {% block meta %}
     <title>Profile Settings - SpeedView</title>
@@ -63,7 +63,7 @@
             <div class="mb-8">
                 <div class="flex items-center gap-3 mb-2">
                     <h1 class="text-3xl font-bold text-[#E6EDF3]">Profile Settings</h1>
-                    {% if user.profile.role == 'admin' %}
+                    {% if user|is_admin_user %}
                         <span class="px-3 py-2 bg-red-500/10 border-l-[2px] border-red-400 text-red-400 text-xs font-semibold rounded-none">ADMIN</span>
                     {% else %}
                         <span class="px-3 py-2 bg-blue-500/10 border-l-[2px] border-blue-400 text-blue-400 text-xs font-semibold rounded-none">USER</span>
@@ -106,14 +106,14 @@
                             <div>
                                 <p class="text-sm text-[#E6EDF3]/70 mb-1">Account Role</p>
                                 <p class="text-lg font-semibold text-[#E6EDF3]">
-                                    {% if user.profile.role == 'admin' %}
+                                    {% if user|is_admin_user %}
                                         <span class="text-red-400">Administrator</span>
                                     {% else %}
                                         <span class="text-blue-400">User</span>
                                     {% endif %}
                                 </p>
                             </div>
-                            {% if user.profile.role == 'admin' %}
+                            {% if user|is_admin_user %}
                                 <span class="px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 text-sm font-semibold rounded-lg">ADMIN</span>
                             {% else %}
                                 <span class="px-4 py-2 bg-blue-500/20 border border-blue-500/50 text-blue-400 text-sm font-semibold rounded-lg">USER</span>

@@ -1,8 +1,9 @@
 import json
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.db import transaction
 from django.views.decorators.http import require_GET, require_POST
 from django.db.models import Q, Prefetch
@@ -33,28 +34,41 @@ def serialize_comparison(cmp: Comparison) -> dict:
             .filter(comparison=cmp).order_by("order_index")
             .values_list("team__team_name", flat=True)
         )
+
     elif cmp.module == Comparison.MODULE_CIRCUIT:
         items = list(
             ComparisonCircuit.objects.select_related("circuit")
             .filter(comparison=cmp).order_by("order_index")
             .values_list("circuit__name", flat=True)
         )
+
+    elif cmp.module == Comparison.MODULE_DRIVER:
+        # Use full name / broadcast name as label in list view
+        items = list(
+            ComparisonDriver.objects.select_related("driver")
+            .filter(comparison=cmp).order_by("order_index")
+            .values_list("driver__full_name", flat=True)
+        )
+
     else:
         items = []
 
-    owner_name = getattr(cmp.owner, "username", "") or (cmp.owner.get_username() if hasattr(cmp.owner, "get_username") else "")
+    owner_name = getattr(cmp.owner, "username", "") or (
+        cmp.owner.get_username() if hasattr(cmp.owner, "get_username") else ""
+    )
 
     return {
         "id": str(cmp.pk),
         "title": cmp.title,
         "module": cmp.module,
-        "module_label": cmp.get_module_display(), # type: ignore
+        "module_label": cmp.get_module_display(),  # type: ignore
         "is_public": cmp.is_public,
         "owner_name": owner_name or "—",
         "created_at": cmp.created_at.isoformat() if cmp.created_at else "",
         "detail_url": cmp.get_absolute_url(),
         "items": items,
     }
+
 
 def serialize_team_for_compare(t: Team):
     return {
@@ -82,11 +96,44 @@ def serialize_team_for_compare(t: Team):
 
 def serialize_circuit_for_compare(c: Circuit) -> dict:
     label = getattr(c, "name", None) or str(c)
+    location = getattr(c, "location", "") or ""
+    country = getattr(c, "country", "") or ""
+
+    map_image_url = getattr(c, "map_image_url", "") or ""
+
+    get_type_display = getattr(c, "get_circuit_type_display", None)
+    circuit_type_label = get_type_display() if callable(get_type_display) else ""
+
+    get_direction_display = getattr(c, "get_direction_display", None)
+    direction_label = get_direction_display() if callable(get_direction_display) else ""
+
+    length_km = getattr(c, "length_km", None)
+    if length_km is not None:
+        try:
+            length_km = float(length_km)
+        except (TypeError, ValueError):
+            length_km = None
+
+    turns = getattr(c, "turns", None)
+    grands_prix_held = getattr(c, "grands_prix_held", None)
+
+    last_used = getattr(c, "last_used", None)
+    last_used_str = last_used.isoformat() if last_used is not None else ""
+
+    detail_url = getattr(c, "get_absolute_url", lambda: "")() or ""
+
     return {
         "label": label,
-        "country": getattr(c, "country", None),
-        "length_km": getattr(c, "length_km", None),
-        "detail_url": getattr(c, "get_absolute_url", lambda: "")(),
+        "country": country,
+        "length_km": length_km,
+        "detail_url": detail_url,
+        "location": location,
+        "map_image_url": map_image_url,
+        "circuit_type_label": circuit_type_label,
+        "direction_label": direction_label,
+        "turns": turns,
+        "grands_prix_held": grands_prix_held,
+        "last_used": last_used_str,
     }
 
 def serialize_driver_for_compare(d: Driver):
@@ -108,6 +155,20 @@ def serialize_car_for_compare(c: Car):
         "detail_url": getattr(c, "get_absolute_url", lambda: "")(),
     }
 
+def _auth_mobile_user(payload):
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+
+    if not username or not password:
+        return None, json_error("username and password are required.", status=401)
+
+    user = authenticate(username=username, password=password)
+    if user is None:
+        return None, json_error("Invalid credentials.", status=401)
+
+    return user, None
+
+
 # ================== pages ==================
 def list_page(request):
     return render(request, "comparison_list.html")
@@ -120,7 +181,7 @@ def create_page(request):
 def detail_page(request, pk):
     cmp = get_object_or_404(Comparison, pk=pk)
     if cmp.owner != request.user and not cmp.is_public:
-        return render(request, "403.html", status=403)
+        return render(request, "comparison_list.html", status=403)
 
 
     if cmp.module == Comparison.MODULE_TEAM:
@@ -155,7 +216,6 @@ def detail_page(request, pk):
 
 
 # ================== api ==================
-@login_required
 @csrf_protect
 @require_POST
 def api_comparison_create(request):
@@ -169,7 +229,7 @@ def api_comparison_create(request):
     items = payload.get("items") or []
     is_public = bool(payload.get("is_public"))
 
-    if module not in {Comparison.MODULE_TEAM, Comparison.MODULE_CAR, Comparison.MODULE_DRIVER, Comparison.MODULE_CIRCUIT}:
+    if module not in {Comparison.MODULE_TEAM, Comparison.MODULE_DRIVER, Comparison.MODULE_CIRCUIT}:
         return JsonResponse({"ok": False, "error": "Unknown module."}, status=400)
     if not (2 <= len(items) <= 4):
         return JsonResponse({"ok": False, "error": "Pick 2–4 items."}, status=400)
@@ -181,7 +241,6 @@ def api_comparison_create(request):
             title=title,
             is_public=is_public,
         )
-
 
     if module == Comparison.MODULE_TEAM:
         for idx, team_pk in enumerate(items):
@@ -197,11 +256,6 @@ def api_comparison_create(request):
             pk = int(raw_pk)
             driver = get_object_or_404(Driver, pk=pk)
             ComparisonDriver.objects.create(comparison=cmp, driver=driver, order_index=idx)
-    elif module == Comparison.MODULE_CAR:
-        for idx, raw_pk in enumerate(items):
-            pk = int(raw_pk)
-            car = get_object_or_404(Car, pk=pk)
-            ComparisonCar.objects.create(comparison=cmp, car=car, order_index=idx)
 
     return JsonResponse({"ok": True, "redirect": cmp.get_absolute_url()})
 
@@ -222,10 +276,9 @@ def api_comparison_list(request):
     return JsonResponse({"ok": True, "count": len(data), "data": data})
 
 
-@login_required
 @require_GET
 def api_comparison_detail(request, pk):
-    cmp = get_object_or_404(Comparison, pk=pk, owner=request.user)
+    cmp = get_object_or_404(Comparison, pk=pk)
     payload: dict[str, object] = {"id": str(cmp.pk), "module": cmp.module}
 
 
@@ -247,7 +300,6 @@ def api_comparison_detail(request, pk):
         payload["items"] = [serialize_driver_for_compare(l.driver) for l in links]
         return JsonResponse({"ok": True, "data": payload})
 
-
     if cmp.module == Comparison.MODULE_CAR:
         links = (ComparisonCar.objects.select_related("car")
             .filter(comparison=cmp).order_by("order_index"))
@@ -257,7 +309,6 @@ def api_comparison_detail(request, pk):
 
     return json_error("Unsupported module.", status=422)
 
-@login_required
 @csrf_protect
 @require_POST
 def api_comparison_delete(request, pk):
@@ -267,3 +318,147 @@ def api_comparison_delete(request, pk):
         return HttpResponseForbidden("Not allowed")
     cmp.delete()
     return JsonResponse({"ok": True, "redirect": reverse("comparison:list_page")})
+
+# ================== mobile API ==================
+@require_GET
+def api_mobile_comparison_list(request):
+    scope = request.GET.get("scope", "all")
+    owner_username = request.GET.get("owner", "").strip()
+
+    qs = Comparison.objects.select_related("owner").order_by("-created_at")
+
+    if scope == "all":
+        qs = qs.filter(is_public=True)
+
+    elif scope == "my":
+        if not owner_username:
+            qs = qs.filter(is_public=True)
+        else:
+            qs = qs.filter(owner__username=owner_username)
+
+    else:
+        return JsonResponse({"ok": False, "error": "Invalid scope"}, status=400)
+
+    data = [serialize_comparison(c) for c in qs]
+    return JsonResponse({"ok": True, "count": len(data), "data": data})
+
+@csrf_exempt
+@require_POST
+def api_mobile_comparison_create(request):
+    payload = parse_json(request)
+    if payload is None:
+        return json_error("Invalid JSON body.", status=400)
+
+    if request.user.is_authenticated:
+        user = request.user
+    else:
+        user, err = _auth_mobile_user(payload)
+        if err is not None:
+            return err
+
+    title = (payload.get("title") or "").strip() or "My Comparison"
+    module = (payload.get("module") or "").strip()
+    items = payload.get("items") or []
+    is_public = bool(payload.get("is_public"))
+
+    if module not in {
+        Comparison.MODULE_TEAM,
+        Comparison.MODULE_CAR,
+        Comparison.MODULE_DRIVER,
+        Comparison.MODULE_CIRCUIT,
+    }:
+        return json_error("Unknown module.", status=400)
+
+    if not (2 <= len(items) <= 4):
+        return json_error("Pick 2–4 items.", status=400)
+
+    with transaction.atomic():
+        cmp = Comparison.objects.create(
+            owner=user,
+            module=module,
+            title=title,
+            is_public=is_public,
+        )
+
+        if module == Comparison.MODULE_TEAM:
+            for idx, team_pk in enumerate(items):
+                team = get_object_or_404(Team, pk=team_pk)
+                ComparisonTeam.objects.create(
+                    comparison=cmp, team=team, order_index=idx
+                )
+        elif module == Comparison.MODULE_CIRCUIT:
+            for idx, raw_pk in enumerate(items):
+                pk = int(raw_pk)
+                circuit = get_object_or_404(Circuit, pk=pk)
+                ComparisonCircuit.objects.create(
+                    comparison=cmp, circuit=circuit, order_index=idx
+                )
+        elif module == Comparison.MODULE_DRIVER:
+            for idx, raw_pk in enumerate(items):
+                pk = int(raw_pk)
+                driver = get_object_or_404(Driver, pk=pk)
+                ComparisonDriver.objects.create(
+                    comparison=cmp, driver=driver, order_index=idx
+                )
+        elif module == Comparison.MODULE_CAR:
+            for idx, raw_pk in enumerate(items):
+                pk = int(raw_pk)
+                car = get_object_or_404(Car, pk=pk)
+                ComparisonCar.objects.create(
+                    comparison=cmp, car=car, order_index=idx
+                )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "data": {
+                "id": str(cmp.pk),
+                "detail_url": cmp.get_absolute_url(),
+            },
+        }
+    )
+
+@csrf_exempt
+@require_POST
+def api_mobile_comparison_update(request, pk):
+    cmp = get_object_or_404(Comparison, pk=pk)
+
+    is_admin = getattr(getattr(request.user, "profile", None), "role", None) == "admin"
+    if cmp.owner != request.user and not is_admin:
+        return HttpResponseForbidden("Not allowed")
+
+    data = parse_json(request)
+    if data is None:
+        return json_error("Invalid JSON.", status=400)
+
+    title = (data.get("title") or "").strip()
+    if title:
+        cmp.title = title
+
+    if "is_public" in data:
+        cmp.is_public = bool(data["is_public"])
+
+    cmp.save(update_fields=["title", "is_public"])
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "data": {
+                "id": str(cmp.pk),
+                "title": cmp.title,
+                "is_public": cmp.is_public,
+            },
+        }
+    )
+
+@csrf_exempt
+@require_POST
+def api_mobile_comparison_delete(request, pk):
+    cmp = get_object_or_404(Comparison, pk=pk)
+
+    is_admin = getattr(getattr(request.user, "profile", None), "role", None) == "admin"
+    if cmp.owner != request.user and not is_admin:
+        return HttpResponseForbidden("Not allowed")
+
+    cmp.delete()
+    return JsonResponse({"ok": True})

@@ -15,31 +15,9 @@ class CircuitAdmin(admin.ModelAdmin):
         ('Histori Grand Prix', {'fields': ('grands_prix', 'seasons', 'grands_prix_held')}),
     )
 
-    def get_queryset(self, request):
-        """
-        Override queryset agar hanya menampilkan sirkuit buatan admin.
-        """
-        qs = super().get_queryset(request)
-        return qs
-
     # Otomatis set is_admin_created=True saat menyimpan via admin
     def save_model(self, request, obj, form, change):
-        obj.is_admin_created = True
         super().save_model(request, obj, form, change)
-
-    def has_delete_permission(self, request, obj=None):
-        if obj and not obj.is_admin_created:
-            return False
-        
-        return super().has_delete_permission(request, obj)
-    
-    def get_readonly_fields(self, request, obj=None):        
-        if obj is None:
-            return ()
-        
-        if not obj.is_admin_created:
-            return [field.name for field in self.model._meta.fields if field.name != "id"]
-        return super().get_readonly_fields(request, obj)
 
 class ReadOnlyMixin:
     actions = None

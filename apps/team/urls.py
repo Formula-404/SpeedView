@@ -17,4 +17,9 @@ urlpatterns = [
     path("<str:team_name>/", views.team_detail_page, name="detail_page"),
     path("<str:team_name>/edit/", views.edit_team_page, name="edit_page"),
 
+    # Mobile API
+    path('api/mobile/', views.api_mobile_team_list, name='api_mobile_comparison_list'),
+    path("api/mobile/create/", views.api_mobile_team_create, name="api_mobile_create"),
+    path("api/mobile/<str:team_name>/edit/", views.api_mobile_team_update, name="api_mobile_update"),
+    path("api/mobile/<str:team_name>/delete/", views.api_mobile_team_delete, name="api_mobile_delete"),
 ]
