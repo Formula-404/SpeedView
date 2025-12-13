@@ -83,6 +83,17 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOWED_ORIGINS = [
     "https://helven-marcia-speedview.pbp.cs.ui.ac.id",
 ]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 CSRF_TRUSTED_ORIGINS = [
     "https://helven-marcia-speedview.pbp.cs.ui.ac.id",
     "https://*.pbp.cs.ui.ac.id",
@@ -91,10 +102,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://10.0.2.2",
 ]
 
-CSRF_COOKIE_SECURE = PRODUCTION
-SESSION_COOKIE_SECURE = PRODUCTION
-CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SAMESITE = 'None'
 
 ROOT_URLCONF = 'SpeedView.urls'
 
