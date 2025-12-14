@@ -87,7 +87,8 @@ def register_admin_view(request):
         else:
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                    field_label = form.fields[field].label if field in form.fields else field
+                    messages.error(request, f"{field_label}: {error}")
     else:
         form = RegisterForm()
 
