@@ -267,4 +267,92 @@
   })();
 </script>
 
+<script>
+  (function() {
+    function getCSRF() {
+      const name = "csrftoken=";
+      return document.cookie
+        .split(";")
+        .map(s => s.trim())
+        .find(s => s.startsWith(name))
+        ?.slice(name.length) || "";
+    }
+
+    const delBtn = document.getElementById("cmp-delete-btn");
+    const modal = document.getElementById("cmp-delete-modal");
+    const backdrop = document.getElementById("cmp-modal-backdrop");
+    const cancelBtn = document.getElementById("cmp-modal-cancel");
+    const confirmBtn = document.getElementById("cmp-modal-confirm");
+    const errorBox = document.getElementById("cmp-modal-error");
+
+    // IMPORTANT: this must point to your comparison delete endpoint
+    const API_DELETE = "{% url 'comparison:api_delete' pk=cmp.pk %}";
+
+    function openModal() {
+      if (!modal) return;
+      modal.classList.remove("hidden");
+      if (errorBox) errorBox.classList.add("hidden");
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = "Delete";
+      }
+    }
+
+    function closeModal() {
+      if (!modal) return;
+      modal.classList.add("hidden");
+    }
+
+    if (delBtn) delBtn.addEventListener("click", openModal);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+    if (backdrop) backdrop.addEventListener("click", closeModal);
+
+    document.addEventListener("keydown", (e) => {
+      if (modal && !modal.classList.contains("hidden") && e.key === "Escape") closeModal();
+    });
+
+    if (confirmBtn) {
+      confirmBtn.addEventListener("click", async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = "Deleting…";
+        if (errorBox) errorBox.classList.add("hidden");
+
+        try {
+          const res = await fetch(API_DELETE, {
+            method: "POST",
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              "X-CSRFToken": getCSRF(),
+              "Accept": "application/json"
+            },
+            credentials: "same-origin"
+          });
+
+          const json = await res.json().catch(() => ({}));
+
+          if (!res.ok || json.ok === false) {
+            if (errorBox) {
+              errorBox.textContent = json.error || `Failed to delete (status ${res.status}).`;
+              errorBox.classList.remove("hidden");
+            }
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Delete";
+            return;
+          }
+
+          window.location.href = json.redirect || "{% url 'comparison:list_page' %}";
+        } catch (e) {
+          if (errorBox) {
+            errorBox.textContent = "Network error while deleting. Please try again.";
+            errorBox.classList.remove("hidden");
+          }
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = "Delete";
+        }
+      });
+    }
+  })();
+</script>
+
+
 {% endblock content %}
